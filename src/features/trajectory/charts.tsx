@@ -16,6 +16,8 @@ export function Distribution(props: {
   counts: Counts5;
   compare?: Counts5 | null;
   marks?: (i: number) => React.ReactNode;
+  /** Mostra só as proporções (quando os números não são contagens). */
+  hideCounts?: boolean;
 }) {
   const s = shares(props.counts);
   const c = props.compare ? shares(props.compare) : null;
@@ -30,7 +32,8 @@ export function Distribution(props: {
               {label}
             </span>
             <span className="muted xs" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {props.counts[i]} · {pct(s[i])}
+              {props.hideCounts ? '' : `${props.counts[i]} · `}
+              {pct(s[i])}
               {c && <span className="faint"> (antes {pct(c[i])})</span>}
             </span>
           </div>
@@ -156,6 +159,89 @@ export function Bars(props: { rows: Array<{ label: string; value: number; note?:
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Linhas com barra empilhada (ex.: um dia da semana por linha). */
+export function StackRows(props: {
+  rows: Array<{ label: string; counts: number[]; note: string; dim?: boolean }>;
+  colors: string[];
+  legend: string[];
+}) {
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      {props.rows.map((r) => {
+        const n = r.counts.reduce((a, b) => a + b, 0);
+        return (
+          <div key={r.label} style={{ opacity: r.dim ? 0.55 : 1 }}>
+            <div className="row between xs" style={{ marginBottom: 3 }}>
+              <span style={{ fontWeight: 600 }}>{r.label}</span>
+              <span className="muted">{r.note}</span>
+            </div>
+            {n ? (
+              <div className="stackbar" role="img" aria-label={`${r.label}: ${props.legend.map((l, i) => `${l} ${Math.round((r.counts[i] / n) * 100)}%`).join(', ')}`}>
+                {r.counts.map((c, i) => (c ? <div key={i} style={{ width: `${(c / n) * 100}%`, background: props.colors[i] }} /> : null))}
+              </div>
+            ) : (
+              <div className="xs faint">sem registros</div>
+            )}
+          </div>
+        );
+      })}
+      <div className="chart-legend">
+        {props.legend.map((l, i) => (
+          <span key={l}>
+            <span className="dot xs" style={{ background: props.colors[i] }} />
+            {l}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Tabela de contagens com intensidade (o número sempre visível). */
+export function HeatTable(props: { rowLabels: string[]; colLabels: string[]; values: number[][]; caption: string }) {
+  const max = Math.max(1, ...props.values.flat());
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'separate', borderSpacing: 3, fontSize: 12, width: '100%' }}>
+        <caption className="xs muted" style={{ textAlign: 'left', captionSide: 'bottom', paddingTop: 6 }}>
+          {props.caption}
+        </caption>
+        <thead>
+          <tr>
+            <th />
+            {props.colLabels.map((c) => (
+              <th key={c} className="faint" style={{ fontWeight: 500, padding: '0 2px' }}>
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {props.rowLabels.map((r, i) => (
+            <tr key={r}>
+              <th style={{ textAlign: 'left', fontWeight: 500, paddingRight: 6, whiteSpace: 'nowrap' }}>{r}</th>
+              {props.values[i].map((v, j) => (
+                <td
+                  key={j}
+                  style={{
+                    textAlign: 'center',
+                    padding: '6px 2px',
+                    borderRadius: 6,
+                    background: v ? `color-mix(in srgb, var(--primary-ink) ${Math.round(6 + (v / max) * 22)}%, var(--surface))` : 'var(--surface-2)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {v || '·'}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

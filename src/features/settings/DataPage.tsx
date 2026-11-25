@@ -5,12 +5,15 @@ import { store, useStoreState } from '../../app/store';
 import { resolveTokens, useSystemDark } from '../../app/theme';
 import { toast } from '../../app/toast';
 import { exportBackupText, inspectBackup, type BackupInspection } from '../../data/backup';
-import { experiencesCsv, moodCsv } from '../../data/csv';
+import { eventsCsv, experiencesCsv, moodCsv } from '../../data/csv';
 import { mergeData, type DuplicateStrategy } from '../../data/merge';
 import { COLLECTION_LABELS } from '../../data/validate';
 import { periodPreset } from '../../domain/analytics';
 import { COLLECTIONS } from '../../domain/schema';
 import { dayKey } from '../../domain/util';
+import { useSharedFilters } from '../../app/filters';
+import { activeCount, contextFor, describeFilters, matchMood } from '../../domain/filters';
+import { valenceLabel } from '../../domain/scales';
 import { clearExportCache, deliverFile, pickTextFile } from '../../platform/native';
 import { DEFAULT_SECTIONS, REPORT_SECTIONS, type ReportSection } from '../../report/sections';
 import { Field, fmtDate, Page, Section, Segmented, Toggle, useConfirm } from '../../ui/components';
@@ -332,11 +335,11 @@ function ImportBackup() {
 /* ------------------------------------------------------------------ */
 function CsvExport() {
   const [range, setRange] = useState<'all' | '365d' | '90d'>('all');
-  const from = range === 'all' ? undefined : periodPreset(range).from.toISOString();
-  const run = async (kind: 'mood' | 'exp') => {
+  const from = range === 'all' ? undefined : dayKey(periodPreset(range).from);
+  const run = async (kind: 'mood' | 'exp' | 'event') => {
     const data = store.getState().data;
-    const csv = kind === 'mood' ? moodCsv(data, from) : experiencesCsv(data, from);
-    await deliverFile(`palimpsesto-${kind === 'mood' ? 'humor' : 'experiencias'}-${stamp()}.csv`, csv, 'text/csv');
+    const csv = kind === 'mood' ? moodCsv(data, from) : kind === 'exp' ? experiencesCsv(data, from) : eventsCsv(data);
+    await deliverFile(`palimpsesto-${{ mood: 'humor', exp: 'experiencias', event: 'acontecimentos' }[kind]}-${stamp()}.csv`, csv, 'text/csv');
   };
   return (
     <Section title="Planilhas (CSV)" kicker="Exportar registros">
@@ -360,6 +363,9 @@ function CsvExport() {
           <button className="btn secondary" onClick={() => run('exp')}>
             Experiências
           </button>
+          <button className="btn secondary" onClick={() => run('event')}>
+            Acontecimentos
+          </button>
         </div>
       </div>
     </Section>
@@ -373,6 +379,9 @@ function PdfReport() {
   const [from, setFrom] = useState(dayKey(periodPreset('30d').from));
   const [to, setTo] = useState(dayKey(new Date()));
   const [sections, setSections] = useState<ReportSection[]>(DEFAULT_SECTIONS);
+  const [filters] = useSharedFilters();
+  const [useFilters, setUseFilters] = useState(false);
+  const hasFilters = activeCount(filters, false) > 0;
   const [busy, setBusy] = useState(false);
   const preset = (k: '30d' | '90d' | '365d') => {
     setFrom(dayKey(periodPreset(k).from));
@@ -383,7 +392,12 @@ function PdfReport() {
     try {
       const period = { from: new Date(from + 'T00:00:00'), to: new Date(to + 'T23:59:59.999') };
       const { buildReport } = await import('../../report/pdf');
-      const bytes = buildReport(st.data, period, sections, resolveTokens({ ...st.data.preferences, appearance: 'light' }, systemDark));
+      const ctx = contextFor(st.data);
+      const f = { ...filters, type: 'mood' as const, period: 'all' as const };
+      const bytes = buildReport(st.data, period, sections, resolveTokens({ ...st.data.preferences, appearance: 'light' }, systemDark), {
+        entryFilter: useFilters && hasFilters ? (m) => matchMood(m, f, ctx) : undefined,
+        filterLabel: useFilters && hasFilters ? describeFilters({ ...filters, type: 'all' }, st.data, (v) => valenceLabel(v, st.data.preferences.valenceLabels), false).join(', ') : undefined,
+      });
       await deliverFile(`palimpsesto-relatorio-${from}-a-${to}.pdf`, bytes, 'application/pdf');
     } catch (e: any) {
       toast(`Não foi possível gerar o relatório: ${e?.message ?? e}`, 5000);
@@ -423,6 +437,19 @@ function PdfReport() {
             ))}
           </div>
         </Field>
+        {hasFilters && (
+          <div className="list">
+            <Toggle
+              label="Aplicar os filtros atuais da Trajetória"
+              help={describeFilters({ ...filters, type: 'all' }, st.data, (v) => valenceLabel(v, st.data.preferences.valenceLabels), false).join(' · ')}
+              checked={useFilters}
+              onChange={setUseFilters}
+            />
+          </div>
+        )}
+        <p className="xs muted" style={{ margin: 0 }}>
+          Nada sai do aparelho sem você escolher: o PDF é gerado aqui e você decide com quem compartilhar.
+        </p>
         <button className="btn primary" disabled={!sections.length || busy} onClick={run}>
           <FileText size={16} /> {busy ? 'Gerando…' : 'Gerar PDF'}
         </button>

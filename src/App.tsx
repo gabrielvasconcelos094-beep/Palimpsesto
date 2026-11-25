@@ -19,6 +19,7 @@ import { ItemPage } from './features/guide/Repertoire';
 import { SituationPage } from './features/guide/Situations';
 import { LetterPage } from './features/guide/Letters';
 import { Trajectory } from './features/trajectory/Trajectory';
+import { TrajectoryCategory } from './features/trajectory/categories';
 import { AboutPage, EmotionsPage, IndicatorsPage, ScalePage, SettingsHome } from './features/settings/Settings';
 import { ThemeEditorPage, ThemesPage } from './features/settings/Themes';
 import { DataPage } from './features/settings/DataPage';
@@ -57,7 +58,7 @@ function Screen() {
     case 'busca':
       return <SearchPage />;
     case 'trajetoria':
-      return <Trajectory />;
+      return b ? <TrajectoryCategory /> : <Trajectory />;
     case 'ajustes':
       if (b === 'temas') return <ThemesPage />;
       if (b === 'tema') return <ThemeEditorPage />;

@@ -20,10 +20,13 @@ export function toCsv(rows: unknown[][]): string {
   return '﻿' + rows.map((r) => r.map(csvCell).join(SEP)).join('\r\n') + '\r\n';
 }
 
-const localDate = (iso: string) => {
+/** `at` é hora local flutuante: data e hora saem sem conversão de fuso. */
+const localDate = (at: string) => [at.slice(0, 10), at.slice(11, 16)];
+const PRECISION = { exact: 'exato', period: 'periodo', day: 'sem_horario' } as const;
+const created = (iso: string) => {
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, '0');
-  return [`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, `${p(d.getHours())}:${p(d.getMinutes())}`];
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 
 export function moodCsv(data: AppData, from?: string, to?: string): string {
@@ -33,6 +36,7 @@ export function moodCsv(data: AppData, from?: string, to?: string): string {
     'id',
     'data',
     'hora',
+    'precisao_horario',
     'valencia_nivel_1a5',
     'valencia_valor',
     'valencia_rotulo',
@@ -40,18 +44,23 @@ export function moodCsv(data: AppData, from?: string, to?: string): string {
     'energia_rotulo',
     'emocoes',
     ...INDICATOR_KEYS.map((k) => `${k}_1a5`),
+    'atividades',
     'contexto',
     'observacoes',
+    'escrito_em',
+    'alterado_em',
   ];
+  const items = new Map(data.repertoire.map((i) => [i.id, i.name]));
   const rows = data.moodEntries
-    .filter((m) => (!from || m.at >= from) && (!to || m.at <= to))
+    .filter((m) => (!from || m.at.slice(0, 10) >= from.slice(0, 10)) && (!to || m.at.slice(0, 10) <= to.slice(0, 10)))
     .sort((a, b) => a.at.localeCompare(b.at))
     .map((m) => {
       const [d, h] = localDate(m.at);
       return [
         m.id,
         d,
-        h,
+        m.timePrecision === 'day' ? '' : h,
+        PRECISION[m.timePrecision],
         m.valence + 3,
         m.valence,
         valenceLabel(m.valence, labels),
@@ -59,8 +68,11 @@ export function moodCsv(data: AppData, from?: string, to?: string): string {
         m.energy ? energyLabel(m.energy, data.preferences.energyLabels) : '',
         m.emotionIds.map((id) => emo.get(id) ?? id).join(', '),
         ...INDICATOR_KEYS.map((k) => m.indicators[k] ?? ''),
+        m.itemIds.map((id) => items.get(id) ?? id).join(', '),
         m.tags.join(', '),
         m.note,
+        created(m.createdAt),
+        created(m.updatedAt),
       ];
     });
   return toCsv([header, ...rows]);
@@ -85,9 +97,10 @@ export function experiencesCsv(data: AppData, from?: string, to?: string): strin
     'aprendizado',
     'estrategias_usadas',
     'marcadores',
+    'escrito_em',
   ];
   const rows = data.experiences
-    .filter((x) => (!from || x.at >= from) && (!to || x.at <= to))
+    .filter((x) => (!from || x.at.slice(0, 10) >= from.slice(0, 10)) && (!to || x.at.slice(0, 10) <= to.slice(0, 10)))
     .sort((a, b) => a.at.localeCompare(b.at))
     .map((x) => {
       const uses = data.uses
@@ -108,6 +121,7 @@ export function experiencesCsv(data: AppData, from?: string, to?: string): strin
         x.learned,
         uses.join(' | '),
         x.tags.join(', '),
+        created(x.createdAt),
       ];
     });
   return toCsv([header, ...rows]);
@@ -115,4 +129,12 @@ export function experiencesCsv(data: AppData, from?: string, to?: string): strin
 
 export function indicatorHeaderLabels() {
   return INDICATOR_KEYS.map((k) => INDICATORS[k].label);
+}
+
+export function eventsCsv(data: AppData): string {
+  const header = ['id', 'inicio', 'fim', 'tipo', 'titulo', 'descricao', 'marcadores', 'escrito_em'];
+  const rows = [...data.events]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => [e.id, e.date, e.endDate ?? '', e.category, e.title, e.description, e.tags.join(', '), created(e.createdAt)]);
+  return toCsv([header, ...rows]);
 }

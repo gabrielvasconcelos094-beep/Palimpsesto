@@ -23,3 +23,30 @@ export function useSharedFilters(): [RecordFilters, (f: RecordFilters) => void] 
   return [f, setSharedFilters];
 }
 export { NO_FILTERS };
+
+/* Período da Trajetória (compartilhado entre a visão geral e as categorias). */
+import type { PeriodKind } from '../domain/filters';
+export interface TrajPeriod {
+  kind: PeriodKind;
+  from: string | null;
+  to: string | null;
+  compare: boolean;
+}
+let traj: TrajPeriod = { kind: '30d', from: null, to: null, compare: false };
+const tl = new Set<() => void>();
+export function useTrajPeriod(): [TrajPeriod, (p: TrajPeriod) => void] {
+  const p = useSyncExternalStore(
+    (l) => {
+      tl.add(l);
+      return () => tl.delete(l);
+    },
+    () => traj,
+  );
+  return [
+    p,
+    (n: TrajPeriod) => {
+      traj = n;
+      tl.forEach((l) => l());
+    },
+  ];
+}

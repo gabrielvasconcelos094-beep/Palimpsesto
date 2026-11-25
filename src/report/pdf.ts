@@ -19,6 +19,8 @@ import {
 } from '../domain/analytics';
 import { CONFIDENCE_LABELS, energyLabel, INDICATORS, OUTCOME_LABELS, OUTCOME_ORDER, valenceLabel } from '../domain/scales';
 import type { Tokens } from '../theme/tokens';
+import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
+import { dayKey as dayStr } from '../domain/util';
 
 import { type ReportSection } from './sections';
 
@@ -41,7 +43,13 @@ const hex = (h: string): [number, number, number] => {
   return [0, 2, 4].map((i) => parseInt(m.slice(i, i + 2), 16)) as [number, number, number];
 };
 
-export function buildReport(data: AppData, period: Period, sections: ReportSection[], tokens: Tokens): Uint8Array {
+export function buildReport(
+  data: AppData,
+  period: Period,
+  sections: ReportSection[],
+  tokens: Tokens,
+  opts: { entryFilter?: (m: AppData['moodEntries'][number]) => boolean; filterLabel?: string } = {},
+): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const M = 18;
@@ -53,7 +61,7 @@ export function buildReport(data: AppData, period: Period, sections: ReportSecti
   const mood = tokens.mood.map(hex);
   const prefs = data.preferences;
   const emo = new Map(data.emotions.map((e) => [e.id, e.label]));
-  const entries = data.moodEntries.filter((m) => inPeriod(m.at, period)).sort((a, b) => a.at.localeCompare(b.at));
+  const entries = data.moodEntries.filter((m) => inPeriod(m.at, period) && (!opts.entryFilter || opts.entryFilter(m))).sort((a, b) => a.at.localeCompare(b.at));
   const exps = data.experiences.filter((x) => inPeriod(x.at, period)).sort((a, b) => a.at.localeCompare(b.at));
 
   const ensure = (h: number) => {
@@ -119,7 +127,8 @@ export function buildReport(data: AppData, period: Period, sections: ReportSecti
   y += 16;
   text('Relatório pessoal', { size: 13, font: 'times', style: 'italic', color: soft, gap: 4 });
   text(`Período: ${fmt(period.from.toISOString())} a ${fmt(period.to.toISOString())}`, { size: 10 });
-  text(`Gerado em ${fmt(new Date().toISOString())}, no próprio aparelho.`, { size: 9, color: soft, gap: 4 });
+  text(`Gerado em ${fmt(new Date().toISOString())}, no próprio aparelho.`, { size: 9, color: soft, gap: opts.filterLabel ? 1 : 4 });
+  if (opts.filterLabel) text(`Registros de humor filtrados: ${opts.filterLabel}.`, { size: 9, color: soft, gap: 4 });
   text(
     'Este relatório reúne registros pessoais de auto-observação. Não é um documento clínico nem um diagnóstico. As escalas são ordinais: os números indicam contagens e proporções, não médias. Associações não indicam causa.',
     { size: 8.5, color: soft, gap: 6 },
@@ -216,6 +225,57 @@ export function buildReport(data: AppData, period: Period, sections: ReportSecti
     }
   }
 
+  if (sections.includes('events')) {
+    const from = dayStr(period.from);
+    const to = dayStr(period.to);
+    const evs = data.events.filter((e) => (e.endDate ?? e.date) >= from && e.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+    if (evs.length) {
+      heading('Acontecimentos');
+      text('O que estava acontecendo no período. Estar no mesmo período não indica relação de causa com o humor.', { size: 8.5, color: soft });
+      for (const e of evs) {
+        const during = entries.filter((m) => m.at.slice(0, 10) >= e.date && m.at.slice(0, 10) <= (e.endDate ?? e.date));
+        text(`${fmt(e.date)}${e.endDate && e.endDate !== e.date ? ` a ${fmt(e.endDate)}` : ''} - ${e.title}`, { size: 10.5, style: 'bold', gap: 0.6 });
+        if (e.description) text(e.description.slice(0, 500), { size: 9.5, gap: 0.6 });
+        if (during.length) {
+          const c = valenceCounts(during);
+          text(`${during.length} registro(s) de humor no período: ${c.map((n, i) => (n ? `${vLabels[i]} ${n}` : '')).filter(Boolean).join(', ')}.`, { size: 8.5, color: soft, gap: 2.5 });
+        } else y += 2;
+      }
+    }
+  }
+
+  if (sections.includes('weekdays') && entries.length) {
+    heading('Dias da semana e horários');
+    const ws = weekdayStats(entries);
+    text('Proporção de avaliações agradáveis por dia da semana (cada data pesa o mesmo).', { size: 8.5, color: soft });
+    for (const d of [1, 2, 3, 4, 5, 6, 0]) {
+      const s = ws[d];
+      text(
+        `${WEEKDAYS_FULL[d]}: ${s.records ? `${Math.round(shareBy(s.entries, (m) => m.valence >= 1, 'day') * 100)}% agradáveis` : 'sem registros'} (${s.records} registro(s), ${s.dates} data(s))${s.dates < 3 && s.records ? ' - poucos dados' : ''}`,
+        { size: 9.5, gap: 0.5 },
+      );
+    }
+    const best = weekdayHighlight(entries, (m) => m.valence >= 1, 'day');
+    y += 2;
+    text(best.ok ? `Nos registros disponíveis, ${best.h.label} apresentou a maior proporção de avaliações agradáveis (${Math.round(best.h.share * 100)}%). Isso descreve os dados, não estabelece um melhor dia.` : best.reason, { size: 9, gap: 3 });
+    const parts = dayPartStats(entries);
+    for (const p of parts.parts) if (p.records) text(`${p.label}: ${p.records} registro(s), ${Math.round((p.entries.filter((m) => m.valence >= 1).length / p.records) * 100)}% agradáveis`, { size: 9.5, gap: 0.5 });
+    if (parts.untimed) text(`${parts.untimed} registro(s) sem horário não entram nos períodos do dia.`, { size: 8.5, color: soft });
+  }
+
+  if (sections.includes('activities')) {
+    const acts = activityStats(entries).filter((a) => data.repertoire.some((i) => i.id === a.itemId));
+    if (acts.length) {
+      heading('Atividades nos registros');
+      text('Proporção de registros agradáveis com cada atividade e nos demais registros. Associação, não efeito.', { size: 8.5, color: soft });
+      for (const a of acts.slice(0, 15))
+        text(
+          `${data.repertoire.find((i) => i.id === a.itemId)!.name}: ${a.records} registro(s) em ${a.dates} data(s) - ${Math.round(a.pleasantShare * 100)}% agradáveis (demais: ${Math.round(a.othersPleasantShare * 100)}%)${a.records < 5 ? ' - poucos dados' : ''}`,
+          { size: 9.5, gap: 0.6 },
+        );
+    }
+  }
+
   if (sections.includes('experiences') && exps.length) {
     heading('Experiências');
     for (const x of exps) {
@@ -275,7 +335,8 @@ export function buildReport(data: AppData, period: Period, sections: ReportSecti
         m.emotionIds.map((i) => emo.get(i)).filter(Boolean).join(', '),
         m.tags.length ? `#${m.tags.join(' #')}` : '',
       ].filter(Boolean);
-      text(`${fmt(m.at)} ${time} - ${parts.join(' · ')}`, { size: 9, gap: 0.4 });
+      const retro = dayStr(new Date(m.createdAt)) > m.at.slice(0, 10) ? ` (escrito em ${fmt(m.createdAt)})` : '';
+      text(`${fmt(m.at)} ${m.timePrecision === 'day' ? '' : time} - ${parts.join(' · ')}${retro}`, { size: 9, gap: 0.4 });
       if (m.note) text(m.note.slice(0, 500), { size: 8.5, color: soft, x: M + 4, width: CW - 4, gap: 1 });
     }
   }

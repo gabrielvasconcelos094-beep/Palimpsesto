@@ -7,6 +7,11 @@ import { localIso, seededRandom } from '../domain/util';
 
 export function seedSample(store: Store) {
   const r = seededRandom('palimpsesto');
+  const act = (name: string, category: string) => store.upsert('repertoire', { kind: 'activity', name, category } as any).id;
+  const LER = act('Ler', 'Lazer');
+  const MUSICA = act('Ouvir música', 'Lazer');
+  const ESTUDAR = act('Estudar', 'Estudo');
+  const SO = act('Ficar só', 'Lazer');
   const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)];
   const now = new Date();
   const day = (n: number, h = 12, m = 0) => {
@@ -36,8 +41,19 @@ export function seedSample(store: Store) {
       if (v <= -1) emos.push(pick(['emo.ansiedade', 'emo.tristeza', 'emo.irritacao', 'emo.frustracao']));
       if (tags.includes('encontro social') && r() < 0.7) emos.push('emo.sobrecarga');
       if (tags.includes('dormi mal')) emos.push('emo.cansaco');
+      const itemIds: string[] = [];
+      if (tags.includes('tempo só')) itemIds.push(SO);
+      if (r() < 0.3 && v >= 0) itemIds.push(LER);
+      if (r() < 0.2) itemIds.push(MUSICA);
+      if (tags.includes('trabalho') && r() < 0.5) itemIds.push(ESTUDAR);
+      const atStr = day(n, k ? 21 : 9 + Math.floor(r() * 4), Math.floor(r() * 59));
+      // Alguns registros foram escritos dias depois (retroativos), outros só com o período do dia.
+      const retro = r() < 0.12;
       store.upsert('moodEntries', {
-        at: day(n, k ? 21 : 9 + Math.floor(r() * 4), Math.floor(r() * 59)),
+        at: atStr,
+        timePrecision: retro ? 'period' : 'exact',
+        itemIds,
+        ...(retro ? { createdAt: new Date(Math.min(Date.now(), new Date(atStr).getTime() + 3 * 86400000)).toISOString() } : {}),
         valence: v,
         energy: Math.max(1, Math.min(5, 3 + v + (tags.includes('dormi mal') ? -1 : 0) + (r() < 0.3 ? 1 : 0))),
         emotionIds: [...new Set(emos)],
@@ -86,6 +102,9 @@ export function seedSample(store: Store) {
   const sit = store.upsert('situations', { title: 'Viagem para Ouro Preto', date: day(-9).slice(0, 10), endDate: day(-13).slice(0, 10), tags: ['viagem', 'encontro social'], checklist: [{ id: 'c1', text: 'Reservar uma manhã livre no meio da viagem', done: false }, { id: 'c2', text: 'Levar fones', done: true }] } as any);
   store.upsert('letters', { title: 'Para o primeiro dia da viagem', body: 'Lembra que você não precisa dar conta de tudo. Se cansar, volte para o quarto sem culpa.', openAt: day(-9).slice(0, 10), sealed: true, situationId: sit.id } as any);
   store.upsert('letters', { title: 'Para um dia difícil', body: 'Você já atravessou outros. Assista aquele filme, tome um chá, durma cedo.', tags: ['dia difícil'] } as any);
+  store.upsert('events', { title: 'Mudança de equipe no trabalho', date: day(40).slice(0, 10), endDate: day(25).slice(0, 10), category: 'trabalho', description: 'Primeiras semanas com a equipe nova.' } as any);
+  store.upsert('events', { title: 'Viagem a Paraty', date: day(70).slice(0, 10), endDate: day(64).slice(0, 10), category: 'viagem', tags: ['viagem'] } as any);
+  store.upsert('events', { title: 'Comecei a fazer cerâmica', date: day(15).slice(0, 10), category: 'inicio' } as any);
   store.setPreferences({ enabledIndicators: ['sleep', 'overload'] });
   store.setDevice({ onboardingDone: true });
 }

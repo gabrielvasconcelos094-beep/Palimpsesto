@@ -1,381 +1,245 @@
 import { useMemo, useState } from 'react';
-import { FileText, Info, Lightbulb } from 'lucide-react';
+import { ChevronRight, EyeOff, FileText, Lightbulb, Settings2, SlidersHorizontal } from 'lucide-react';
 import { navigate } from '../../app/router';
-import { useData } from '../../app/store';
-import {
-  buckets,
-  emotionFrequency,
-  energyCounts,
-  findPatterns,
-  inPeriod,
-  indicatorCounts,
-  medianCategory,
-  mostUsedItems,
-  PATTERN_MIN_ENTRIES,
-  periodPreset,
-  previousPeriod,
-  tagFrequency,
-  valenceCounts,
-  type Pattern,
-  type Period,
-} from '../../domain/analytics';
-import { CONFIDENCE_LABELS, energyLabel, INDICATORS, valenceLabel } from '../../domain/scales';
-import { CONFIDENCE, type AppData } from '../../domain/schema';
-import { dayKey } from '../../domain/util';
-import { Empty, fmtDate, Page, Section, Sheet, Toggle } from '../../ui/components';
+import { store } from '../../app/store';
+import { toast } from '../../app/toast';
+import { valenceCounts } from '../../domain/analytics';
+import { activeCount, describeFilters, NO_FILTERS, PERIOD_LABELS, type PeriodKind } from '../../domain/filters';
+import { buildInsights, distributionBy, type Unit } from '../../domain/insights';
+import { valenceLabel } from '../../domain/scales';
+import { Empty, fmtDate, Page, Section, Segmented, Sheet, Toggle } from '../../ui/components';
+import { FilterSheet, FilterSummary } from '../../ui/FilterSheet';
 import { ValenceMark } from '../../ui/pickers';
-import { CalendarView } from '../journal/Journal';
-import { OutcomeBar, OutcomeLegend } from '../guide/Repertoire';
-import { Bars, Distribution, Evolution } from './charts';
+import { Distribution } from './charts';
+import { CATEGORIES } from './categories';
+import { useTrajectory } from './useTrajectory';
 
-type PeriodKind = '7d' | '30d' | '90d' | '365d' | 'all';
-const PERIODS: Array<[PeriodKind, string]> = [
-  ['7d', '7 dias'],
-  ['30d', '30 dias'],
-  ['90d', '3 meses'],
-  ['365d', '12 meses'],
-  ['all', 'Tudo'],
-];
-const MOOD_COLORS = [1, 2, 3, 4, 5].map((i) => `var(--mood-${i})`);
-const ENERGY_COLORS = [1, 2, 3, 4, 5].map((i) => `var(--energy-${i})`);
+export const MOOD_COLORS = [1, 2, 3, 4, 5].map((i) => `var(--mood-${i})`);
+export const ENERGY_COLORS = [1, 2, 3, 4, 5].map((i) => `var(--energy-${i})`);
+
+/** Seletor de período + filtros (reutilizado nas categorias). */
+export function PeriodBar() {
+  const t = useTrajectory();
+  const [open, setOpen] = useState(false);
+  const labels = t.data.preferences.valenceLabels;
+  const p = t.period;
+  return (
+    <>
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        <div className="chips grow" role="group" aria-label="Período">
+          {(['7d', '30d', '90d', '365d', 'all', 'custom'] as PeriodKind[]).map((k) => (
+            <button key={k} className="chip" aria-pressed={p.kind === k} onClick={() => t.setPeriod({ ...p, kind: k, from: p.from ?? t.range.from, to: p.to ?? t.range.to })}>
+              {PERIOD_LABELS[k]}
+            </button>
+          ))}
+        </div>
+        <button className="icon-btn" aria-label={`Filtrar registros${activeCount(t.filters, false) ? ' (ativos)' : ''}`} onClick={() => setOpen(true)} style={activeCount(t.filters, false) ? { color: 'var(--primary-ink)' } : undefined}>
+          <SlidersHorizontal size={20} strokeWidth={1.6} />
+        </button>
+      </div>
+      {p.kind === 'custom' && (
+        <div className="grid-2" style={{ marginTop: 8 }}>
+          <input type="date" className="input" aria-label="De" value={p.from ?? ''} max={p.to ?? undefined} onChange={(e) => e.target.value && t.setPeriod({ ...p, from: e.target.value })} />
+          <input type="date" className="input" aria-label="Até" value={p.to ?? ''} min={p.from ?? undefined} onChange={(e) => e.target.value && t.setPeriod({ ...p, to: e.target.value })} />
+        </div>
+      )}
+      <p className="xs faint" style={{ margin: '8px 0 0' }}>
+        {fmtDate(t.range.from, { short: true, withYear: true })} a {fmtDate(t.range.to, { short: true, withYear: true })} · considera a data em que cada registro aconteceu
+      </p>
+      <FilterSummary items={describeFilters({ ...t.filters, type: 'all' }, t.data, (v) => valenceLabel(v, labels), false)} onClear={() => t.setFilters(NO_FILTERS)} />
+      <FilterSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        value={t.filters}
+        onChange={t.setFilters}
+        showType={false}
+        showPeriod={false}
+        resultLabel={`Ver estatísticas de ${t.entries.length} registro(s)`}
+      />
+    </>
+  );
+}
 
 export function Trajectory() {
-  const data = useData();
-  const prefs = data.preferences;
-  const [kind, setKind] = useState<PeriodKind>('30d');
-  const [compare, setCompare] = useState(false);
-  const [howOpen, setHowOpen] = useState(false);
-
-  const earliest = useMemo(() => {
-    const all = [...data.moodEntries.map((m) => m.at), ...data.experiences.map((x) => x.at)].sort();
-    return all[0] ? new Date(all[0]) : undefined;
-  }, [data.moodEntries, data.experiences]);
-  const period = useMemo(() => periodPreset(kind, new Date(), earliest), [kind, earliest]);
-  const prev = useMemo(() => previousPeriod(period), [period]);
-  const entries = useMemo(() => data.moodEntries.filter((m) => inPeriod(m.at, period)), [data.moodEntries, period]);
-  const prevEntries = useMemo(() => (compare ? data.moodEntries.filter((m) => inPeriod(m.at, prev)) : []), [data.moodEntries, prev, compare]);
-  const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, prefs.valenceLabels));
-  const eLabels = [1, 2, 3, 4, 5].map((e) => energyLabel(e, prefs.energyLabels));
-
-  const vc = valenceCounts(entries);
-  const pvc = compare ? valenceCounts(prevEntries) : null;
-  const ec = energyCounts(entries);
-  const pec = compare ? energyCounts(prevEntries) : null;
-  const evo = useMemo(() => buckets(entries, period, (e) => e.valence + 2, prefs.weekStartsOn), [entries, period, prefs.weekStartsOn]);
-  const evoE = useMemo(() => buckets(entries, period, (e) => (e.energy ? e.energy - 1 : null), prefs.weekStartsOn), [entries, period, prefs.weekStartsOn]);
-  const emo = new Map(data.emotions.map((e) => [e.id, e.label]));
-  const emotions = emotionFrequency(entries).slice(0, 10);
-  const prevEmo = compare ? new Map(emotionFrequency(prevEntries).map((x) => [x.id, x])) : null;
-  const tags = tagFrequency(entries).slice(0, 10);
-  const daysWith = new Set(entries.map((e) => dayKey(e.at))).size;
-  const exps = data.experiences.filter((x) => inPeriod(x.at, period));
-  const discs = data.discoveries.filter((d) => inPeriod(d.at.length <= 10 ? d.at + 'T12:00:00' : d.at, period));
-  const used = mostUsedItems(data, period).slice(0, 6);
-  const withEnergy = sum5(ec);
-  const median = medianCategory(vc);
-  const mode = vc.indexOf(Math.max(...vc));
-
-  const improved = exps.filter((x) => x.feelingBefore !== null && x.feelingAfter !== null && x.feelingAfter > x.feelingBefore).length;
-  const comparable = exps.filter((x) => x.feelingBefore !== null && x.feelingAfter !== null).length;
+  const t = useTrajectory();
+  const prefs = t.data.preferences;
+  const [unit, setUnit] = useState<Unit>('record');
+  const [custom, setCustom] = useState(false);
+  const labels = prefs.valenceLabels;
+  const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, labels));
+  const daysWith = new Set(t.entries.map((m) => m.at.slice(0, 10))).size;
+  const dist = useMemo(() => {
+    const vals = t.entries.map((m) => ({ day: m.at.slice(0, 10), v: m.valence + 2 }));
+    const pvals = t.prevEntries.map((m) => ({ day: m.at.slice(0, 10), v: m.valence + 2 }));
+    // Distribution espera contagens; para "por dia" usamos proporções × 1000 (só as proporções são exibidas).
+    const scale = (c: number[]) => c.map((x) => Math.round(x * 1000)) as [number, number, number, number, number];
+    return unit === 'record'
+      ? { counts: valenceCounts(t.entries), prev: t.period.compare ? valenceCounts(t.prevEntries) : null }
+      : { counts: scale(distributionBy(vals, 'day')), prev: t.period.compare ? scale(distributionBy(pvals, 'day')) : null };
+  }, [t.entries, t.prevEntries, unit, t.period.compare]);
+  const insights = useMemo(() => (prefs.showInsights ? buildInsights(t.data, t.entries, t.uses) : []), [t.data, t.entries, t.uses, prefs.showInsights]);
+  const visibleCats = CATEGORIES.filter((c) => !prefs.trajectoryHidden.includes(c.id));
 
   return (
     <Page title="Trajetória" ghost="caminho" subtitle="O que seus registros mostram — sem julgamento e sem pressa.">
-      <div className="chips" role="group" aria-label="Período">
-        {PERIODS.map(([k, l]) => (
-          <button key={k} className="chip" aria-pressed={kind === k} onClick={() => setKind(k)}>
-            {l}
-          </button>
-        ))}
-      </div>
-      <div className="list" style={{ marginTop: 12 }}>
-        <Toggle
-          label="Comparar com o período anterior"
-          help={compare ? `${fmtDate(prev.from.toISOString(), { short: true })} – ${fmtDate(prev.to.toISOString(), { short: true })}` : undefined}
-          checked={compare}
-          onChange={setCompare}
-        />
-      </div>
+      <PeriodBar />
 
-      <div className="grid-3" style={{ marginTop: 18 }}>
+      <div className="grid-3" style={{ marginTop: 16 }}>
         <div className="card tight stat">
-          <span className="n">{entries.length}</span>
+          <span className="n">{t.entries.length}</span>
           <span className="l">registros de humor</span>
         </div>
         <div className="card tight stat">
           <span className="n">{daysWith}</span>
-          <span className="l">dias com registro</span>
+          <span className="l">datas com registro</span>
         </div>
         <div className="card tight stat">
-          <span className="n">{exps.length}</span>
+          <span className="n">{t.experiences.length}</span>
           <span className="l">experiências</span>
         </div>
       </div>
 
-      {entries.length === 0 ? (
+      {t.entries.length === 0 ? (
         <div style={{ marginTop: 20 }}>
-          <Empty title="Sem registros neste período">Escolha outro período ou faça um registro no Diário. Não há problema em ter lacunas.</Empty>
+          <Empty title="Sem registros neste recorte">Escolha outro período, ajuste os filtros ou faça um registro — inclusive de dias anteriores. Lacunas não são problema.</Empty>
         </div>
       ) : (
-        <>
-          <Section title="Valência" kicker="Como você tem se sentido">
-            <div className="card">
-              <Distribution labels={vLabels} colors={MOOD_COLORS} counts={vc} compare={pvc} marks={(i) => <ValenceMark v={i - 2} size={14} />} />
-              {median !== null && (
-                <p className="small muted" style={{ marginTop: 14, marginBottom: 0 }}>
-                  A categoria mais frequente foi <strong>{vLabels[mode].toLowerCase()}</strong>. Metade dos registros ficou em <strong>{vLabels[median].toLowerCase()}</strong>{' '}
-                  {median < 4 ? 'ou acima' : ''}.
-                  {pvc && sum5(pvc) > 0 && (
-                    <>
-                      {' '}
-                      No período anterior foram {sum5(pvc)} registro(s).
-                    </>
-                  )}
-                </p>
-              )}
-            </div>
-          </Section>
-
-          <Section title="Evolução" kicker={evo.unit === 'day' ? 'Por dia' : evo.unit === 'week' ? 'Por semana' : 'Por mês'}>
-            <div className="card">
-              <Evolution buckets={evo.items} colors={MOOD_COLORS} labels={vLabels} unit={evo.unit} />
-            </div>
-          </Section>
-
-          {prefs.showEnergy && withEnergy > 0 && (
-            <Section title="Energia" kicker={`${withEnergy} registro(s) com energia`}>
-              <div className="card stack lg">
-                <Distribution labels={eLabels} colors={ENERGY_COLORS} counts={ec} compare={pec} />
-                <Evolution buckets={evoE.items} colors={ENERGY_COLORS} labels={eLabels} unit={evoE.unit} height={110} />
-              </div>
-            </Section>
-          )}
-
-          {prefs.enabledIndicators.map((k) => {
-            const c = indicatorCounts(entries, k);
-            if (!sum5(c)) return null;
-            return (
-              <Section key={k} title={INDICATORS[k].label} kicker="Indicador">
-                <div className="card">
-                  <Distribution labels={INDICATORS[k].levels} colors={ENERGY_COLORS} counts={c} compare={compare ? indicatorCounts(prevEntries, k) : null} />
-                </div>
-              </Section>
-            );
-          })}
-
-          {emotions.length > 0 && (
-            <Section title="Emoções recorrentes" kicker="Em quantos registros apareceram">
-              <div className="card">
-                <Bars
-                  rows={emotions.map((e) => ({
-                    label: emo.get(e.id) ?? '?',
-                    value: e.count,
-                    note: prevEmo ? `${e.count} (antes ${prevEmo.get(e.id)?.count ?? 0})` : `${e.count} · ${Math.round(e.share * 100)}%`,
-                  }))}
-                />
-              </div>
-            </Section>
-          )}
-
-          {tags.length > 0 && (
-            <Section title="Contextos frequentes" kicker="Marcadores dos registros">
-              <div className="card">
-                <Bars rows={tags.map((t) => ({ label: t.tag, value: t.count }))} color="var(--comp1-ink)" />
-              </div>
-            </Section>
-          )}
-        </>
-      )}
-
-      <Section title="Calendário emocional">
-        <CalendarView entries={data.moodEntries} onOpen={() => navigate('/diario?v=calendario')} />
-      </Section>
-
-      {(used.length > 0 || exps.length > 0) && (
-        <Section title="Repertório e experiências">
-          <div className="stack">
-            {exps.length > 0 && (
-              <button className="card" onClick={() => navigate('/diario')}>
-                <p className="h3" style={{ margin: 0 }}>
-                  {exps.length} experiência(s) registrada(s)
-                </p>
-                {comparable > 0 && (
-                  <p className="small muted" style={{ margin: '6px 0 0' }}>
-                    Em {improved} de {comparable} em que você registrou o antes e o depois, terminou se sentindo melhor do que começou.
-                  </p>
-                )}
-                {exps.filter((x) => x.learned.trim()).slice(0, 2).map((x) => (
-                  <p key={x.id} className="quote" style={{ margin: '10px 0 0', fontSize: 'var(--fs-md)' }}>
-                    “{x.learned.slice(0, 160)}”
-                  </p>
-                ))}
-              </button>
-            )}
-            {used.length > 0 && (
-              <div className="card">
-                <p className="kicker">Mais usados no período</p>
-                <div className="stack" style={{ gap: 12 }}>
-                  {used.map((u) => (
-                    <button key={u.item!.id} style={{ background: 'none', border: 0, padding: 0, textAlign: 'left' }} onClick={() => navigate(`/guia/item/${u.item!.id}`)}>
-                      <div className="row between small">
-                        <span>{u.item!.name}</span>
-                        <span className="xs faint">{u.uses.length} uso(s)</span>
-                      </div>
-                      <div style={{ marginTop: 4 }}>
-                        <OutcomeBar counts={u.counts} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <OutcomeLegend />
-              </div>
-            )}
+        <Section title="Valência" kicker="Como você tem se sentido">
+          <div className="card stack lg">
+            <Segmented
+              ariaLabel="Unidade de análise"
+              value={unit}
+              onChange={setUnit}
+              options={[
+                { value: 'record', label: 'Por registro' },
+                { value: 'day', label: 'Por data' },
+              ]}
+            />
+            <Distribution
+              labels={vLabels}
+              colors={MOOD_COLORS}
+              counts={dist.counts}
+              compare={dist.prev && dist.prev.some(Boolean) ? dist.prev : null}
+              marks={(i) => <ValenceMark v={i - 2} size={16} />}
+              hideCounts={unit === 'day'}
+            />
+            <p className="xs muted" style={{ margin: 0 }}>
+              {unit === 'record'
+                ? `Cada um dos ${t.entries.length} registros conta uma vez.`
+                : `Cada uma das ${daysWith} datas pesa o mesmo, mesmo que tenha vários registros.`}{' '}
+              Dias sem registro não entram na conta.
+            </p>
+            <Toggle
+              label="Comparar com o período anterior"
+              help={t.period.compare ? `${fmtDate(t.prevRange.from, { short: true })} a ${fmtDate(t.prevRange.to, { short: true })} · ${t.prevEntries.length} registro(s)` : undefined}
+              checked={t.period.compare}
+              onChange={(compare) => t.setPeriod({ ...t.period, compare })}
+            />
           </div>
         </Section>
       )}
 
-      <Section title="Descobertas" kicker="Registradas por você">
-        {data.discoveries.length === 0 ? (
-          <p className="small muted">Nenhuma descoberta ainda.</p>
-        ) : (
-          <div className="card">
-            <div className="grid-3">
-              {CONFIDENCE.map((c) => (
-                <div key={c} className="stat">
-                  <span className="n">{data.discoveries.filter((d) => d.status === 'active' && d.confidence === c).length}</span>
-                  <span className="l">{CONFIDENCE_LABELS[c].label}</span>
+      {prefs.showInsights && (
+        <Section title="O que seus registros mostram" kicker="Observações descritivas — você decide o que faz sentido">
+          {insights.length === 0 ? (
+            <div className="card dashed small muted">
+              Nenhuma observação com dados suficientes neste recorte. Elas aparecem sozinhas quando houver registros bastantes para uma comparação cuidadosa.
+            </div>
+          ) : (
+            <div className="stack">
+              {insights.slice(0, 5).map((i) => (
+                <div key={i.id} className="card tight" style={{ borderLeft: '3px solid var(--comp1-ink)' }}>
+                  <p style={{ margin: 0 }}>{i.text}</p>
+                  <p className="xs faint" style={{ margin: '6px 0 0' }}>
+                    {i.basis}
+                  </p>
+                  <div className="row wrap" style={{ marginTop: 6, gap: 4 }}>
+                    <button
+                      className="btn ghost sm"
+                      style={{ paddingLeft: 0 }}
+                      onClick={() => navigate(`/mapa/descoberta/nova?origem=padrao&titulo=${encodeURIComponent(i.hypothesis)}&texto=${encodeURIComponent(`${i.text}\n\n${i.basis}`)}`)}
+                    >
+                      <Lightbulb size={14} /> Transformar em hipótese
+                    </button>
+                    <button
+                      className="btn ghost sm"
+                      onClick={() => {
+                        store.setPreferences({ dismissedInsights: [...prefs.dismissedInsights, i.id] });
+                        toast('Observação ocultada.');
+                      }}
+                    >
+                      <EyeOff size={14} /> Ocultar
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
-            {discs.length > 0 && (
-              <p className="small muted" style={{ marginBottom: 0 }}>
-                {discs.length} nova(s) neste período. Mais recente: “{discs.sort((a, b) => b.at.localeCompare(a.at))[0].title}”.
-              </p>
-            )}
-          </div>
-        )}
-      </Section>
+          )}
+          {prefs.dismissedInsights.length > 0 && (
+            <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => store.setPreferences({ dismissedInsights: [] })}>
+              Mostrar {prefs.dismissedInsights.length} observação(ões) ocultada(s)
+            </button>
+          )}
+        </Section>
+      )}
 
-      <Patterns data={data} period={period} onHow={() => setHowOpen(true)} />
+      <Section
+        title="Explorar"
+        action={
+          <button className="btn ghost sm" onClick={() => setCustom(true)}>
+            <Settings2 size={14} /> Personalizar
+          </button>
+        }
+      >
+        <div className="list">
+          {visibleCats.map((c) => (
+            <button key={c.id} className="list-row" onClick={() => navigate(`/trajetoria/${c.id}`)}>
+              <c.icon size={20} strokeWidth={1.6} className="faint" />
+              <div className="grow">
+                <div className="title">{c.title}</div>
+                <div className="meta">{c.question}</div>
+              </div>
+              <ChevronRight className="chev" size={18} />
+            </button>
+          ))}
+        </div>
+      </Section>
 
       <Section title="Relatório">
         <button className="card row" onClick={() => navigate('/ajustes/dados?secao=relatorio')}>
           <FileText size={22} />
           <div className="grow">
             <div className="h3">Gerar relatório em PDF</div>
-            <div className="small muted">Escolha o período e o que incluir — por exemplo, para levar a uma consulta.</div>
+            <div className="small muted">Você escolhe o período, as seções e os registros incluídos.</div>
           </div>
         </button>
       </Section>
 
-      <Sheet open={howOpen} onClose={() => setHowOpen(false)} title="Como os padrões são calculados">
-        <div className="stack small" style={{ lineHeight: 1.6 }}>
-          <p style={{ margin: 0 }}>
-            O Palimpsesto compara registros <strong>com</strong> e <strong>sem</strong> cada marcador de contexto (por exemplo, “tempo só”).
+      <Sheet open={custom} onClose={() => setCustom(false)} title="Personalizar a Trajetória">
+        <div className="stack lg">
+          <div className="list">
+            <Toggle
+              label="O que seus registros mostram"
+              help="Observações sugeridas a partir dos seus dados. Nunca enviam avisos."
+              checked={prefs.showInsights}
+              onChange={(showInsights) => store.setPreferences({ showInsights })}
+            />
+          </div>
+          <p className="kicker" style={{ margin: 0 }}>
+            Categorias visíveis
           </p>
-          <p style={{ margin: 0 }}>
-            Para valência, energia e indicadores, que são escalas ordenadas, usa o <em>delta de Cliff</em>: a chance de um registro com o marcador estar numa categoria acima de um
-            registro sem ele, menos a chance inversa. Só aparecem diferenças de pelo menos {Math.round(0.3 * 100)} pontos.
-          </p>
-          <p style={{ margin: 0 }}>
-            Para emoções, compara a proporção de registros em que cada emoção aparece nos dois grupos (diferença mínima de 25 pontos percentuais).
-          </p>
-          <p style={{ margin: 0 }}>
-            Exigimos ao menos {PATTERN_MIN_ENTRIES} registros no período e 5 em cada grupo. Mesmo assim, com muitas comparações algumas associações podem surgir por acaso.
-          </p>
-          <p style={{ margin: 0 }}>
-            <strong>São associações, não causas.</strong> Um marcador pode acompanhar outro fator que você não registrou. Use-as como pistas para observar — se fizer sentido,
-            transforme numa hipótese sua e acompanhe.
-          </p>
-          <p style={{ margin: 0 }}>Todo o cálculo é feito no aparelho. Nada é enviado para lugar nenhum.</p>
+          <div className="list">
+            {CATEGORIES.map((c) => (
+              <Toggle
+                key={c.id}
+                label={c.title}
+                checked={!prefs.trajectoryHidden.includes(c.id)}
+                onChange={(on) => store.setPreferences({ trajectoryHidden: on ? prefs.trajectoryHidden.filter((x) => x !== c.id) : [...prefs.trajectoryHidden, c.id] })}
+              />
+            ))}
+          </div>
         </div>
       </Sheet>
     </Page>
-  );
-}
-
-const sum5 = (c: number[]) => c.reduce((a, b) => a + b, 0);
-
-function Patterns({ data, period, onHow }: { data: AppData; period: Period; onHow: () => void }) {
-  const entries = data.moodEntries.filter((m) => inPeriod(m.at, period));
-  const res = useMemo(() => findPatterns(entries, { indicators: data.preferences.enabledIndicators }), [entries, data.preferences.enabledIndicators]);
-  const emo = new Map(data.emotions.map((e) => [e.id, e.label]));
-  const labels = data.preferences.valenceLabels;
-
-  const sentence = (p: Pattern) => {
-    const pc = (x: number) => `${Math.round(x * 100)}%`;
-    if (p.metric.startsWith('emotion:')) {
-      const name = (emo.get(p.metric.slice(8)) ?? 'uma emoção').toLowerCase();
-      return `${name.charAt(0).toUpperCase() + name.slice(1)} apareceu em ${pc(p.withShare)} dos registros com “${p.tag}”, contra ${pc(p.withoutShare)} nos demais.`;
-    }
-    const what =
-      p.metric === 'valence'
-        ? `${valenceLabel(1, labels).toLowerCase()} ou ${valenceLabel(2, labels).toLowerCase()}`
-        : p.metric === 'energy'
-          ? 'com energia alta'
-          : `com ${INDICATORS[p.metric as keyof typeof INDICATORS].label.toLowerCase()} intensa`;
-    const subject =
-      p.metric === 'valence' ? 'avaliações mais agradáveis' : p.metric === 'energy' ? 'mais energia' : `${INDICATORS[p.metric as keyof typeof INDICATORS].label.toLowerCase()} mais alta`;
-    const dir =
-      p.direction === 'higher' ? subject : subject.replace('mais agradáveis', 'menos agradáveis').replace('mais alta', 'mais baixa').replace('mais energia', 'menos energia');
-    return `Registros com “${p.tag}” aparecem associados a ${dir}: ${pc(p.withShare)} foram ${what}, contra ${pc(p.withoutShare)} nos demais.`;
-  };
-
-  return (
-    <Section
-      title="Padrões observados"
-      kicker="Hipóteses do sistema — não conclusões"
-      action={
-        <button className="icon-btn" aria-label="Como funciona" onClick={onHow}>
-          <Info size={20} />
-        </button>
-      }
-    >
-      {!res.enough ? (
-        <div className="card dashed small muted">
-          Ainda há poucos registros neste período para observar padrões com algum cuidado ({res.total} de {PATTERN_MIN_ENTRIES}). Use marcadores de contexto nos registros (“tempo
-          só”, “dormi mal”…) — é a partir deles que associações podem aparecer.
-        </div>
-      ) : res.patterns.length === 0 ? (
-        <div className="card dashed small muted">Nenhuma associação forte o bastante apareceu neste período. Isso também é informação.</div>
-      ) : (
-        <div className="stack">
-          {res.patterns.slice(0, 8).map((p) => (
-            <div key={p.id} className="card tight" style={{ borderLeft: '3px solid var(--comp1-ink)' }}>
-              <p className="xs faint" style={{ margin: 0 }}>
-                Associação observada · {p.withN} registros com o marcador, {p.withoutN} sem
-              </p>
-              <p style={{ margin: '6px 0 0' }}>{sentence(p)}</p>
-              {p.withCounts && p.withoutCounts && p.metric === 'valence' && (
-                <div className="stack" style={{ gap: 4, marginTop: 10 }}>
-                  <MiniStack label={`com “${p.tag}”`} counts={p.withCounts} />
-                  <MiniStack label="sem" counts={p.withoutCounts} />
-                </div>
-              )}
-              <button
-                className="btn ghost sm"
-                style={{ marginTop: 6, paddingLeft: 0 }}
-                onClick={() => navigate(`/mapa/descoberta/nova?origem=padrao&titulo=${encodeURIComponent('')}&texto=${encodeURIComponent(sentence(p))}`)}
-              >
-                <Lightbulb size={14} /> Investigar como hipótese
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </Section>
-  );
-}
-
-function MiniStack({ label, counts }: { label: string; counts: number[] }) {
-  const n = counts.reduce((a, b) => a + b, 0) || 1;
-  return (
-    <div className="row" style={{ gap: 8 }}>
-      <span className="xs faint" style={{ width: 92, flex: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {label}
-      </span>
-      <div className="stackbar grow" style={{ height: 10 }}>
-        {counts.map((c, i) => (c ? <div key={i} style={{ width: `${(c / n) * 100}%`, background: `var(--mood-${i + 1})` }} /> : null))}
-      </div>
-    </div>
   );
 }

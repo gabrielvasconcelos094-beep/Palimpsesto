@@ -1,0 +1,876 @@
+/**
+ * Categorias da Trajetória. Cada uma responde a perguntas concretas e diz
+ * qual unidade de análise usou e quantos registros sustentam o resultado.
+ */
+import { useMemo, useState, type ReactNode } from 'react';
+import { Activity, BatteryLow, CalendarDays, Clock, Flag, GitCompareArrows, Heart, Layers3, Repeat2 } from 'lucide-react';
+import { navigate, useRoute } from '../../app/router';
+import { setSharedFilters, NO_FILTERS } from '../../app/filters';
+import { buckets, findPatterns, valenceCounts, energyCounts, PATTERN_MIN_ENTRIES } from '../../domain/analytics';
+import {
+  activityStats,
+  countsByWeek,
+  dayPartStats,
+  difficultMoments,
+  emotionCounts,
+  emotionPairs,
+  emotionsByMonth,
+  energyValenceTable,
+  extremesOfEnergy,
+  isPleasant,
+  isUnpleasant,
+  monthlyCount,
+  monthlyStability,
+  regularity,
+  shareBy,
+  strategyGroups,
+  weekdayHighlight,
+  weekdayStats,
+  weeklyUnpleasant,
+  withinDay,
+  WEEKDAYS_FULL,
+  WEEKDAYS_SHORT,
+  WEEKDAY_MIN_DATES,
+  ACTIVITY_MIN,
+  type Unit,
+  type Verdict,
+} from '../../domain/insights';
+import { energyLabel, INDICATORS, valenceLabel } from '../../domain/scales';
+import type { MoodEntry } from '../../domain/schema';
+import { inDays } from '../../domain/filters';
+import { Empty, fmtDate, MONTHS_SHORT, Page, Section, Segmented } from '../../ui/components';
+import { EventIcon, eventRange } from '../journal/EventEditor';
+import { CalendarView } from '../journal/Journal';
+import { OutcomeBar, OutcomeLegend } from '../guide/Repertoire';
+import { Bars, Distribution, Evolution, HeatTable, StackRows } from './charts';
+import { ENERGY_COLORS, MOOD_COLORS, PeriodBar } from './Trajectory';
+import { useTrajectory } from './useTrajectory';
+
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const monthLabel = (k: string) => `${MONTHS_SHORT[Number(k.slice(5, 7)) - 1]}/${k.slice(2, 4)}`;
+
+export const CATEGORIES = [
+  { id: 'dias', title: 'Dias e horários', question: 'Há dias da semana ou horários diferentes dos outros?', icon: Clock },
+  { id: 'emocoes', title: 'Emoções', question: 'Quais emoções aparecem, juntas ou separadas?', icon: Heart },
+  { id: 'energia', title: 'Energia e disposição', question: 'Como sua energia varia e o que a acompanha?', icon: BatteryLow },
+  { id: 'atividades', title: 'Atividades e estratégias', question: 'O que você fez e como avaliou o que tentou?', icon: Activity },
+  { id: 'evolucao', title: 'Evolução e comparação', question: 'Como as coisas mudaram ao longo do tempo?', icon: GitCompareArrows },
+  { id: 'linha', title: 'Linha do tempo', question: 'O que estava acontecendo em cada período?', icon: Flag },
+  { id: 'contextos', title: 'Padrões por contexto', question: 'Que marcadores aparecem associados a quê?', icon: Layers3 },
+  { id: 'calendario', title: 'Calendário emocional', question: 'Um mês de cada vez.', icon: CalendarDays },
+  { id: 'regularidade', title: 'Regularidade dos registros', question: 'Quando você costuma registrar (só descritivo).', icon: Repeat2 },
+] as const;
+
+function Note({ children }: { children: ReactNode }) {
+  return (
+    <p className="xs muted" style={{ margin: '10px 0 0' }}>
+      {children}
+    </p>
+  );
+}
+
+function VerdictText({ v, what }: { v: Verdict; what: string }) {
+  if (!v.ok) return <p className="small muted" style={{ margin: 0 }}>{v.reason}</p>;
+  const h = v.h;
+  return (
+    <p style={{ margin: 0 }}>
+      Nos registros disponíveis, <strong>{h.label}</strong> apresentou a maior proporção de {what} ({pct(h.share)}; em seguida, {h.runnerUpLabel}, com {pct(h.runnerUpShare!)}).{' '}
+      <span className="small muted">
+        Foram considerados {h.records} registro(s) em {h.dates} data(s) nesse dia, de um total de {h.totalRecords} registro(s) em {h.totalDates} data(s).{' '}
+        {h.unit === 'day' ? 'Cada data pesa o mesmo.' : 'Cada registro pesa o mesmo.'} Isso descreve os dados registrados — não estabelece que esse seja seu melhor ou pior dia.
+      </span>
+    </p>
+  );
+}
+
+function UnitToggle({ unit, setUnit }: { unit: Unit; setUnit: (u: Unit) => void }) {
+  return (
+    <Segmented
+      ariaLabel="Unidade de análise"
+      value={unit}
+      onChange={setUnit}
+      options={[
+        { value: 'day', label: 'Cada data pesa igual' },
+        { value: 'record', label: 'Cada registro' },
+      ]}
+    />
+  );
+}
+
+function Insufficient({ n, need, what = 'registros' }: { n: number; need: number; what?: string }) {
+  return (
+    <div className="card dashed small muted">
+      Ainda não há observações suficientes ({n} de pelo menos {need} {what}). Isso aparece sozinho quando houver mais dados — sem pressa.
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+export function TrajectoryCategory() {
+  const route = useRoute();
+  const cat = CATEGORIES.find((c) => c.id === route.parts[1]);
+  const t = useTrajectory();
+  if (!cat)
+    return (
+      <Page back="/trajetoria" noNav title="Categoria não encontrada">
+        <span />
+      </Page>
+    );
+  const Body = BODIES[cat.id];
+  return (
+    <Page back="/trajetoria" noNav kicker="Trajetória" title={cat.title} subtitle={cat.question} ghost={cat.title.split(' ')[0].toLowerCase()}>
+      <PeriodBar />
+      <div style={{ marginTop: 8 }}>{t.entries.length === 0 && cat.id !== 'linha' && cat.id !== 'atividades' ? <Empty title="Sem registros neste recorte">Escolha outro período ou ajuste os filtros.</Empty> : <Body />}</div>
+    </Page>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Dias e horários                                                           */
+/* ------------------------------------------------------------------------ */
+function DaysBody() {
+  const t = useTrajectory();
+  const [unit, setUnit] = useState<Unit>('day');
+  const labels = t.data.preferences.valenceLabels;
+  const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, labels));
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  const ws = t.data.preferences.weekStartsOn;
+  const order = Array.from({ length: 7 }, (_, i) => (i + ws) % 7);
+  const stats = weekdayStats(t.entries);
+  const best = weekdayHighlight(t.entries, (m) => isPleasant(m.valence), unit);
+  const worst = weekdayHighlight(t.entries, (m) => isUnpleasant(m.valence), unit);
+  const withEnergy = t.entries.filter((m) => m.energy);
+  const lowE = weekdayHighlight(withEnergy, (m) => (m.energy ?? 5) <= 2, unit);
+  const parts = dayPartStats(t.entries);
+  const wd = withinDay(t.entries);
+  const weightedCounts = (list: MoodEntry[], pick: (m: MoodEntry) => number | null) => {
+    if (unit === 'record') {
+      const c = [0, 0, 0, 0, 0];
+      list.forEach((m) => {
+        const v = pick(m);
+        if (v !== null) c[v]++;
+      });
+      return c;
+    }
+    const byDay = new Map<string, number[]>();
+    list.forEach((m) => {
+      const v = pick(m);
+      if (v !== null) byDay.set(m.at.slice(0, 10), [...(byDay.get(m.at.slice(0, 10)) ?? []), v]);
+    });
+    const c = [0, 0, 0, 0, 0];
+    byDay.forEach((vals) => vals.forEach((v) => (c[v] += 1 / vals.length)));
+    return c;
+  };
+
+  return (
+    <>
+      <UnitToggle unit={unit} setUnit={setUnit} />
+      <Section title="Por dia da semana">
+        <div className="card stack lg">
+          <VerdictText v={best} what="avaliações agradáveis" />
+          <VerdictText v={worst} what="avaliações desagradáveis" />
+          <StackRows
+            colors={MOOD_COLORS}
+            legend={vLabels}
+            rows={order.map((d) => ({
+              label: WEEKDAYS_FULL[d],
+              counts: weightedCounts(stats[d].entries, (m) => m.valence + 2),
+              note: `${stats[d].records} reg. · ${stats[d].dates} data(s)`,
+              dim: stats[d].dates < WEEKDAY_MIN_DATES,
+            }))}
+          />
+          <Note>Dias com menos de {WEEKDAY_MIN_DATES} datas aparecem esmaecidos e não entram nas comparações.</Note>
+        </div>
+      </Section>
+      {withEnergy.length > 0 && (
+        <Section title="Energia por dia da semana">
+          <div className="card stack lg">
+            <VerdictText v={lowE} what="registros de baixa energia" />
+            <StackRows
+              colors={ENERGY_COLORS}
+              legend={[1, 2, 3, 4, 5].map((e) => energyLabel(e, t.data.preferences.energyLabels))}
+              rows={order.map((d) => ({
+                label: WEEKDAYS_FULL[d],
+                counts: weightedCounts(stats[d].entries, (m) => (m.energy ? m.energy - 1 : null)),
+                note: `${stats[d].entries.filter((m) => m.energy).length} reg.`,
+                dim: new Set(stats[d].entries.filter((m) => m.energy).map((m) => m.at.slice(0, 10))).size < WEEKDAY_MIN_DATES,
+              }))}
+            />
+          </div>
+        </Section>
+      )}
+      <Section title="Emoções mais frequentes em cada dia">
+        <div className="list">
+          {order.map((d) => (
+            <div key={d} className="list-row" style={{ minHeight: 44 }}>
+              <span style={{ width: 92, fontWeight: 600 }}>{WEEKDAYS_FULL[d]}</span>
+              <span className="grow small muted">
+                {stats[d].topEmotions.length ? stats[d].topEmotions.map((e) => `${emo.get(e.id)} (${e.count})`).join(', ') : '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+        <Note>Contagem de registros em que cada emoção apareceu naquele dia da semana.</Note>
+      </Section>
+      <Section title="Períodos do dia">
+        <div className="card">
+          <StackRows
+            colors={MOOD_COLORS}
+            legend={vLabels}
+            rows={parts.parts.map((p) => ({
+              label: p.label,
+              counts: weightedCounts(p.entries, (m) => m.valence + 2),
+              note: `${p.records} reg. · ${p.records ? pct(p.entries.filter((m) => isPleasant(m.valence)).length / p.records) + ' agradáveis' : ''}`,
+              dim: p.dates < WEEKDAY_MIN_DATES,
+            }))}
+          />
+          <Note>
+            Madrugada 0–5 h · manhã 6–11 h · tarde 12–17 h · noite 18–23 h. {parts.untimed ? `${parts.untimed} registro(s) sem horário ficaram de fora.` : ''}
+          </Note>
+        </div>
+      </Section>
+      <Section title="Ao longo do mesmo dia">
+        <div className="card">
+          {wd.days < 3 ? (
+            <p className="small muted" style={{ margin: 0 }}>
+              Ainda são poucas as datas com dois ou mais registros com horário ({wd.days}) para observar a variação dentro do dia.
+            </p>
+          ) : (
+            <p style={{ margin: 0 }}>
+              Em {wd.days} data(s) com dois ou mais registros, a avaliação mudou de categoria ao longo do dia em {wd.varied} ({pct(wd.varied / wd.days)}). Do primeiro ao último registro
+              do dia: subiu em {wd.up}, desceu em {wd.down} e ficou igual em {wd.same}.
+            </p>
+          )}
+        </div>
+      </Section>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Emoções                                                                   */
+/* ------------------------------------------------------------------------ */
+function EmotionsBody() {
+  const t = useTrajectory();
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  const counts = emotionCounts(t.entries);
+  const pleasant = t.entries.filter((m) => isPleasant(m.valence));
+  const unpleasant = t.entries.filter((m) => isUnpleasant(m.valence));
+  const pairs = emotionPairs(t.entries).slice(0, 6);
+  const upairs = emotionPairs(unpleasant).slice(0, 4);
+  const top = counts.slice(0, 6).map((c) => c.id);
+  const byMonth = emotionsByMonth(t.allFiltered.filter((m) => m.at.slice(0, 10) <= t.range.to), top, 6);
+  const prev = new Map(emotionCounts(t.prevEntries).map((c) => [c.id, c]));
+  const changes = counts
+    .filter((c) => c.count >= 3 || (prev.get(c.id)?.count ?? 0) >= 3)
+    .map((c) => ({ id: c.id, now: c.share, before: prev.get(c.id)?.share ?? 0 }))
+    .filter((c) => Math.abs(c.now - c.before) >= 0.1)
+    .sort((a, b) => Math.abs(b.now - b.before) - Math.abs(a.now - a.before))
+    .slice(0, 5);
+  const withEmo = t.entries.filter((m) => m.emotionIds.length).length;
+  if (!withEmo) return <Empty title="Nenhuma emoção registrada neste recorte">As emoções são opcionais em cada registro.</Empty>;
+  const used = t.data.emotions.filter((e) => !e.hidden);
+  const rare = used.map((e) => ({ e, n: counts.find((c) => c.id === e.id)?.count ?? 0 })).sort((a, b) => a.n - b.n);
+  return (
+    <>
+      <Section title="Mais frequentes">
+        <div className="card">
+          <Bars rows={counts.slice(0, 10).map((c) => ({ label: emo.get(c.id) ?? '?', value: c.count, note: `${c.count} · ${pct(c.share)}` }))} />
+          <Note>Em quantos dos {t.entries.length} registros cada emoção apareceu ({withEmo} registros têm ao menos uma emoção).</Note>
+        </div>
+      </Section>
+      <Section title="Menos frequentes">
+        <div className="card small">
+          {rare.slice(0, 8).map(({ e, n }) => `${e.label} (${n})`).join(' · ')}
+          <Note>Entre as emoções disponíveis na sua lista. Pouca frequência não é bom nem ruim.</Note>
+        </div>
+      </Section>
+      <Section title="Em registros agradáveis e desagradáveis">
+        <div className="grid-2">
+          {[
+            ['Agradáveis', pleasant],
+            ['Desagradáveis', unpleasant],
+          ].map(([label, list]) => (
+            <div key={label as string} className="card tight">
+              <p className="kicker">
+                {label as string} · {(list as MoodEntry[]).length}
+              </p>
+              {(list as MoodEntry[]).length < 3 ? (
+                <p className="xs muted">Poucos registros.</p>
+              ) : (
+                emotionCounts(list as MoodEntry[])
+                  .slice(0, 5)
+                  .map((c) => (
+                    <div key={c.id} className="row between small">
+                      <span>{emo.get(c.id)}</span>
+                      <span className="muted">{pct(c.share)}</span>
+                    </div>
+                  ))
+              )}
+            </div>
+          ))}
+        </div>
+      </Section>
+      <Section title="Emoções que aparecem juntas">
+        <div className="card">
+          {pairs.length === 0 ? (
+            <p className="small muted" style={{ margin: 0 }}>
+              Nenhum par de emoções apareceu junto duas vezes ou mais.
+            </p>
+          ) : (
+            <div className="stack" style={{ gap: 6 }}>
+              {pairs.map((p) => (
+                <div key={p.a + p.b} className="row between small">
+                  <span>
+                    {emo.get(p.a)} + {emo.get(p.b)}
+                  </span>
+                  <span className="muted">
+                    {p.together}× · {pct(p.together / p.either)} das vezes em que alguma apareceu
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {upairs.length > 0 && (
+            <>
+              <p className="kicker" style={{ marginTop: 14 }}>
+                Só nos registros desagradáveis ({unpleasant.length})
+              </p>
+              {upairs.map((p) => (
+                <p key={p.a + p.b} className="small" style={{ margin: '4px 0' }}>
+                  {emo.get(p.a)} e {emo.get(p.b)} apareceram juntas em {p.together} ocasião(ões) ({pct(p.together / unpleasant.length)} dos registros desagradáveis).
+                </p>
+              ))}
+            </>
+          )}
+        </div>
+      </Section>
+      {byMonth.months.length >= 2 && (
+        <Section title="Ao longo dos meses">
+          <div className="card">
+            <HeatTable
+              rowLabels={byMonth.rows.map((r) => emo.get(r.id) ?? '?')}
+              colLabels={byMonth.months.map(monthLabel)}
+              values={byMonth.rows.map((r) => r.values.map((v) => v.n))}
+              caption={`Registros com cada emoção por mês. Total de registros por mês: ${byMonth.rows[0]?.values.map((v) => v.total).join(', ')}.`}
+            />
+          </div>
+        </Section>
+      )}
+      <Section title="Mudanças em relação ao período anterior">
+        <div className="card small">
+          {t.prevEntries.length < 5 ? (
+            <span className="muted">Poucos registros no período anterior ({t.prevEntries.length}) para comparar.</span>
+          ) : changes.length === 0 ? (
+            <span className="muted">Nenhuma emoção mudou de frequência em 10 pontos percentuais ou mais.</span>
+          ) : (
+            changes.map((c) => (
+              <div key={c.id} className="row between">
+                <span>{emo.get(c.id)}</span>
+                <span className="muted">
+                  {pct(c.before)} → {pct(c.now)}
+                </span>
+              </div>
+            ))
+          )}
+          <Note>
+            Proporção de registros com a emoção: período anterior ({t.prevEntries.length} registros) → atual ({t.entries.length}).
+          </Note>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Energia                                                                   */
+/* ------------------------------------------------------------------------ */
+function EnergyBody() {
+  const t = useTrajectory();
+  const prefs = t.data.preferences;
+  const withE = t.entries.filter((m) => m.energy);
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  const eLabels = [1, 2, 3, 4, 5].map((e) => energyLabel(e, prefs.energyLabels));
+  const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, prefs.valenceLabels));
+  if (withE.length === 0) return <Empty title="Nenhum registro com energia neste recorte">O nível de energia é opcional em cada registro.</Empty>;
+  const evo = buckets(withE, { from: new Date(t.range.from + 'T00:00:00'), to: new Date(t.range.to + 'T23:59:59') }, (e) => (e.energy ? e.energy - 1 : null), prefs.weekStartsOn);
+  const table = energyValenceTable(withE);
+  const low = withE.filter((m) => m.energy! <= 2);
+  const lowEmo = emotionCounts(low).slice(0, 5);
+  const ext = extremesOfEnergy(withE);
+  const exhausted = monthlyCount(t.allFiltered.filter((m) => m.energy && m.at.slice(0, 10) <= t.range.to), (m) => m.energy === 1, 6);
+  const prevE = t.prevEntries.filter((m) => m.energy);
+  return (
+    <>
+      <Section title="Distribuição">
+        <div className="card">
+          <Distribution labels={eLabels} colors={ENERGY_COLORS} counts={energyCounts(withE)} compare={t.period.compare && prevE.length ? energyCounts(prevE) : null} />
+          <Note>{withE.length} registro(s) com energia. Ative “comparar com o período anterior” na visão geral para ver as duas barras.</Note>
+        </div>
+      </Section>
+      <Section title="Evolução">
+        <div className="card">
+          <Evolution buckets={evo.items} colors={ENERGY_COLORS} labels={eLabels} unit={evo.unit} height={120} />
+        </div>
+      </Section>
+      <Section title="Energia e humor">
+        <div className="card">
+          <HeatTable rowLabels={eLabels} colLabels={vLabels.map((l) => l.split(' ').map((w) => w[0]).join('').toUpperCase())} values={table} caption={`Quantos registros combinaram cada nível de energia (linhas) com cada avaliação (colunas: ${vLabels.join(', ')}). É uma descrição conjunta, não uma relação de causa.`} />
+        </div>
+      </Section>
+      <Section title="Emoções em registros de baixa energia">
+        <div className="card small">
+          {low.length < 3 ? (
+            <span className="muted">Poucos registros de baixa energia ({low.length}).</span>
+          ) : (
+            lowEmo.map((c) => (
+              <div key={c.id} className="row between">
+                <span>{emo.get(c.id)}</span>
+                <span className="muted">
+                  {c.count} de {low.length} ({pct(c.share)})
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </Section>
+      <Section title="Esgotamento e extremos">
+        <div className="card small stack">
+          <div>
+            <strong>Registros de “{eLabels[0]}” por mês:</strong> {exhausted.map((m) => `${monthLabel(m.month)}: ${m.n} de ${m.total}`).join(' · ') || '—'}
+          </div>
+          <div>
+            <strong>Datas com energia máxima registrada:</strong> {ext.highest.slice(0, 6).map((d) => fmtDate(d, { short: true })).join(', ') || '—'}
+          </div>
+          <div>
+            <strong>Datas com energia mínima registrada:</strong> {ext.lowest.slice(0, 6).map((d) => fmtDate(d, { short: true })).join(', ') || '—'}
+          </div>
+          <Note>Essas informações descrevem seus registros; o Palimpsesto não interpreta níveis de energia como sinais clínicos.</Note>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Atividades e estratégias                                                  */
+/* ------------------------------------------------------------------------ */
+function ActivitiesBody() {
+  const t = useTrajectory();
+  const items = new Map(t.data.repertoire.map((i) => [i.id, i]));
+  const acts = activityStats(t.entries).filter((a) => items.has(a.itemId));
+  const groups = strategyGroups(t.uses).filter((g) => items.has(g.itemId));
+  const hard = difficultMoments(t.data, t.entries, t.uses).filter((x) => items.has(x.itemId)).slice(0, 6);
+  const overallPleasant = t.entries.length ? t.entries.filter((m) => isPleasant(m.valence)).length / t.entries.length : 0;
+  const expWith = t.experiences.filter((x) => x.feelingBefore !== null && x.feelingAfter !== null && t.data.uses.some((u) => u.experienceId === x.id));
+  const byItemExp = new Map<string, { up: number; same: number; down: number }>();
+  expWith.forEach((x) =>
+    t.data.uses
+      .filter((u) => u.experienceId === x.id)
+      .forEach((u) => {
+        const c = byItemExp.get(u.itemId) ?? { up: 0, same: 0, down: 0 };
+        const d = x.feelingAfter! - x.feelingBefore!;
+        if (d > 0) c.up++;
+        else if (d < 0) c.down++;
+        else c.same++;
+        byItemExp.set(u.itemId, c);
+      }),
+  );
+  const usage = (id: string) => monthlyCount(t.allFiltered.filter((m) => m.at.slice(0, 10) <= t.range.to), (m) => m.itemIds.includes(id), 6);
+  const groupLabels = { effective: 'Avaliadas como eficazes', partial: 'Parcialmente eficazes', ineffective: 'Não funcionaram ou pioraram', unknown: 'Ainda sem avaliação' } as const;
+
+  return (
+    <>
+      <Section title="Atividades nos registros de humor">
+        {acts.length === 0 ? (
+          <div className="card dashed small muted">
+            Nenhuma atividade marcada nos registros deste recorte. Ao registrar o humor, use “O que você fez ou estava fazendo?” — você pode criar suas próprias atividades.
+          </div>
+        ) : (
+          <div className="stack">
+            {acts.map((a) => {
+              const it = items.get(a.itemId)!;
+              const enough = a.records >= ACTIVITY_MIN && a.othersRecords >= ACTIVITY_MIN;
+              const months = usage(a.itemId);
+              return (
+                <div key={a.itemId} className="card tight">
+                  <div className="row between">
+                    <button style={{ background: 'none', border: 0, padding: 0, fontWeight: 600, color: 'inherit' }} onClick={() => navigate(`/guia/item/${a.itemId}`)}>
+                      {it.name}
+                    </button>
+                    <span className="xs muted">
+                      {a.records} reg. · {a.dates} data(s)
+                    </span>
+                  </div>
+                  <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+                    <div className="row between xs">
+                      <span>Com a atividade</span>
+                      <span className="muted">{pct(a.pleasantShare)} agradáveis · {pct(a.unpleasantShare)} desagradáveis</span>
+                    </div>
+                    <div className="row between xs">
+                      <span>Demais registros ({a.othersRecords})</span>
+                      <span className="muted">{pct(a.othersPleasantShare)} agradáveis</span>
+                    </div>
+                  </div>
+                  {a.change.compared > 0 && (
+                    <p className="xs" style={{ margin: '6px 0 0' }}>
+                      Comparado ao registro anterior do mesmo dia ({a.change.compared} vez(es)): melhor em {a.change.up}, igual em {a.change.same}, pior em {a.change.down}.
+                    </p>
+                  )}
+                  {months.length > 1 && (
+                    <p className="xs faint" style={{ margin: '6px 0 0' }}>
+                      Por mês: {months.map((m) => `${monthLabel(m.month)} ${m.n}`).join(' · ')}
+                    </p>
+                  )}
+                  {!enough && <p className="xs faint" style={{ margin: '6px 0 0' }}>Poucos registros para comparar com segurança.</p>}
+                  <button
+                    className="btn ghost sm"
+                    style={{ paddingLeft: 0 }}
+                    onClick={() => {
+                      setSharedFilters({ ...NO_FILTERS, itemIds: [a.itemId], type: 'mood' });
+                      navigate('/diario');
+                    }}
+                  >
+                    Ver registros
+                  </button>
+                </div>
+              );
+            })}
+            <Note>Proporção geral de registros agradáveis no recorte: {pct(overallPleasant)}. Uma atividade que aparece com registros agradáveis não necessariamente os causa.</Note>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Estratégias e recursos avaliados">
+        {groups.length === 0 ? (
+          <div className="card dashed small muted">Nenhum uso avaliado neste recorte. Registre usos na página de cada item do Repertório ou ao escrever uma experiência.</div>
+        ) : (
+          <div className="stack">
+            {(['effective', 'partial', 'ineffective', 'unknown'] as const).map((g) => {
+              const list = groups.filter((x) => x.group === g);
+              if (!list.length) return null;
+              return (
+                <div key={g} className="card tight">
+                  <p className="kicker">{groupLabels[g]}</p>
+                  <div className="stack" style={{ gap: 10 }}>
+                    {list.map((x) => (
+                      <div key={x.itemId}>
+                        <div className="row between small">
+                          <span>{items.get(x.itemId)!.name}</span>
+                          <span className="xs muted">{x.uses} uso(s)</span>
+                        </div>
+                        <div style={{ marginTop: 4 }}>
+                          <OutcomeBar counts={x.counts} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <OutcomeLegend />
+            <Note>Agrupamento pela avaliação mais frequente que você deu; em empate, vale a mais cautelosa.</Note>
+          </div>
+        )}
+      </Section>
+
+      {hard.length > 0 && (
+        <Section title="Mais usados em momentos difíceis">
+          <div className="card">
+            <Bars rows={hard.map((h) => ({ label: items.get(h.itemId)!.name, value: h.n }))} color="var(--comp1-ink)" />
+            <Note>Usos marcados como “dia difícil”, usados em experiências que começaram desagradáveis ou marcados em registros desagradáveis.</Note>
+          </div>
+        </Section>
+      )}
+
+      {byItemExp.size > 0 && (
+        <Section title="Antes e depois, nas experiências">
+          <div className="card small">
+            {[...byItemExp.entries()].map(([id, c]) => (
+              <div key={id} className="row between">
+                <span>{items.get(id)?.name}</span>
+                <span className="muted">
+                  melhorou {c.up} · igual {c.same} · piorou {c.down}
+                </span>
+              </div>
+            ))}
+            <Note>Como você se sentiu antes e depois em experiências nas quais o item foi usado. Muitas coisas acontecem ao mesmo tempo; não é medida de eficácia.</Note>
+          </div>
+        </Section>
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Evolução e comparação                                                     */
+/* ------------------------------------------------------------------------ */
+function EvolutionBody() {
+  const t = useTrajectory();
+  const prefs = t.data.preferences;
+  const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, prefs.valenceLabels));
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  const evo = buckets(t.entries, { from: new Date(t.range.from + 'T00:00:00'), to: new Date(t.range.to + 'T23:59:59') }, (e) => e.valence + 2, prefs.weekStartsOn);
+  const heavy = weeklyUnpleasant(t.entries, prefs.weekStartsOn).filter((w) => w.unpleasant > 0).slice(0, 3);
+  const stable = monthlyStability(t.entries).slice(0, 3);
+  // Comparação livre entre dois intervalos.
+  const today = t.range.to;
+  const [a, setA] = useState({ from: t.prevRange.from, to: t.prevRange.to });
+  const [b, setB] = useState({ from: t.range.from, to: today });
+  const pick = (r: { from: string; to: string }) => t.allFiltered.filter((m) => inDays(m.at.slice(0, 10), r));
+  const A = pick(a);
+  const B = pick(b);
+  const summary = (list: MoodEntry[]) => {
+    const n = list.length;
+    return {
+      n,
+      dates: new Set(list.map((m) => m.at.slice(0, 10))).size,
+      pleasant: n ? list.filter((m) => isPleasant(m.valence)).length / n : 0,
+      unpleasant: n ? list.filter((m) => isUnpleasant(m.valence)).length / n : 0,
+      pleasantDay: shareBy(list, (m) => isPleasant(m.valence), 'day'),
+      lowEnergy: list.filter((m) => m.energy).length ? list.filter((m) => m.energy && m.energy <= 2).length / list.filter((m) => m.energy).length : null,
+      topEmotions: emotionCounts(list).slice(0, 3),
+    };
+  };
+  const sa = summary(A);
+  const sb = summary(B);
+  return (
+    <>
+      <Section title="Ao longo do período">
+        <div className="card">
+          <Evolution buckets={evo.items} colors={MOOD_COLORS} labels={vLabels} unit={evo.unit} />
+        </div>
+      </Section>
+      <Section title="Comparar dois intervalos">
+        <div className="card stack lg">
+          {[
+            ['A', a, setA, A, sa],
+            ['B', b, setB, B, sb],
+          ].map(([name, r, set, list, s]: any) => (
+            <div key={name} className="stack" style={{ gap: 6 }}>
+              <div className="row" style={{ gap: 6 }}>
+                <strong style={{ width: 18 }}>{name}</strong>
+                <input type="date" className="input" aria-label={`Início do intervalo ${name}`} value={r.from} max={r.to} onChange={(e) => e.target.value && set({ ...r, from: e.target.value })} />
+                <input type="date" className="input" aria-label={`Fim do intervalo ${name}`} value={r.to} min={r.from} onChange={(e) => e.target.value && set({ ...r, to: e.target.value })} />
+              </div>
+              <div className="stackbar">
+                {valenceCounts(list).map((c: number, i: number) => (c ? <div key={i} style={{ width: `${(c / list.length) * 100}%`, background: MOOD_COLORS[i] }} /> : null))}
+              </div>
+              <p className="xs muted" style={{ margin: 0 }}>
+                {s.n} registro(s) em {s.dates} data(s) · {pct(s.pleasant)} agradáveis ({pct(s.pleasantDay)} por data) · {pct(s.unpleasant)} desagradáveis
+                {s.lowEnergy !== null ? ` · ${pct(s.lowEnergy)} com baixa energia` : ''}
+                {s.topEmotions.length ? ` · mais frequentes: ${s.topEmotions.map((e: any) => emo.get(e.id)).join(', ')}` : ''}
+              </p>
+            </div>
+          ))}
+          {(sa.n < 5 || sb.n < 5) && <p className="xs faint" style={{ margin: 0 }}>Algum dos intervalos tem menos de 5 registros: compare com cautela.</p>}
+        </div>
+      </Section>
+      <Section title="Semanas com mais registros desagradáveis">
+        <div className="card small">
+          {heavy.length === 0 ? (
+            <span className="muted">Nenhuma semana com 3 ou mais registros e algum desagradável.</span>
+          ) : (
+            heavy.map((w) => (
+              <div key={w.week} className="row between">
+                <span>Semana de {fmtDate(w.week, { short: true })}</span>
+                <span className="muted">
+                  {w.unpleasant} de {w.records} ({pct(w.share)})
+                </span>
+              </div>
+            ))
+          )}
+          <Note>Consideradas só semanas com pelo menos 3 registros.</Note>
+        </div>
+      </Section>
+      <Section title="Meses mais estáveis">
+        <div className="card small">
+          {stable.length === 0 ? (
+            <span className="muted">É preciso ter meses com pelo menos 6 registros.</span>
+          ) : (
+            stable.map((m) => (
+              <div key={m.month} className="row between">
+                <span>{monthLabel(m.month)}</span>
+                <span className="muted">
+                  {pct(m.modeShare)} em “{vLabels[m.mode].toLowerCase()}” · {m.categories} categoria(s) · {m.records} reg.
+                </span>
+              </div>
+            ))
+          )}
+          <Note>“Estável” aqui significa que os registros do mês se concentraram mais numa mesma categoria.</Note>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Linha do tempo                                                            */
+/* ------------------------------------------------------------------------ */
+function TimelineBody() {
+  const t = useTrajectory();
+  const labels = t.data.preferences.valenceLabels;
+  const events = [...t.events].sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <>
+      <p className="small muted">
+        Acontecimentos do período, com os registros de humor feitos enquanto eles aconteciam. Estar no mesmo período não significa que um causou o outro.
+      </p>
+      {events.length === 0 ? (
+        <Empty
+          title="Nenhum acontecimento neste período"
+          action={
+            <button className="btn primary" onClick={() => navigate('/diario/acontecimento/novo')}>
+              Registrar um acontecimento
+            </button>
+          }
+        >
+          Viagens, mudanças, conquistas, começos e fins — inclusive de meses atrás.
+        </Empty>
+      ) : (
+        <div className="stack">
+          {events.map((e) => {
+            const during = t.entries.filter((m) => m.at.slice(0, 10) >= e.date && m.at.slice(0, 10) <= (e.endDate ?? e.date));
+            const c = valenceCounts(during);
+            return (
+              <button key={e.id} className="card tight" onClick={() => navigate(`/diario/acontecimento/${e.id}`)}>
+                <div className="row">
+                  <EventIcon c={e.category} />
+                  <div className="grow">
+                    <div style={{ fontWeight: 600 }}>{e.title}</div>
+                    <div className="xs muted">{eventRange(e)}</div>
+                  </div>
+                </div>
+                {during.length > 0 ? (
+                  <>
+                    <div className="stackbar" style={{ marginTop: 8 }}>
+                      {c.map((x, i) => (x ? <div key={i} style={{ width: `${(x / during.length) * 100}%`, background: MOOD_COLORS[i] }} /> : null))}
+                    </div>
+                    <p className="xs faint" style={{ margin: '4px 0 0' }}>
+                      {during.length} registro(s) no período · mais frequente: {valenceLabel(c.indexOf(Math.max(...c)) - 2, labels).toLowerCase()}
+                    </p>
+                  </>
+                ) : (
+                  <p className="xs faint" style={{ margin: '6px 0 0' }}>Sem registros de humor nesse período.</p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Padrões por contexto (associações já existentes)                          */
+/* ------------------------------------------------------------------------ */
+function ContextsBody() {
+  const t = useTrajectory();
+  const prefs = t.data.preferences;
+  const res = useMemo(() => findPatterns(t.entries, { indicators: prefs.enabledIndicators }), [t.entries, prefs.enabledIndicators]);
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  if (!res.enough) return <Insufficient n={res.total} need={PATTERN_MIN_ENTRIES} />;
+  const metricName = (m: string) =>
+    m === 'valence' ? 'avaliação' : m === 'energy' ? 'energia' : m.startsWith('emotion:') ? (emo.get(m.slice(8)) ?? 'emoção').toLowerCase() : INDICATORS[m as keyof typeof INDICATORS]?.label.toLowerCase();
+  return (
+    <>
+      <p className="small muted">
+        Comparação dos registros com e sem cada marcador de contexto. Escalas ordenadas usam o delta de Cliff (|δ| ≥ 0,3); emoções, a diferença de proporções (≥ 25 pontos). Exige 20
+        registros no período e 5 em cada grupo. São associações, não causas.
+      </p>
+      {res.patterns.length === 0 ? (
+        <div className="card dashed small muted">Nenhuma associação forte o bastante neste recorte. Isso também é informação.</div>
+      ) : (
+        <div className="stack">
+          {res.patterns.slice(0, 12).map((p) => (
+            <div key={p.id} className="card tight" style={{ borderLeft: '3px solid var(--comp1-ink)' }}>
+              <p className="xs faint" style={{ margin: 0 }}>
+                “{p.tag}” × {metricName(p.metric)} · {p.withN} com o marcador, {p.withoutN} sem
+              </p>
+              <p style={{ margin: '4px 0 0' }}>
+                {p.metric.startsWith('emotion:')
+                  ? `${metricName(p.metric)} apareceu em ${pct(p.withShare)} dos registros com “${p.tag}”, contra ${pct(p.withoutShare)} nos demais.`
+                  : `Com “${p.tag}”, ${pct(p.withShare)} dos registros ficaram nas duas categorias mais altas de ${metricName(p.metric)}, contra ${pct(p.withoutShare)} nos demais.`}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function CalendarBody() {
+  const t = useTrajectory();
+  return <CalendarView entries={t.entries} events={t.events} experiences={t.experiences} onOpen={(id) => navigate(`/diario?registro=${id}`)} />;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Regularidade                                                              */
+/* ------------------------------------------------------------------------ */
+function RegularityBody() {
+  const t = useTrajectory();
+  const r = regularity(t.entries, t.range.from, t.range.to);
+  const weeks = countsByWeek(t.allFiltered, 12, new Date(t.range.to + 'T12:00:00'), t.data.preferences.weekStartsOn);
+  const months = monthlyCount(t.allFiltered.filter((m) => m.at.slice(0, 10) <= t.range.to), () => true, 12);
+  const parts = [
+    ['Madrugada', 0, 5],
+    ['Manhã', 6, 11],
+    ['Tarde', 12, 17],
+    ['Noite', 18, 23],
+  ] as const;
+  return (
+    <>
+      <div className="notice calm small">Isto só descreve quando você registrou. Não há meta, sequência ou frequência “certa”.</div>
+      <Section title="No período">
+        <div className="grid-3">
+          <div className="card tight stat">
+            <span className="n">{r.withRecords}</span>
+            <span className="l">datas com registro</span>
+          </div>
+          <div className="card tight stat">
+            <span className="n">{r.without}</span>
+            <span className="l">datas sem registro</span>
+          </div>
+          <div className="card tight stat">
+            <span className="n">{r.retro}</span>
+            <span className="l">escritos depois</span>
+          </div>
+        </div>
+      </Section>
+      <Section title="Registros por semana">
+        <div className="card">
+          <Bars rows={weeks.map((w) => ({ label: `sem. ${fmtDate(w.start, { short: true })}`, value: w.n }))} color="var(--comp1-ink)" />
+        </div>
+      </Section>
+      {months.length > 1 && (
+        <Section title="Registros por mês">
+          <div className="card">
+            <Bars rows={months.map((m) => ({ label: monthLabel(m.month), value: m.total }))} color="var(--comp1-ink)" />
+          </div>
+        </Section>
+      )}
+      <Section title="Quando você costuma escrever">
+        <div className="card">
+          <Bars rows={parts.map(([l, a, b]) => ({ label: l, value: r.hours.slice(a, b + 1).reduce((x, y) => x + y, 0) }))} color="var(--comp1-ink)" />
+          <Note>Pelo horário em que os registros foram criados no aplicativo (não o horário em que as experiências aconteceram).</Note>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+const BODIES: Record<(typeof CATEGORIES)[number]['id'], () => ReactNode> = {
+  dias: DaysBody,
+  emocoes: EmotionsBody,
+  energia: EnergyBody,
+  atividades: ActivitiesBody,
+  evolucao: EvolutionBody,
+  linha: TimelineBody,
+  contextos: ContextsBody,
+  calendario: CalendarBody,
+  regularidade: RegularityBody,
+};
+
+export { WEEKDAYS_SHORT };
