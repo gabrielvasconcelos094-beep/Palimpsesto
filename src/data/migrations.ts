@@ -9,11 +9,28 @@
  * `1: (d) => ({ ...d, schemaVersion: 2, novoCampo: ... })` abaixo, com teste.
  */
 import { SCHEMA_VERSION } from '../domain/schema';
+import { toLocalAt } from '../domain/util';
 
 type Migration = (data: any) => any;
 
 export const MIGRATIONS: Record<number, Migration> = {
-  // 1: (d) => ({ ...d, schemaVersion: 2 }),
+  /**
+   * 1 → 2
+   * - `at` (quando aconteceu) passa de instante UTC para hora local flutuante,
+   *   usando o fuso do aparelho no momento da migração; nada muda de dia aqui.
+   * - `timePrecision: 'exact'` para registros antigos (o horário era exato).
+   * - Novos campos com valores vazios: atividades nos registros de humor,
+   *   acontecimentos, vínculos de descobertas e novas preferências.
+   */
+  1: (d) => ({
+    ...d,
+    schemaVersion: 2,
+    moodEntries: (d.moodEntries ?? []).map((m: any) => ({ ...m, at: toLocalAt(String(m.at)), timePrecision: m.timePrecision ?? 'exact', itemIds: m.itemIds ?? [] })),
+    experiences: (d.experiences ?? []).map((x: any) => ({ ...x, at: toLocalAt(String(x.at)), timePrecision: x.timePrecision ?? 'exact' })),
+    uses: (d.uses ?? []).map((u: any) => ({ ...u, at: toLocalAt(String(u.at)) })),
+    discoveries: (d.discoveries ?? []).map((x: any) => ({ ...x, moodEntryIds: x.moodEntryIds ?? [], eventIds: x.eventIds ?? [] })),
+    events: d.events ?? [],
+  }),
 };
 
 export class NewerSchemaError extends Error {

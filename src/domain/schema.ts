@@ -1,5 +1,5 @@
 /**
- * Modelo de dados do Palimpsesto (schemaVersion 1).
+ * Modelo de dados do Palimpsesto (schemaVersion 2).
  *
  * Os esquemas zod são a fonte única de verdade: deles derivam os tipos
  * TypeScript, a validação de importações e a validação do arquivo local.
@@ -10,10 +10,20 @@
  * - Campos desconhecidos são preservados (`.passthrough()` / `looseObject`) para
  *   que um backup feito por uma versão mais nova, de mesmo schema, não perca dados.
  * - Valores numéricos de escalas são fixos; rótulos são apenas apresentação.
+ *
+ * Tempo (esquema 2):
+ * - `at` é o momento em que a experiência ACONTECEU (o "occurred_at"), guardado
+ *   como hora local "flutuante" — `YYYY-MM-DDTHH:mm:ss`, sem fuso. Um registro
+ *   das 21h do dia 19 continua sendo do dia 19 às 21h mesmo que o aparelho mude
+ *   de fuso. Todas as estatísticas usam `at`.
+ * - `createdAt` e `updatedAt` são instantes absolutos (ISO 8601 em UTC): quando o
+ *   registro foi criado e alterado pela última vez neste aplicativo.
+ * - `timePrecision` diz quão preciso é o horário de `at`: exato, aproximado
+ *   (período do dia) ou desconhecido (só a data).
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * Remove a assinatura de índice que `looseObject` acrescenta ao tipo, mantendo
@@ -26,6 +36,12 @@ const id = z.string().min(1).max(120);
 const iso = z.string().min(10).max(40);
 const text = (max = 20000) => z.string().max(max);
 const tags = z.array(z.string().min(1).max(60)).max(60).default([]);
+/** Hora local flutuante: YYYY-MM-DDTHH:mm[:ss], sem fuso. */
+export const LOCAL_AT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/;
+const localAt = z.string().regex(LOCAL_AT_RE, 'data/hora local esperada (AAAA-MM-DDTHH:mm:ss)');
+export const TIME_PRECISION = ['exact', 'period', 'day'] as const;
+export type TimePrecision = (typeof TIME_PRECISION)[number];
+const timePrecision = z.enum(TIME_PRECISION).default('exact');
 
 const base = {
   id,
@@ -50,14 +66,17 @@ export const IndicatorKeySchema = z.enum(INDICATOR_KEYS);
 
 export const MoodEntrySchema = z.looseObject({
   ...base,
-  /** Momento ao qual o registro se refere (editável). */
-  at: iso,
+  /** Quando a experiência aconteceu (hora local; pode ser retroativo). */
+  at: localAt,
+  timePrecision,
   valence: Valence,
   energy: Energy.nullable().default(null),
   emotionIds: z.array(id).max(60).default([]),
   indicators: z.partialRecord(IndicatorKeySchema, Level5).default({}),
   /** Contexto: o que estava acontecendo (ex.: "dormi mal", "tempo só"). */
   tags,
+  /** Atividades (itens do repertório) feitas ou vividas nesse momento. */
+  itemIds: z.array(id).max(60).default([]),
   note: text().default(''),
 });
 export type MoodEntry = Known<z.infer<typeof MoodEntrySchema>>;
@@ -72,7 +91,8 @@ export type Emotion = Known<z.infer<typeof EmotionSchema>>;
 
 export const ExperienceSchema = z.looseObject({
   ...base,
-  at: iso,
+  at: localAt,
+  timePrecision,
   title: text(200).default(''),
   whatHappened: text().default(''),
   feelingBefore: Valence.nullable().default(null),
@@ -93,7 +113,7 @@ export type Experience = Known<z.infer<typeof ExperienceSchema>>;
 /* Repertório                                                          */
 /* ------------------------------------------------------------------ */
 
-export const REPERTOIRE_KINDS = ['resource', 'strategy', 'drain'] as const;
+export const REPERTOIRE_KINDS = ['resource', 'strategy', 'drain', 'activity'] as const;
 export type RepertoireKind = (typeof REPERTOIRE_KINDS)[number];
 
 export const RepertoireItemSchema = z.looseObject({
@@ -123,7 +143,8 @@ export type Outcome = (typeof OUTCOMES)[number];
 export const StrategyUseSchema = z.looseObject({
   ...base,
   itemId: id,
-  at: iso,
+  at: localAt,
+  timePrecision,
   outcome: z.enum(OUTCOMES).default('unknown'),
   tags,
   note: text().default(''),
@@ -212,10 +233,32 @@ export const DiscoverySchema = z.looseObject({
   /** Estado anterior a cada alteração relevante (camadas). */
   revisions: z.array(DiscoveryRevisionSchema).max(500).default([]),
   experienceIds: z.array(id).max(500).default([]),
+  moodEntryIds: z.array(id).max(500).default([]),
+  eventIds: z.array(id).max(500).default([]),
   /** Se nasceu de uma associação sugerida pela Trajetória, guardamos a origem. */
   origin: z.enum(['user', 'pattern', 'experience']).default('user'),
 });
 export type Discovery = Known<z.infer<typeof DiscoverySchema>>;
+
+/* ------------------------------------------------------------------ */
+/* Linha do tempo: acontecimentos significativos                       */
+/* ------------------------------------------------------------------ */
+
+export const EVENT_CATEGORIES = ['viagem', 'trabalho', 'relacoes', 'conflito', 'conquista', 'projeto', 'rotina', 'inicio', 'encerramento', 'saude', 'outro'] as const;
+export type EventCategory = (typeof EVENT_CATEGORIES)[number];
+
+export const LifeEventSchema = z.looseObject({
+  ...base,
+  title: z.string().min(1).max(200),
+  description: text().default(''),
+  /** Data de início (YYYY-MM-DD, calendário local). Pode ser retroativa. */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Fim, para acontecimentos que duram um período. */
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  category: z.enum(EVENT_CATEGORIES).default('outro'),
+  tags,
+});
+export type LifeEvent = Known<z.infer<typeof LifeEventSchema>>;
 
 /* ------------------------------------------------------------------ */
 /* Guia                                                                */
@@ -298,6 +341,16 @@ export const PreferencesSchema = z.looseObject({
   weekStartsOn: z.union([z.literal(0), z.literal(1)]).default(1),
   /** Mostrar "camadas antigas" na tela inicial. */
   resurfacing: z.boolean().default(true),
+  /** Estilo visual, independente da paleta: minimalista (padrão) ou orgânico. */
+  visualStyle: z.enum(['minimal', 'organic']).default('minimal'),
+  /** Família de símbolos da escala de valência. */
+  symbolSet: z.enum(['nature', 'faces', 'fine', 'moon', 'weather', 'emoji']).default('nature'),
+  /** Categorias da Trajetória que o usuário escolheu ocultar. */
+  trajectoryHidden: z.array(z.string().max(40)).max(40).default([]),
+  /** Mostrar "O que seus registros mostram". */
+  showInsights: z.boolean().default(true),
+  /** Observações sugeridas que o usuário ocultou (por id). */
+  dismissedInsights: z.array(z.string().max(200)).max(500).default([]),
 });
 export type Preferences = Known<z.infer<typeof PreferencesSchema>>;
 
@@ -318,6 +371,7 @@ export const COLLECTIONS = [
   'discoveries',
   'situations',
   'letters',
+  'events',
 ] as const;
 export type CollectionName = (typeof COLLECTIONS)[number];
 
@@ -334,6 +388,7 @@ export const CollectionSchemas = {
   discoveries: DiscoverySchema,
   situations: SituationSchema,
   letters: LetterSchema,
+  events: LifeEventSchema,
 } as const;
 
 export type EntityOf<C extends CollectionName> = Known<z.infer<(typeof CollectionSchemas)[C]>>;
@@ -352,6 +407,7 @@ export const AppDataSchema = z.looseObject({
   discoveries: z.array(DiscoverySchema).default([]),
   situations: z.array(SituationSchema).default([]),
   letters: z.array(LetterSchema).default([]),
+  events: z.array(LifeEventSchema).default([]),
   preferences: PreferencesSchema.default(PreferencesSchema.parse({})),
 });
 export type AppData = Known<z.infer<typeof AppDataSchema>>;

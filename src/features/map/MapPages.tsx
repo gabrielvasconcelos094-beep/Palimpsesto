@@ -81,7 +81,7 @@ export function MapHome() {
               </div>
             </Section>
           )}
-          <div className="stack" style={{ marginTop: 18 }}>
+          <div className="stack flow" style={{ marginTop: 18 }}>
             {sections.map((s) => {
               const a = stats.answered.get(s.id) ?? 0;
               const n = stats.notes.get(s.id) ?? 0;

@@ -36,6 +36,9 @@ export interface Tokens {
   danger: string;
   dangerSoft: string;
   mood: [string, string, string, string, string];
+  /** Blocos de cor pastel (usados pelo estilo Editorial orgânico). */
+  tints: [string, string, string, string];
+  moodOrganic: [string, string, string, string, string];
   energy: [string, string, string, string, string];
   radius: number;
   cardStyle: CardStyle;
@@ -104,6 +107,19 @@ export function deriveTokens(
   const m3 = ensureContrast(neutral, [surface], 3);
   const mood: Tokens['mood'] = [m1, m2, m3, m4, m5];
 
+  // Matizes pastel (estilo orgânico): texto principal ≥ 7:1 e secundário ≥ 4,5:1.
+  const tintOk = (c: string) => contrast(ink, c) >= 7 && contrast(inkSoft, c) >= 4.6;
+  const tint = (base: string, t: number) => {
+    let c = mix(base, surface, t);
+    for (let k = 0; k < 24 && !tintOk(c); k++) c = mix(c, surface, 0.2);
+    return tintOk(c) ? c : surface;
+  };
+  const tints: Tokens['tints'] = dark
+    ? [tint(colors.primary, 0.8), tint(colors.accent, 0.8), tint(colors.complement2, 0.72), tint(colors.complement1, 0.8)]
+    : [tint(colors.primary, 0.84), tint(colors.accent, 0.8), tint(colors.complement2, 0.62), tint(colors.complement1, 0.84)];
+  // Variante dos tons do humor para o orgânico: ≥ 3:1 também sobre os blocos pastel.
+  const moodOrganic = mood.map((m) => ensureContrast(m, [surface, ...tints], 3)) as Tokens['mood'];
+
   // Energia: sequencial no tom principal (mais intenso = mais energia).
   const e5 = ensureContrast(colors.primary, [surface], 5);
   const energy = [0.78, 0.6, 0.42, 0.22, 0].map((t, i) =>
@@ -138,6 +154,8 @@ export function deriveTokens(
     danger,
     dangerSoft,
     mood,
+    tints,
+    moodOrganic,
     energy,
     radius: shape.radius,
     cardStyle: shape.cardStyle,
@@ -237,6 +255,8 @@ export function tokensToCss(t: Tokens, opts: { displayFont?: DisplayFont; textSc
     '--text-scale': String(opts.textScale ?? 1),
   };
   t.mood.forEach((m, i) => (vars[`--mood-${i + 1}`] = m));
+  t.tints.forEach((m, i) => (vars[`--tint-${i + 1}`] = m));
+  t.moodOrganic.forEach((m, i) => (vars[`--mood-o-${i + 1}`] = m));
   t.energy.forEach((m, i) => (vars[`--energy-${i + 1}`] = m));
   return vars;
 }

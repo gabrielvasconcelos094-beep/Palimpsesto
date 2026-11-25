@@ -6,9 +6,13 @@ import { toast } from '../../app/toast';
 import { outcomeCounts, outcomesByContext } from '../../domain/analytics';
 import { FREQUENCY_LABELS, KIND_LABELS, OUTCOME_LABELS, OUTCOME_ORDER } from '../../domain/scales';
 import type { Outcome, RepertoireItem, RepertoireKind, StrategyUse } from '../../domain/schema';
-import { DRAIN_CATEGORIES, RESOURCE_CATEGORIES, STRATEGY_CATEGORIES } from '../../domain/seed';
+import { ACTIVITY_CATEGORIES, DRAIN_CATEGORIES, RESOURCE_CATEGORIES, STRATEGY_CATEGORIES } from '../../domain/seed';
 import { fold } from '../../domain/util';
-import { AutoText, Empty, Field, fmtDate, fromLocalInput, Page, Section, Segmented, Sheet, toLocalInput, Toggle, useConfirm } from '../../ui/components';
+import { AutoText, Empty, Field, fmtDate, Page, Section, Segmented, Sheet, Toggle, useConfirm } from '../../ui/components';
+import { nowWhen, WhenPicker, type When } from '../../ui/WhenPicker';
+import { valenceCounts } from '../../domain/analytics';
+import { valenceLabel } from '../../domain/scales';
+import { setSharedFilters, NO_FILTERS } from '../../app/filters';
 import { TagInput, TagList } from '../../ui/pickers';
 import { useAutosave } from '../../ui/useAutosave';
 
@@ -45,7 +49,7 @@ export function OutcomeLegend() {
   );
 }
 
-const CATS: Record<RepertoireKind, string[]> = { resource: RESOURCE_CATEGORIES, strategy: STRATEGY_CATEGORIES, drain: DRAIN_CATEGORIES };
+const CATS: Record<RepertoireKind, string[]> = { resource: RESOURCE_CATEGORIES, strategy: STRATEGY_CATEGORIES, drain: DRAIN_CATEGORIES, activity: ACTIVITY_CATEGORIES };
 
 export function RepertoireTab() {
   const data = useData();
@@ -60,6 +64,7 @@ export function RepertoireTab() {
     return [...m.values()].slice(0, 30);
   }, [data.uses, data.repertoire]);
 
+  const moodCount = (id: string) => data.moodEntries.filter((m) => m.itemIds.includes(id)).length;
   const items = data.repertoire
     .filter((i) => i.kind === kind && !i.archived)
     .filter((i) => !ctx || i.tags.some((t) => fold(t) === fold(ctx)) || data.uses.some((u) => u.itemId === i.id && u.tags.some((t) => fold(t) === fold(ctx))))
@@ -78,6 +83,7 @@ export function RepertoireTab() {
         options={[
           { value: 'resource', label: 'Faz bem' },
           { value: 'strategy', label: 'Estratégias' },
+          { value: 'activity', label: 'Atividades' },
           { value: 'drain', label: 'Desgasta' },
         ]}
       />
@@ -108,9 +114,11 @@ export function RepertoireTab() {
           {kind === 'resource' && 'Ler, caminhar, uma pessoa, um lugar, cuidar de plantas…'}
           {kind === 'strategy' && 'O que você já tentou em momentos difíceis — e como funcionou em cada situação.'}
           {kind === 'drain' && 'Situações desgastantes, hábitos que pesam, circunstâncias que pedem cuidado.'}
+          {kind === 'activity' && 'Ler, caminhar, estudar, cozinhar… Você também pode criá-las direto no registro de humor.'}
         </Empty>
       ) : (
         <div className="stack">
+          <div className="stack flow">
           {items.map(({ i, uses, counts }) => (
             <button key={i.id} className="card tight" onClick={() => navigate(`/guia/item/${i.id}`)}>
               <div className="row between">
@@ -120,6 +128,11 @@ export function RepertoireTab() {
               {(i.circumstances || i.description) && (
                 <p className="small muted" style={{ margin: '4px 0 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {i.circumstances || i.description}
+                </p>
+              )}
+              {moodCount(i.id) > 0 && (
+                <p className="xs faint" style={{ margin: '6px 0 0' }}>
+                  Em {moodCount(i.id)} registro(s) de humor
                 </p>
               )}
               {uses.length > 0 && (
@@ -133,6 +146,7 @@ export function RepertoireTab() {
               {kind === 'drain' && i.wantToChange && <p className="xs" style={{ margin: '8px 0 0', color: 'var(--accent-ink)' }}>Quero modificar</p>}
             </button>
           ))}
+          </div>
           {items.some((x) => x.uses.length) && <OutcomeLegend />}
         </div>
       )}
@@ -247,6 +261,7 @@ function ItemEditor() {
             options={[
               { value: 'resource', label: 'Faz bem' },
               { value: 'strategy', label: 'Estratégia' },
+              { value: 'activity', label: 'Atividade' },
               { value: 'drain', label: 'Desgasta' },
             ]}
           />
@@ -289,6 +304,8 @@ function ItemEditor() {
         <Field label="Marcadores" optional help="Contextos em que isso costuma importar — usados pelas Situações.">
           <TagInput value={draft.tags} onChange={(tags) => set({ tags })} />
         </Field>
+
+        {itemId && <ItemInMoods itemId={itemId} />}
 
         {!isDrain && itemId && (
           <Section kicker="Usos e avaliações" action={<button className="btn ghost sm" onClick={() => setUseSheet({ open: true, use: null })}><Plus size={14} /> Registrar uso</button>}>
@@ -369,7 +386,7 @@ function UseSheet(props: { open: boolean; onClose: () => void; itemId: string; u
 }
 
 function UseForm(props: { onClose: () => void; itemId: string; use: StrategyUse | null }) {
-  const [at, setAt] = useState(props.use?.at ?? new Date().toISOString());
+  const [when, setWhen] = useState<When>(() => (props.use ? { at: props.use.at, timePrecision: props.use.timePrecision } : nowWhen()));
   const [outcome, setOutcome] = useState<Outcome>(props.use?.outcome ?? 'unknown');
   const [tags, setTags] = useState<string[]>(props.use?.tags ?? []);
   const [note, setNote] = useState(props.use?.note ?? '');
@@ -395,9 +412,7 @@ function UseForm(props: { onClose: () => void; itemId: string; use: StrategyUse 
       <Field label="Em que circunstância?" optional>
         <TagInput value={tags} onChange={setTags} placeholder="Ex.: dia difícil, viagem" />
       </Field>
-      <Field label="Quando">
-        <input type="datetime-local" className="input" value={toLocalInput(at)} onChange={(e) => setAt(fromLocalInput(e.target.value))} />
-      </Field>
+      <WhenPicker value={when} onChange={setWhen} allowNow={!props.use} label="Quando foi?" />
       <Field label="Observação" optional>
         <AutoText value={note} onChange={setNote} minRows={2} />
       </Field>
@@ -418,7 +433,7 @@ function UseForm(props: { onClose: () => void; itemId: string; use: StrategyUse 
         <button
           className="btn primary block"
           onClick={() => {
-            store.upsert('uses', { ...(props.use ?? { experienceId: null }), itemId: props.itemId, at, outcome, tags, note } as any);
+            store.upsert('uses', { ...(props.use ?? { experienceId: null }), itemId: props.itemId, ...when, outcome, tags, note } as any);
             toast('Uso registrado.');
             props.onClose();
           }}
@@ -427,5 +442,54 @@ function UseForm(props: { onClose: () => void; itemId: string; use: StrategyUse 
         </button>
       </div>
     </div>
+  );
+}
+
+/** Como o item aparece nos registros de humor (descritivo, sem causalidade). */
+function ItemInMoods({ itemId }: { itemId: string }) {
+  const data = useData();
+  const labels = data.preferences.valenceLabels;
+  const withIt = data.moodEntries.filter((m) => m.itemIds.includes(itemId));
+  if (!withIt.length) return null;
+  const c = valenceCounts(withIt);
+  const all = valenceCounts(data.moodEntries);
+  const pct = (x: number, n: number) => (n ? Math.round((x / n) * 100) : 0);
+  const n = withIt.length;
+  const N = data.moodEntries.length;
+  const last = [...withIt].sort((a, b) => b.at.localeCompare(a.at))[0];
+  return (
+    <Section kicker="Nos seus registros de humor">
+      <div className="card tight stack" style={{ gap: 10 }}>
+        <p className="small" style={{ margin: 0 }}>
+          Aparece em <strong>{n}</strong> registro(s), em {new Set(withIt.map((m) => m.at.slice(0, 10))).size} data(s). Último: {fmtDate(last.at.slice(0, 10))}.
+        </p>
+        {[['Com esta atividade', c, n], ['Todos os registros', all, N]].map(([label, counts, total]) => (
+          <div key={label as string}>
+            <div className="row between xs muted">
+              <span>{label as string}</span>
+              <span>
+                {pct((counts as number[])[3] + (counts as number[])[4], total as number)}% {valenceLabel(1, labels).toLowerCase()} ou acima · n={total as number}
+              </span>
+            </div>
+            <div className="stackbar" style={{ marginTop: 4 }}>
+              {(counts as number[]).map((x, k) => (x ? <div key={k} style={{ width: `${(x / (total as number)) * 100}%`, background: `var(--mood-${k + 1})` }} /> : null))}
+            </div>
+          </div>
+        ))}
+        <p className="xs faint" style={{ margin: 0 }}>
+          {n < 5 ? 'Ainda são poucos registros para comparar. ' : ''}Isto descreve quando a atividade foi registrada, não o efeito dela.
+        </p>
+        <button
+          className="btn ghost sm"
+          style={{ alignSelf: 'flex-start', paddingLeft: 0 }}
+          onClick={() => {
+            setSharedFilters({ ...NO_FILTERS, itemIds: [itemId], type: 'mood' });
+            navigate('/diario');
+          }}
+        >
+          Ver esses registros no Diário
+        </button>
+      </div>
+    </Section>
   );
 }

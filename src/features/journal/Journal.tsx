@@ -1,67 +1,124 @@
-import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Feather, Plus, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, Feather, Flag, Plus, Search, SlidersHorizontal } from 'lucide-react';
 import { navigate, setQuery, useRoute } from '../../app/router';
+import { useSharedFilters } from '../../app/filters';
 import { useData } from '../../app/store';
-import { calendarMap } from '../../domain/analytics';
 import { energyLabel, valenceLabel, VALENCE_VALUES } from '../../domain/scales';
-import type { Experience, MoodEntry } from '../../domain/schema';
-import { addDays, dayKey, fold, matchesSearch, startOfWeek } from '../../domain/util';
-import { Empty, fmtMonth, fmtTime, Page, relativeDay, Segmented, Sheet, Field } from '../../ui/components';
+import type { Experience, LifeEvent, MoodEntry } from '../../domain/schema';
+import { activeCount, contextFor, describeFilters, isRetro, matchEvent, matchExperience, matchMood, NO_FILTERS, periodDays } from '../../domain/filters';
+import { addDays, dayKey, startOfWeek } from '../../domain/util';
+import { Empty, fmtDate, fmtMonth, Page, relativeDay, Segmented, Sheet } from '../../ui/components';
+import { FilterSheet, FilterSummary } from '../../ui/FilterSheet';
 import { TagList, ValenceMark } from '../../ui/pickers';
+import { periodOfHour } from '../../ui/WhenPicker';
+import { EventIcon, eventRange } from './EventEditor';
 import { MoodSheet } from './MoodSheet';
 
-type Item = { kind: 'mood'; at: string; m: MoodEntry } | { kind: 'exp'; at: string; x: Experience };
+type Item = { kind: 'mood'; day: string; at: string; m: MoodEntry } | { kind: 'exp'; day: string; at: string; x: Experience } | { kind: 'event'; day: string; at: string; e: LifeEvent };
 
-interface Filters {
-  type: 'all' | 'mood' | 'exp';
-  period: 'all' | '7' | '30' | '90';
-  emotions: string[];
-  valences: number[];
-  q: string;
+/** Horário exibido conforme a precisão registrada. */
+export function timeLabel(at: string, precision: MoodEntry['timePrecision']) {
+  if (precision === 'day') return 'sem horário';
+  if (precision === 'period') return periodOfHour(Number(at.slice(11, 13))).label.toLowerCase();
+  return at.slice(11, 16);
 }
-const NO_FILTERS: Filters = { type: 'all', period: 'all', emotions: [], valences: [], q: '' };
+
+export function RetroBadge({ createdAt, at }: { createdAt: string; at: string }) {
+  if (!isRetro(createdAt, at)) return null;
+  return (
+    <span className="xs faint" title={`Escrito em ${fmtDate(createdAt, { withYear: true })}`}>
+      · escrito em {fmtDate(createdAt)}
+    </span>
+  );
+}
+
+/** Folha "Registrar" com as três opções, opcionalmente para um dia específico. */
+export function AddSheet({ open, onClose, day, onMood }: { open: boolean; onClose: () => void; day: string | null; onMood: () => void }) {
+  const q = day ? `?dia=${day}` : '';
+  return (
+    <Sheet open={open} onClose={onClose} title={day && day !== dayKey(new Date()) ? `Registrar em ${fmtDate(day)}` : 'Registrar'}>
+      <div className="stack">
+        <button
+          className="card row"
+          onClick={() => {
+            onClose();
+            onMood();
+          }}
+        >
+          <ValenceMark v={1} size={26} />
+          <div className="grow">
+            <div className="h3">Humor</div>
+            <div className="small muted">Como você estava — rápido, com detalhes opcionais.</div>
+          </div>
+        </button>
+        <button
+          className="card row"
+          onClick={() => {
+            onClose();
+            navigate(`/diario/experiencia/nova${q}`);
+          }}
+        >
+          <Feather size={24} />
+          <div className="grow">
+            <div className="h3">Experiência</div>
+            <div className="small muted">Um acontecimento: o que houve, o que ajudou, o que aprendeu.</div>
+          </div>
+        </button>
+        <button
+          className="card row"
+          onClick={() => {
+            onClose();
+            navigate(`/diario/acontecimento/novo${q}`);
+          }}
+        >
+          <Flag size={24} />
+          <div className="grow">
+            <div className="h3">Acontecimento</div>
+            <div className="small muted">Um marco na linha do tempo: viagem, mudança, conquista, começo ou fim de algo.</div>
+          </div>
+        </button>
+      </div>
+    </Sheet>
+  );
+}
 
 export function Journal() {
   const data = useData();
   const route = useRoute();
   const view = (route.query.get('v') as 'lista' | 'calendario') || 'lista';
-  const [sheet, setSheet] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
-  const [addOpen, setAddOpen] = useState(false);
+  const [sheet, setSheet] = useState<{ open: boolean; id: string | null; day: string | null }>({ open: false, id: null, day: null });
+  const [add, setAdd] = useState<{ open: boolean; day: string | null }>({ open: false, day: null });
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [f, setF] = useState<Filters>(NO_FILTERS);
+  const [f, setF] = useSharedFilters();
   const [limit, setLimit] = useState(30);
   const labels = data.preferences.valenceLabels;
-  const emo = useMemo(() => new Map(data.emotions.map((e) => [e.id, e.label])), [data.emotions]);
-  const activeFilters = f.type !== 'all' || f.period !== 'all' || f.emotions.length > 0 || f.valences.length > 0 || f.q.trim() !== '';
+  const ctx = useMemo(() => contextFor(data), [data]);
 
+  // Links vindos de outras telas (ex.: período de um acontecimento).
+  useEffect(() => {
+    const de = route.query.get('de');
+    const ate = route.query.get('ate');
+    if (de && ate) setF({ ...NO_FILTERS, period: 'custom', from: de, to: ate });
+    const emocao = route.query.get('emocao');
+    if (emocao) setF({ ...NO_FILTERS, emotions: [emocao] });
+    const registro = route.query.get('registro');
+    if (registro) setSheet({ open: true, id: registro, day: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const active = activeCount(f);
   const items = useMemo(() => {
-    const since = f.period === 'all' ? '' : addDays(new Date(), -Number(f.period)).toISOString();
+    const range = periodDays(f);
     const out: Item[] = [];
-    if (f.type !== 'exp')
-      for (const m of data.moodEntries) {
-        if (since && m.at < since) continue;
-        if (f.valences.length && !f.valences.includes(m.valence)) continue;
-        if (f.emotions.length && !f.emotions.some((e) => m.emotionIds.includes(e))) continue;
-        if (f.q && !matchesSearch([m.note, ...m.tags, ...m.emotionIds.map((i) => emo.get(i))], f.q)) continue;
-        out.push({ kind: 'mood', at: m.at, m });
-      }
-    if (f.type !== 'mood')
-      for (const x of data.experiences) {
-        if (since && x.at < since) continue;
-        if (f.valences.length && !(f.valences.includes(x.feelingBefore as number) || f.valences.includes(x.feelingAfter as number))) continue;
-        if (f.emotions.length && !f.emotions.some((e) => x.emotionIds.includes(e))) continue;
-        if (f.q && !matchesSearch([x.title, x.whatHappened, x.learned, x.whatHelped, x.whatWorsened, x.whatIDid, ...x.tags], f.q)) continue;
-        out.push({ kind: 'exp', at: x.at, x });
-      }
+    for (const m of data.moodEntries) if (matchMood(m, f, ctx, range)) out.push({ kind: 'mood', day: m.at.slice(0, 10), at: m.at, m });
+    for (const x of data.experiences) if (matchExperience(x, f, ctx, data, range)) out.push({ kind: 'exp', day: x.at.slice(0, 10), at: x.at, x });
+    for (const e of data.events) if (matchEvent(e, f, range)) out.push({ kind: 'event', day: e.date, at: `${e.date}T23:59:59`, e });
     return out.sort((a, b) => b.at.localeCompare(a.at));
-  }, [data.moodEntries, data.experiences, f, emo]);
+  }, [data, f, ctx]);
 
   const days = useMemo(() => {
     const map = new Map<string, Item[]>();
-    for (const it of items) {
-      const k = dayKey(it.at);
-      map.set(k, [...(map.get(k) ?? []), it]);
-    }
+    for (const it of items) map.set(it.day, [...(map.get(it.day) ?? []), it]);
     return [...map.entries()];
   }, [items]);
 
@@ -69,13 +126,16 @@ export function Journal() {
     <Page
       title="Diário"
       ghost="diário"
-      subtitle="Humor e experiências, no seu ritmo."
+      subtitle="Humor, experiências e acontecimentos — de hoje ou de antes."
       actions={
         <>
-          <button className="icon-btn" aria-label="Filtros" onClick={() => setFiltersOpen(true)} style={activeFilters ? { color: 'var(--primary-ink)' } : undefined}>
+          <button className="icon-btn" aria-label="Buscar em tudo" onClick={() => navigate('/busca')}>
+            <Search size={21} strokeWidth={1.6} />
+          </button>
+          <button className="icon-btn" aria-label={`Filtros${active ? ` (${active} ativos)` : ''}`} onClick={() => setFiltersOpen(true)} style={active ? { color: 'var(--primary-ink)' } : undefined}>
             <SlidersHorizontal size={21} strokeWidth={1.6} />
           </button>
-          <button className="icon-btn filled" aria-label="Novo registro" onClick={() => setAddOpen(true)}>
+          <button className="icon-btn filled" aria-label="Novo registro" onClick={() => setAdd({ open: true, day: null })}>
             <Plus size={22} />
           </button>
         </>
@@ -91,30 +151,30 @@ export function Journal() {
         ]}
       />
 
-      {activeFilters && (
-        <div className="row between small" style={{ marginTop: 12 }}>
-          <span className="muted">{items.length} registro(s) com os filtros atuais</span>
-          <button className="btn ghost sm" onClick={() => setF(NO_FILTERS)}>
-            Limpar filtros
-          </button>
-        </div>
-      )}
+      <FilterSummary items={describeFilters(f, data, (v) => valenceLabel(v, labels))} onClear={() => setF(NO_FILTERS)} />
+      {active > 0 && <p className="xs muted" style={{ margin: '6px 0 0' }}>{items.length} resultado(s)</p>}
 
       {view === 'calendario' ? (
-        <CalendarView entries={items.filter((i): i is Extract<Item, { kind: 'mood' }> => i.kind === 'mood').map((i) => i.m)} onOpen={(id) => setSheet({ open: true, id })} />
+        <CalendarView
+          entries={items.filter((i): i is Extract<Item, { kind: 'mood' }> => i.kind === 'mood').map((i) => i.m)}
+          events={items.filter((i): i is Extract<Item, { kind: 'event' }> => i.kind === 'event').map((i) => i.e)}
+          experiences={items.filter((i): i is Extract<Item, { kind: 'exp' }> => i.kind === 'exp').map((i) => i.x)}
+          onOpen={(id) => setSheet({ open: true, id, day: null })}
+          onAdd={(day) => setAdd({ open: true, day })}
+        />
       ) : days.length === 0 ? (
         <div style={{ marginTop: 20 }}>
           <Empty
-            title={activeFilters ? 'Nada encontrado' : 'Ainda não há registros'}
+            title={active ? 'Nada encontrado' : 'Ainda não há registros'}
             action={
-              !activeFilters && (
-                <button className="btn primary" onClick={() => setAddOpen(true)}>
+              !active && (
+                <button className="btn primary" onClick={() => setAdd({ open: true, day: null })}>
                   Fazer um registro
                 </button>
               )
             }
           >
-            {activeFilters ? 'Tente ajustar os filtros.' : 'Registre quando quiser — um toque basta. Não há sequência a manter.'}
+            {active ? 'Tente ajustar os filtros.' : 'Registre quando quiser — inclusive coisas de dias anteriores. Não há sequência a manter.'}
           </Empty>
         </div>
       ) : (
@@ -122,34 +182,13 @@ export function Journal() {
           {days.slice(0, limit).map(([k, list]) => (
             <div key={k}>
               <div className="day-head">
-                <span className="d">{relativeDay(list[0].at)}</span>
+                <span className="d">{relativeDay(k + 'T12:00:00')}</span>
               </div>
               <div className="list">
                 {list.map((it) =>
                   it.kind === 'mood' ? (
-                    <button key={it.m.id} className="list-row" onClick={() => setSheet({ open: true, id: it.m.id })}>
-                      <ValenceMark v={it.m.valence} size={22} title={valenceLabel(it.m.valence, labels)} />
-                      <div className="grow">
-                        <div className="title">{valenceLabel(it.m.valence, labels)}</div>
-                        <div className="meta">
-                          {[it.m.emotionIds.map((id) => emo.get(id)).filter(Boolean).join(', '), it.m.energy ? energyLabel(it.m.energy, data.preferences.energyLabels) : '']
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </div>
-                        {it.m.note && (
-                          <div className="small" style={{ marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                            {it.m.note}
-                          </div>
-                        )}
-                        {it.m.tags.length > 0 && (
-                          <div style={{ marginTop: 6 }}>
-                            <TagList tags={it.m.tags} />
-                          </div>
-                        )}
-                      </div>
-                      <span className="xs faint">{fmtTime(it.m.at)}</span>
-                    </button>
-                  ) : (
+                    <MoodRow key={it.m.id} m={it.m} onOpen={() => setSheet({ open: true, id: it.m.id, day: null })} />
+                  ) : it.kind === 'exp' ? (
                     <button key={it.x.id} className="list-row" onClick={() => navigate(`/diario/experiencia/${it.x.id}`)}>
                       <span className="vmark" style={{ width: 22, height: 22, background: 'var(--primary-soft)', color: 'var(--primary-ink)' }}>
                         <Feather size={13} />
@@ -161,6 +200,19 @@ export function Journal() {
                         <div className="meta" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {it.x.learned ? `Aprendizado: ${it.x.learned}` : it.x.whatHappened}
                         </div>
+                        <div className="xs faint">
+                          {timeLabel(it.x.at, it.x.timePrecision)} <RetroBadge createdAt={it.x.createdAt} at={it.x.at} />
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button key={it.e.id} className="list-row" onClick={() => navigate(`/diario/acontecimento/${it.e.id}`)} style={{ background: 'var(--accent-soft)' }}>
+                      <span className="vmark" style={{ width: 22, height: 22, color: 'var(--accent-ink)' }}>
+                        <EventIcon c={it.e.category} />
+                      </span>
+                      <div className="grow">
+                        <div className="title">{it.e.title}</div>
+                        <div className="meta">Acontecimento · {eventRange(it.e)}</div>
                       </div>
                     </button>
                   ),
@@ -176,114 +228,64 @@ export function Journal() {
         </div>
       )}
 
-      <Sheet open={addOpen} onClose={() => setAddOpen(false)} title="Registrar">
-        <div className="stack">
-          <button
-            className="card row"
-            onClick={() => {
-              setAddOpen(false);
-              setSheet({ open: true, id: null });
-            }}
-          >
-            <ValenceMark v={1} size={26} />
-            <div className="grow">
-              <div className="h3">Humor</div>
-              <div className="small muted">Como você está agora — rápido, com detalhes opcionais.</div>
-            </div>
-          </button>
-          <button
-            className="card row"
-            onClick={() => {
-              setAddOpen(false);
-              navigate('/diario/experiencia/nova');
-            }}
-          >
-            <Feather size={24} />
-            <div className="grow">
-              <div className="h3">Experiência</div>
-              <div className="small muted">Um acontecimento: o que houve, o que ajudou, o que aprendeu.</div>
-            </div>
-          </button>
-        </div>
-      </Sheet>
-
-      <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filtros">
-        <div className="stack lg">
-          <Field label="Tipo">
-            <Segmented
-              value={f.type}
-              onChange={(type) => setF({ ...f, type })}
-              options={[
-                { value: 'all', label: 'Tudo' },
-                { value: 'mood', label: 'Humor' },
-                { value: 'exp', label: 'Experiências' },
-              ]}
-            />
-          </Field>
-          <Field label="Período">
-            <Segmented
-              value={f.period}
-              onChange={(period) => setF({ ...f, period })}
-              options={[
-                { value: '7', label: '7 dias' },
-                { value: '30', label: '30 dias' },
-                { value: '90', label: '90 dias' },
-                { value: 'all', label: 'Tudo' },
-              ]}
-            />
-          </Field>
-          <Field label="Valência">
-            <div className="chips">
-              {VALENCE_VALUES.map((v) => (
-                <button
-                  key={v}
-                  className="chip"
-                  aria-pressed={f.valences.includes(v)}
-                  onClick={() => setF({ ...f, valences: f.valences.includes(v) ? f.valences.filter((x) => x !== v) : [...f.valences, v] })}
-                >
-                  <ValenceMark v={v} size={14} /> {valenceLabel(v, labels)}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field label="Emoções">
-            <div className="chips">
-              {data.emotions
-                .filter((e) => !e.hidden)
-                .map((e) => (
-                  <button
-                    key={e.id}
-                    className="chip"
-                    aria-pressed={f.emotions.includes(e.id)}
-                    onClick={() => setF({ ...f, emotions: f.emotions.includes(e.id) ? f.emotions.filter((x) => x !== e.id) : [...f.emotions, e.id] })}
-                  >
-                    {e.label}
-                  </button>
-                ))}
-            </div>
-          </Field>
-          <Field label="Buscar texto">
-            <input className="input" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} placeholder="Palavras, marcadores…" />
-          </Field>
-          <div className="row">
-            <button className="btn secondary" onClick={() => setF(NO_FILTERS)}>
-              Limpar
-            </button>
-            <button className="btn primary block" onClick={() => setFiltersOpen(false)}>
-              Ver {items.length} registro(s)
-            </button>
-          </div>
-        </div>
-      </Sheet>
-
-      <MoodSheet open={sheet.open} onClose={() => setSheet({ ...sheet, open: false })} entryId={sheet.id} />
+      <AddSheet open={add.open} day={add.day} onClose={() => setAdd({ open: false, day: add.day })} onMood={() => setSheet({ open: true, id: null, day: add.day })} />
+      <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} value={f} onChange={setF} resultLabel={`Ver ${items.length} resultado(s)`} />
+      <MoodSheet open={sheet.open} onClose={() => setSheet({ ...sheet, open: false })} entryId={sheet.id} initialDay={sheet.day} />
     </Page>
+  );
+}
+
+export function MoodRow({ m, onOpen }: { m: MoodEntry; onOpen: () => void }) {
+  const data = useData();
+  const ctx = useMemo(() => contextFor(data), [data]);
+  return (
+    <button className="list-row" onClick={onOpen}>
+      <ValenceMark v={m.valence} size={22} title={valenceLabel(m.valence, data.preferences.valenceLabels)} />
+      <div className="grow">
+        <div className="title">{valenceLabel(m.valence, data.preferences.valenceLabels)}</div>
+        <div className="meta">
+          {[m.emotionIds.map(ctx.emotionLabel).filter(Boolean).join(', '), m.energy ? energyLabel(m.energy, data.preferences.energyLabels) : '', m.itemIds.map(ctx.itemName).filter(Boolean).join(', ')]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
+        {m.note && (
+          <div className="small" style={{ marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {m.note}
+          </div>
+        )}
+        {m.tags.length > 0 && (
+          <div style={{ marginTop: 6 }}>
+            <TagList tags={m.tags} />
+          </div>
+        )}
+        {isRetro(m.createdAt, m.at) && (
+          <div className="xs faint" style={{ marginTop: 4 }}>
+            Escrito em {fmtDate(m.createdAt)}
+          </div>
+        )}
+      </div>
+      <span className="xs faint" style={{ whiteSpace: 'nowrap' }}>
+        {timeLabel(m.at, m.timePrecision)}
+      </span>
+    </button>
   );
 }
 
 const WD = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
-export function CalendarView({ entries, onOpen }: { entries: MoodEntry[]; onOpen: (id: string) => void }) {
+export function CalendarView({
+  entries,
+  events = [],
+  experiences = [],
+  onOpen,
+  onAdd,
+}: {
+  entries: MoodEntry[];
+  events?: LifeEvent[];
+  experiences?: Experience[];
+  onOpen: (id: string) => void;
+  onAdd?: (day: string) => void;
+}) {
   const data = useData();
   const labels = data.preferences.valenceLabels;
   const ws = data.preferences.weekStartsOn;
@@ -292,15 +294,21 @@ export function CalendarView({ entries, onOpen }: { entries: MoodEntry[]; onOpen
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
   const [selected, setSelected] = useState<string | null>(dayKey(new Date()));
-  const cal = useMemo(() => calendarMap(entries), [entries]);
+  // Agrupado pelo dia em que aconteceu (`at`), em ordem de horário.
+  const cal = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const e of [...entries].sort((a, b) => a.at.localeCompare(b.at))) map.set(e.at.slice(0, 10), [...(map.get(e.at.slice(0, 10)) ?? []), e.valence]);
+    return map;
+  }, [entries]);
   const start = startOfWeek(month, ws);
   const cells = Array.from({ length: 42 }, (_, i) => addDays(start, i));
   const today = dayKey(new Date());
-  const selEntries = selected ? entries.filter((e) => dayKey(e.at) === selected).sort((a, b) => a.at.localeCompare(b.at)) : [];
-  const monthEntries = entries.filter((e) => {
-    const d = new Date(e.at);
-    return d.getMonth() === month.getMonth() && d.getFullYear() === month.getFullYear();
-  });
+  const eventOn = (k: string) => events.filter((e) => k >= e.date && k <= (e.endDate ?? e.date));
+  const selEntries = selected ? entries.filter((e) => e.at.slice(0, 10) === selected).sort((a, b) => a.at.localeCompare(b.at)) : [];
+  const selExps = selected ? experiences.filter((x) => x.at.slice(0, 10) === selected) : [];
+  const selEvents = selected ? eventOn(selected) : [];
+  const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+  const monthEntries = entries.filter((e) => e.at.startsWith(monthKey));
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -308,9 +316,7 @@ export function CalendarView({ entries, onOpen }: { entries: MoodEntry[]; onOpen
         <button className="icon-btn" aria-label="Mês anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
           <ChevronLeft size={20} />
         </button>
-        <div className="h3">
-          {fmtMonth(month).replace(/^./, (c) => c.toUpperCase())}
-        </div>
+        <div className="h3">{fmtMonth(month).replace(/^./, (c) => c.toUpperCase())}</div>
         <button className="icon-btn" aria-label="Próximo mês" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
           <ChevronRight size={20} />
         </button>
@@ -325,13 +331,14 @@ export function CalendarView({ entries, onOpen }: { entries: MoodEntry[]; onOpen
           const k = dayKey(d);
           const vals = cal.get(k) ?? [];
           const out = d.getMonth() !== month.getMonth();
+          const evs = eventOn(k);
           return (
             <button
               key={k}
               className={`day${out ? ' out' : ''}${k === today ? ' today' : ''}`}
-              style={selected === k ? { borderColor: 'var(--ink)', background: 'var(--surface-2)' } : undefined}
+              style={{ ...(selected === k ? { borderColor: 'var(--ink)', background: 'var(--surface-2)' } : {}), ...(evs.length ? { boxShadow: 'inset 0 3px 0 var(--accent-ink)' } : {}) }}
               onClick={() => setSelected(k)}
-              aria-label={`${d.getDate()}: ${vals.length ? vals.map((v) => valenceLabel(v, labels)).join(', ') : 'sem registros'}`}
+              aria-label={`${d.getDate()}: ${vals.length ? vals.map((v) => valenceLabel(v, labels)).join(', ') : 'sem registros de humor'}${evs.length ? `; ${evs.map((e) => e.title).join(', ')}` : ''}`}
             >
               <span>{d.getDate()}</span>
               <span className="dots">
@@ -350,33 +357,55 @@ export function CalendarView({ entries, onOpen }: { entries: MoodEntry[]; onOpen
             {valenceLabel(v, labels)}
           </span>
         ))}
+        {events.length > 0 && (
+          <span>
+            <span style={{ width: 14, height: 3, background: 'var(--accent-ink)', display: 'inline-block' }} /> acontecimento
+          </span>
+        )}
       </div>
       <p className="small muted" style={{ marginTop: 12 }}>
-        {monthEntries.length} registro(s) neste mês, em {new Set(monthEntries.map((e) => dayKey(e.at))).size} dia(s).
+        {monthEntries.length} registro(s) de humor neste mês, em {new Set(monthEntries.map((e) => e.at.slice(0, 10))).size} dia(s). Dias sem registro ficam em branco — não contam como
+        neutros.
       </p>
       {selected && (
         <div style={{ marginTop: 14 }}>
-          <p className="kicker">{relativeDay(selected + 'T12:00:00')}</p>
-          {selEntries.length ? (
-            <div className="list">
-              {selEntries.map((m) => (
-                <button key={m.id} className="list-row" onClick={() => onOpen(m.id)}>
-                  <ValenceMark v={m.valence} size={20} />
-                  <div className="grow">
-                    <div className="title">{valenceLabel(m.valence, labels)}</div>
-                    {m.note && <div className="meta">{m.note.slice(0, 120)}</div>}
-                  </div>
-                  <span className="xs faint">{fmtTime(m.at)}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="small faint">Nenhum registro neste dia.</p>
-          )}
+          <div className="row between">
+            <p className="kicker" style={{ margin: 0 }}>
+              {relativeDay(selected + 'T12:00:00')}
+            </p>
+            {onAdd && selected <= today && (
+              <button className="btn ghost sm" onClick={() => onAdd(selected)}>
+                <Plus size={14} /> Registrar neste dia
+              </button>
+            )}
+          </div>
+          <div className="stack" style={{ marginTop: 8 }}>
+            {selEvents.map((e) => (
+              <button key={e.id} className="card tight row" style={{ background: 'var(--accent-soft)' }} onClick={() => navigate(`/diario/acontecimento/${e.id}`)}>
+                <EventIcon c={e.category} />
+                <div className="grow">
+                  <div style={{ fontWeight: 600 }}>{e.title}</div>
+                  <div className="xs muted">{eventRange(e)}</div>
+                </div>
+              </button>
+            ))}
+            {selEntries.length > 0 && (
+              <div className="list">
+                {selEntries.map((m) => (
+                  <MoodRow key={m.id} m={m} onOpen={() => onOpen(m.id)} />
+                ))}
+              </div>
+            )}
+            {selExps.map((x) => (
+              <button key={x.id} className="card tight row" onClick={() => navigate(`/diario/experiencia/${x.id}`)}>
+                <Feather size={16} />
+                <span className="grow">{x.title || 'Experiência'}</span>
+              </button>
+            ))}
+            {!selEntries.length && !selExps.length && !selEvents.length && <p className="small faint">Nenhum registro neste dia.</p>}
+          </div>
         </div>
       )}
     </div>
   );
 }
-
-export { fold };

@@ -3,7 +3,7 @@
  * Só é carregado em modo de desenvolvimento (import.meta.env.DEV).
  */
 import type { Store } from '../data/store';
-import { seededRandom } from '../domain/util';
+import { localIso, seededRandom } from '../domain/util';
 
 export function seedSample(store: Store) {
   const r = seededRandom('palimpsesto');
@@ -13,7 +13,7 @@ export function seedSample(store: Store) {
     const d = new Date(now);
     d.setDate(d.getDate() - n);
     d.setHours(h, m, 0, 0);
-    return d.toISOString();
+    return localIso(d);
   };
   for (let n = 0; n < 120; n++) {
     if (r() < 0.25) continue; // lacunas naturais

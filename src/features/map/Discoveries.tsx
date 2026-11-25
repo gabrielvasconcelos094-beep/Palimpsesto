@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Feather, Trash2, X } from 'lucide-react';
+import { Feather, Flag, Trash2, X } from 'lucide-react';
+import { ValenceMark } from '../../ui/pickers';
+import { valenceLabel } from '../../domain/scales';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
 import { toast } from '../../app/toast';
@@ -60,7 +62,7 @@ export function DiscoveryList() {
           Conclusões e hipóteses sobre você: “Descobri que preciso de tempo só depois de eventos sociais.” Elas podem ganhar ou perder força com o tempo.
         </Empty>
       ) : (
-        <div className="stack">
+        <div className="stack flow">
           {list.map((d) => (
             <button key={d.id} className="card" onClick={() => navigate(`/mapa/descoberta/${d.id}`)}>
               <div className="row between" style={{ marginBottom: 6 }}>
@@ -124,11 +126,14 @@ function DiscoveryEditor() {
           status: 'active',
           revisions: [],
           experienceIds: exp ? [exp.id] : [],
+          moodEntryIds: route.query.get('registro') ? [route.query.get('registro')!] : [],
+          eventIds: [],
           origin: exp ? 'experience' : route.query.get('origem') === 'padrao' ? 'pattern' : 'user',
         },
   );
   const [changeOpen, setChangeOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
   const { ask, node } = useConfirm();
 
   const auto = useAutosave('discoveries', draft, {
@@ -259,6 +264,52 @@ function DiscoveryEditor() {
           {!data.experiences.length && <p className="xs faint">Registre experiências no Diário para vinculá-las aqui.</p>}
         </Section>
 
+        {(draft.moodEntryIds.length > 0 || draft.eventIds.length > 0 || data.events.length > 0) && (
+          <Section kicker="Outros registros relacionados">
+            <div className="list" style={{ marginBottom: 10 }}>
+              {draft.moodEntryIds
+                .map((mid) => data.moodEntries.find((m) => m.id === mid))
+                .filter(Boolean)
+                .map((m) => (
+                  <div key={m!.id} className="list-row">
+                    <ValenceMark v={m!.valence} size={18} />
+                    <div className="grow">
+                      <div className="title">{valenceLabel(m!.valence, data.preferences.valenceLabels)}</div>
+                      <div className="meta">
+                        Registro de humor · {fmtDate(m!.at.slice(0, 10))}
+                        {m!.note ? ` · ${m!.note.slice(0, 60)}` : ''}
+                      </div>
+                    </div>
+                    <button className="icon-btn" aria-label="Desvincular registro" onClick={() => set({ moodEntryIds: draft.moodEntryIds.filter((e) => e !== m!.id) })}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              {draft.eventIds
+                .map((eid) => data.events.find((e) => e.id === eid))
+                .filter(Boolean)
+                .map((e) => (
+                  <div key={e!.id} className="list-row">
+                    <Flag size={16} className="faint" />
+                    <div className="grow">
+                      <div className="title">{e!.title}</div>
+                      <div className="meta">Acontecimento · {fmtDate(e!.date)}</div>
+                    </div>
+                    <button className="icon-btn" aria-label="Desvincular acontecimento" onClick={() => set({ eventIds: draft.eventIds.filter((x) => x !== e!.id) })}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+            </div>
+            {data.events.length > 0 && (
+              <button className="btn secondary sm" onClick={() => setEventOpen(true)}>
+                Vincular acontecimento
+              </button>
+            )}
+            <p className="xs faint">Para vincular um registro de humor, abra-o no Diário e toque em “Anotar uma descoberta a partir deste registro”.</p>
+          </Section>
+        )}
+
         {revisions.length > 0 && (
           <Section kicker="Como esta percepção mudou">
             <div className="layers">
@@ -306,6 +357,28 @@ function DiscoveryEditor() {
           toast('Mudança registrada.');
         }}
       />
+      <Sheet open={eventOpen} onClose={() => setEventOpen(false)} title="Vincular acontecimento">
+        <div className="list">
+          {[...data.events]
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .filter((e) => !draft.eventIds.includes(e.id))
+            .map((e) => (
+              <button
+                key={e.id}
+                className="list-row"
+                onClick={() => {
+                  set({ eventIds: [...draft.eventIds, e.id] });
+                  setEventOpen(false);
+                }}
+              >
+                <div className="grow">
+                  <div className="title">{e.title}</div>
+                  <div className="meta">{fmtDate(e.date)}</div>
+                </div>
+              </button>
+            ))}
+        </div>
+      </Sheet>
       <Sheet open={linkOpen} onClose={() => setLinkOpen(false)} title="Vincular experiência">
         <div className="list">
           {[...data.experiences]

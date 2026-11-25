@@ -9,6 +9,8 @@ import { APP_VERSION } from '../../data/backup';
 import { findPreset } from '../../theme/presets';
 import { fmtDate, Page, Row, Section, Toggle, useConfirm } from '../../ui/components';
 import { EnergyBars, ValenceMark } from '../../ui/pickers';
+import { MoodSymbol, SYMBOL_SETS } from '../../ui/symbols';
+import { valenceLabel as vLabel } from '../../domain/scales';
 
 export function SettingsHome() {
   const st = useStoreState();
@@ -25,7 +27,7 @@ export function SettingsHome() {
       </Section>
       <Section kicker="Diário">
         <div className="list">
-          <Row left={icon(SlidersHorizontal)} title="Nomes da escala" meta="Personalize as categorias de valência e energia" onClick={() => navigate('/ajustes/escala')} />
+          <Row left={icon(SlidersHorizontal)} title="Escala de humor" meta="Símbolos e nomes das categorias" onClick={() => navigate('/ajustes/escala')} />
           <Row left={icon(Heart)} title="Emoções" meta="Crie, renomeie ou oculte emoções" onClick={() => navigate('/ajustes/emocoes')} />
           <Row left={icon(Tags)} title="Indicadores acompanhados" meta={prefs.enabledIndicators.length ? prefs.enabledIndicators.map((k) => INDICATORS[k].label).join(', ') : 'Nenhum além de valência e energia'} onClick={() => navigate('/ajustes/indicadores')} />
         </div>
@@ -72,11 +74,44 @@ export function ScalePage() {
     toast('Nomes salvos. Registros antigos e gráficos não foram alterados.');
   };
   return (
-    <Page back="/ajustes" noNav title="Nomes da escala" ghost="nomes">
+    <Page back="/ajustes" noNav title="Escala de humor" ghost="nomes">
+      <Section kicker="Símbolos">
+        <p className="small muted" style={{ marginTop: 0 }}>
+          Escolha como os cinco níveis aparecem. É só a aparência: os registros e os gráficos não mudam.
+        </p>
+        <div className="stack" role="radiogroup" aria-label="Família de símbolos">
+          {SYMBOL_SETS.map((f) => (
+            <button
+              key={f.id}
+              role="radio"
+              aria-checked={prefs.symbolSet === f.id}
+              className="card tight"
+              style={prefs.symbolSet === f.id ? { borderColor: 'var(--ink)', background: 'var(--surface-2)' } : undefined}
+              onClick={() => {
+                store.setPreferences({ symbolSet: f.id });
+                toast(`Símbolos: ${f.name}.`);
+              }}
+            >
+              <div className="row between">
+                <span style={{ fontWeight: 600 }}>{f.name}</span>
+                {prefs.symbolSet === f.id && <span className="xs" style={{ color: 'var(--primary-ink)' }}>em uso</span>}
+              </div>
+              <div className="row" style={{ justifyContent: 'space-between', margin: '10px 4px 6px' }}>
+                {[-2, -1, 0, 1, 2].map((v) => (
+                  <MoodSymbol key={v} v={v} set={f.id} size={34} title={vLabel(v, prefs.valenceLabels)} />
+                ))}
+              </div>
+              <div className="xs muted">{f.description}</div>
+            </button>
+          ))}
+        </div>
+      </Section>
+      <Section kicker="Nomes">
       <p className="small muted">
         Dê às categorias os nomes que fazem sentido para você — metáforas, personagens, expressões suas. Os valores internos continuam fixos (de −2 a +2), então registros antigos e
         gráficos nunca são afetados.
       </p>
+      </Section>
       <Section kicker="Valência">
         <div className="stack">
           {DEFAULT_VALENCE_LABELS.map((def, i) => (

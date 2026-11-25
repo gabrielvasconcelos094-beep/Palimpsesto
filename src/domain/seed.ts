@@ -36,7 +36,10 @@ export const BUILTIN_EMOTIONS: Array<[id: string, label: string]> = [
   ['emo.cansaco', 'Cansaço'],
 ];
 
-/** Sugestões de contexto para registros (o usuário cria os seus livremente). */
+/**
+ * Sugestões de contexto (circunstâncias) para registros. Atividades — o que a
+ * pessoa fez — ficam no repertório, com sugestões próprias abaixo.
+ */
 export const CONTEXT_SUGGESTIONS = [
   'dormi bem',
   'dormi mal',
@@ -44,18 +47,30 @@ export const CONTEXT_SUGGESTIONS = [
   'encontro social',
   'família',
   'trabalho',
-  'estudo',
   'descanso',
-  'natureza',
-  'movimento',
   'telas',
-  'leitura',
-  'música',
   'conflito',
   'imprevisto',
   'dia difícil',
   'cansaço físico',
-  'criação',
+  'calor',
+  'dor',
+];
+
+/** Atividades sugeridas: viram itens do repertório só quando escolhidas. */
+export const ACTIVITY_SUGGESTIONS = [
+  'Ler',
+  'Caminhar',
+  'Ficar só',
+  'Assistir a um filme',
+  'Ouvir música',
+  'Conversar com alguém',
+  'Estudar',
+  'Tempo ao ar livre',
+  'Exercício',
+  'Cozinhar',
+  'Escrever',
+  'Trabalhar',
 ];
 
 export interface SeedSection {
@@ -271,5 +286,6 @@ export const SITUATION_TEMPLATES: Array<{ title: string; tags: string[] }> = [
 ];
 
 export const RESOURCE_CATEGORIES = ['Atividade', 'Pessoa', 'Lugar', 'Hábito', 'Experiência', 'Objeto', 'Outro'];
+export const ACTIVITY_CATEGORIES = ['Lazer', 'Corpo', 'Convívio', 'Estudo', 'Trabalho', 'Casa', 'Criação', 'Outro'];
 export const DRAIN_CATEGORIES = ['Situação', 'Hábito', 'Comportamento', 'Ambiente', 'Relação', 'Pensamento', 'Outro'];
 export const STRATEGY_CATEGORIES = ['Corpo', 'Pausa', 'Conversa', 'Distração', 'Organização', 'Expressão', 'Outro'];

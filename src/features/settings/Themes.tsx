@@ -64,6 +64,29 @@ function ThemePreview({ tokens, name, active, onClick, font }: { tokens: Tokens;
   );
 }
 
+/** Miniatura ilustrativa de cada estilo, desenhada com os tokens da paleta atual. */
+function StylePreview({ kind }: { kind: 'minimal' | 'organic' }) {
+  const org = kind === 'organic';
+  const card = (bg: string, r: string, extra: CSSProperties = {}) => ({
+    background: bg,
+    borderRadius: r,
+    border: org ? 0 : '1px solid var(--line)',
+    height: 34,
+    ...extra,
+  });
+  return (
+    <div aria-hidden style={{ height: 116, borderRadius: 10, background: 'var(--bg)', padding: 8, position: 'relative', overflow: 'hidden' }}>
+      {org && <div style={{ position: 'absolute', right: -18, top: -18, width: 60, height: 52, borderRadius: '46% 54% 60% 40% / 48% 40% 60% 52%', background: 'var(--tint-2)' }} />}
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, position: 'relative' }}>Mapa</div>
+      <div style={{ display: 'grid', gridTemplateColumns: org ? '1fr 1fr' : '1fr', gap: 5, marginTop: 6 }}>
+        <div style={card(org ? 'var(--tint-1)' : 'var(--surface)', org ? '14px 6px 14px 8px' : '3px')} />
+        <div style={card(org ? 'var(--tint-3)' : 'var(--surface)', org ? '6px 14px 8px 14px' : '3px', org ? { marginTop: 10 } : {})} />
+        {!org && <div style={card('var(--surface)', '3px', { height: 18 })} />}
+      </div>
+    </div>
+  );
+}
+
 export function ThemesPage() {
   const prefs = usePrefs();
   const systemDark = useSystemDark();
@@ -77,6 +100,42 @@ export function ThemesPage() {
 
   return (
     <Page back="/ajustes" noNav title="Temas" ghost="cores" subtitle="Cada tema tem cores, cantos e tipografia próprios.">
+      <Section kicker="Estilo visual">
+        <p className="small muted" style={{ marginTop: 0 }}>
+          Independente das cores: qualquer estilo combina com qualquer paleta, inclusive as suas.
+        </p>
+        <div className="grid-2" role="radiogroup" aria-label="Estilo visual">
+          {(
+            [
+              ['minimal', 'Editorial minimalista', 'Contornos finos, alinhamento rigoroso, muito respiro.'],
+              ['organic', 'Editorial orgânico', 'Formas curvas, blocos pastel, composição mais livre.'],
+            ] as const
+          ).map(([id, name, desc]) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={prefs.visualStyle === id}
+              onClick={() => {
+                store.setPreferences({ visualStyle: id });
+                toast(`${name} aplicado.`);
+              }}
+              style={{
+                border: prefs.visualStyle === id ? '2px solid var(--ink)' : '1px solid var(--line)',
+                borderRadius: 'var(--radius)',
+                background: 'var(--surface)',
+                padding: 10,
+                textAlign: 'left',
+                color: 'var(--ink)',
+              }}
+            >
+              <StylePreview kind={id} />
+              <div style={{ fontWeight: 600, marginTop: 8, fontSize: 14 }}>{name}</div>
+              <div className="xs muted">{desc}</div>
+            </button>
+          ))}
+        </div>
+      </Section>
+
       <Field label="Aparência" help={isCustom ? 'Temas personalizados têm aparência fixa (definida pelas cores escolhidas).' : undefined}>
         <Segmented
           value={prefs.appearance}

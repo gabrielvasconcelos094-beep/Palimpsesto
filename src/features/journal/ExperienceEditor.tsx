@@ -5,7 +5,10 @@ import { store, useData } from '../../app/store';
 import { toast } from '../../app/toast';
 import { KIND_LABELS, OUTCOME_LABELS, OUTCOME_ORDER } from '../../domain/scales';
 import type { Experience, Outcome, RepertoireKind } from '../../domain/schema';
-import { AutoText, Field, fmtDate, fromLocalInput, Page, Section, Sheet, toLocalInput, useConfirm } from '../../ui/components';
+import { AutoText, Field, Page, Section, Sheet, useConfirm } from '../../ui/components';
+import { describeWhen, nowWhen, WhenPicker } from '../../ui/WhenPicker';
+import { composeAt } from '../../domain/util';
+import { RecordMeta } from './MoodSheet';
 import { EmotionPicker, TagInput, ValencePicker } from '../../ui/pickers';
 import { useAutosave } from '../../ui/useAutosave';
 
@@ -27,7 +30,7 @@ export function ExperienceEditor() {
     existing
       ? { ...existing }
       : {
-          at: new Date().toISOString(),
+          ...(route.query.get('dia') ? { at: composeAt(route.query.get('dia')!, '12:00'), timePrecision: 'day' as const } : nowWhen()),
           title: '',
           whatHappened: '',
           feelingBefore: null,
@@ -97,7 +100,7 @@ export function ExperienceEditor() {
     <Page
       back="/diario"
       noNav
-      kicker={fmtDate(draft.at, { weekday: true })}
+      kicker={describeWhen(draft).replace(/^./, (c) => c.toUpperCase())}
       title={isNew && !expId ? 'Nova experiência' : draft.title || 'Experiência'}
       ghost="vivido"
       actions={
@@ -120,9 +123,7 @@ export function ExperienceEditor() {
         <Field label="O que aconteceu?" optional>
           <AutoText writing value={draft.whatHappened} onChange={(whatHappened) => set({ whatHappened })} placeholder="Conte do seu jeito…" />
         </Field>
-        <Field label="Quando">
-          <input type="datetime-local" className="input" value={toLocalInput(draft.at)} onChange={(e) => set({ at: fromLocalInput(e.target.value) })} />
-        </Field>
+        <WhenPicker value={draft} onChange={(w) => set(w)} allowNow={!existing && !route.query.get('dia')} />
         <Field label="Como você estava se sentindo?" optional>
           <ValencePicker value={draft.feelingBefore} onChange={(feelingBefore) => set({ feelingBefore: draft.feelingBefore === feelingBefore ? null : feelingBefore })} />
         </Field>
@@ -194,6 +195,7 @@ export function ExperienceEditor() {
         <Field label="Marcadores" optional help="Ajudam a reencontrar esta experiência em situações parecidas.">
           <TagInput value={draft.tags} onChange={(tags) => set({ tags })} />
         </Field>
+        {existing && <RecordMeta createdAt={existing.createdAt} updatedAt={existing.updatedAt} at={existing.at} />}
         <p className="xs faint">{auto.savedAt || expId ? 'Salvo automaticamente.' : 'Será salvo automaticamente assim que tiver conteúdo.'}</p>
         <button className="btn primary block" onClick={() => goBack('/diario')}>
           Concluir

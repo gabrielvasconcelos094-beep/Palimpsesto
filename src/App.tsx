@@ -10,6 +10,8 @@ import { setPrivacyScreen } from './platform/native';
 import { Today } from './features/today/Today';
 import { Journal } from './features/journal/Journal';
 import { ExperienceEditor } from './features/journal/ExperienceEditor';
+import { EventPage } from './features/journal/EventEditor';
+import { SearchPage } from './features/search/SearchPage';
 import { MapHome, QuestionPage, SectionPage } from './features/map/MapPages';
 import { DiscoveryPage } from './features/map/Discoveries';
 import { GuideHome } from './features/guide/GuideHome';
@@ -39,7 +41,9 @@ function Screen() {
     case undefined:
       return <Today />;
     case 'diario':
-      return b === 'experiencia' ? <ExperienceEditor /> : <Journal />;
+      if (b === 'experiencia') return <ExperienceEditor />;
+      if (b === 'acontecimento') return <EventPage />;
+      return <Journal />;
     case 'mapa':
       if (b === 'ficha') return <SectionPage />;
       if (b === 'pergunta') return <QuestionPage />;
@@ -50,6 +54,8 @@ function Screen() {
       if (b === 'situacao') return <SituationPage />;
       if (b === 'carta') return <LetterPage />;
       return <GuideHome />;
+    case 'busca':
+      return <SearchPage />;
     case 'trajetoria':
       return <Trajectory />;
     case 'ajustes':
@@ -71,7 +77,7 @@ function BottomNav() {
   const { parts } = useRoute();
   const current = '/' + (parts[0] ?? '');
   // A navegação só aparece nas telas principais; telas internas têm "voltar".
-  if (parts.length > 1 || parts[0] === 'ajustes') return null;
+  if (parts.length > 1 || parts[0] === 'ajustes' || parts[0] === 'busca') return null;
   return (
     <nav className="nav" aria-label="Navegação principal">
       <div className="nav-inner">

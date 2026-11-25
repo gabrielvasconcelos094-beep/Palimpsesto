@@ -33,6 +33,7 @@ export function Page(props: {
       )}
       {props.title && (
         <header className="page-head">
+          <Decor seed={props.ghost ?? String(props.title)} />
           {props.kicker && <p className="kicker">{props.kicker}</p>}
           <h1 className="page-title" data-ghost={props.ghost}>
             {props.title}
@@ -42,6 +43,26 @@ export function Page(props: {
       )}
       {props.children}
     </main>
+  );
+}
+
+const BLOBS = [
+  'M46 8C70 -2 104 6 116 30C128 54 112 86 84 94C56 102 22 92 10 68C-2 44 22 18 46 8Z',
+  'M30 14C52 0 92 2 110 22C128 42 120 78 94 92C68 106 30 98 14 76C-2 54 8 28 30 14Z',
+  'M58 4C86 4 118 22 116 52C114 82 84 100 56 96C28 92 4 74 6 46C8 18 30 4 58 4Z',
+];
+/** Forma abstrata do cabeçalho — só visível no Editorial orgânico. */
+function Decor({ seed }: { seed: string }) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const d = BLOBS[h % BLOBS.length];
+  const c = ['var(--tint-2)', 'var(--tint-3)', 'var(--tint-1)'][(h >>> 3) % 3];
+  return (
+    <svg className="decor" viewBox="0 0 130 110" aria-hidden>
+      <path d={d} fill={c} transform={`rotate(${(h % 40) - 20} 64 52)`} />
+      <circle cx={(h % 30) + 18} cy={86} r={9} fill="none" stroke="var(--accent)" strokeWidth={1.4} opacity={0.7} />
+      <circle cx={118} cy={(h % 20) + 12} r={3.5} fill="var(--comp1)" opacity={0.55} />
+    </svg>
   );
 }
 

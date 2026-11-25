@@ -2,33 +2,16 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { store, useData } from '../app/store';
 import { DEFAULT_ENERGY_LABELS, energyLabel, valenceLabel, VALENCE_VALUES } from '../domain/scales';
-import { CONTEXT_SUGGESTIONS } from '../domain/seed';
+import { ACTIVITY_SUGGESTIONS, CONTEXT_SUGGESTIONS } from '../domain/seed';
 import { cleanTag, fold, uniqTags } from '../domain/util';
+import { MoodSymbol, type SymbolSet } from './symbols';
 
 /* ------------------------------------------------------------------ */
-/* Marca de valência: cor + forma (anel → disco cheio)                  */
+/* Marca de valência: família de símbolos escolhida pelo usuário        */
 /* ------------------------------------------------------------------ */
-export function ValenceMark({ v, size = 22, title }: { v: number; size?: number; title?: string }) {
-  const i = v + 2; // 0..4
-  const color = `var(--mood-${i + 1})`;
-  // Preenchimento cresce com a intensidade a partir do centro: ambos os
-  // extremos são discos cheios; o neutro é um anel. A cor distingue o lado.
-  const fill = [1, 0.62, 0.0, 0.62, 1][i];
-  const r = size / 2;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={title ?? ''} style={{ flex: 'none' }}>
-      <circle cx={r} cy={r} r={r - 1.25} fill="none" stroke={color} strokeWidth={2.5} />
-      {fill > 0 && <circle cx={r} cy={r} r={(r - 1.25) * fill} fill={color} />}
-      {i === 2 && <circle cx={r} cy={r} r={Math.max(1.5, size / 10)} fill={color} />}
-      {i < 2 && <line x1={r - r * 0.36} x2={r + r * 0.36} y1={r} y2={r} stroke="var(--surface)" strokeWidth={Math.max(1.4, size / 12)} strokeLinecap="round" />}
-      {i > 2 && (
-        <>
-          <line x1={r - r * 0.36} x2={r + r * 0.36} y1={r} y2={r} stroke="var(--surface)" strokeWidth={Math.max(1.4, size / 12)} strokeLinecap="round" />
-          <line y1={r - r * 0.36} y2={r + r * 0.36} x1={r} x2={r} stroke="var(--surface)" strokeWidth={Math.max(1.4, size / 12)} strokeLinecap="round" />
-        </>
-      )}
-    </svg>
-  );
+export function ValenceMark({ v, size = 22, title, set }: { v: number; size?: number; title?: string; set?: SymbolSet }) {
+  const prefs = useData().preferences;
+  return <MoodSymbol v={v} size={size} title={title} set={set ?? prefs.symbolSet} />;
 }
 
 export function ValencePicker({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
@@ -256,6 +239,83 @@ export function TagInput({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Atividades (itens do repertório)                                    */
+/* ------------------------------------------------------------------ */
+export function ActivityPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const data = useData();
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [showAll, setShowAll] = useState(false);
+  const items = useMemo(() => {
+    const freq = new Map<string, number>();
+    for (const m of data.moodEntries) for (const id of m.itemIds) freq.set(id, (freq.get(id) ?? 0) + 1);
+    const kindOrder = { activity: 0, resource: 1, strategy: 2, drain: 3 } as const;
+    return data.repertoire
+      .filter((i) => (!i.archived && i.kind !== 'drain') || value.includes(i.id))
+      .sort((a, b) => (freq.get(b.id) ?? 0) - (freq.get(a.id) ?? 0) || kindOrder[a.kind] - kindOrder[b.kind] || a.name.localeCompare(b.name));
+  }, [data.repertoire, data.moodEntries, value]);
+  const known = new Set(data.repertoire.map((i) => fold(i.name)));
+  const suggestions = ACTIVITY_SUGGESTIONS.filter((s) => !known.has(fold(s)));
+  const LIMIT = 12;
+  const visible = showAll ? items : items.filter((x, i) => i < LIMIT || value.includes(x.id));
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const create = (name: string) => {
+    const n = name.trim();
+    if (!n) return;
+    const existing = data.repertoire.find((i) => fold(i.name) === fold(n));
+    const it = existing ?? store.upsert('repertoire', { kind: 'activity', name: n, category: '' } as any);
+    if (!value.includes(it.id)) onChange([...value, it.id]);
+  };
+  return (
+    <div className="chips" role="group" aria-label="Atividades">
+      {visible.map((i) => (
+        <button key={i.id} className="chip" aria-pressed={value.includes(i.id)} onClick={() => toggle(i.id)}>
+          {i.name}
+        </button>
+      ))}
+      {!showAll && items.length > visible.length && (
+        <button className="chip add" onClick={() => setShowAll(true)}>
+          mais {items.length - visible.length}…
+        </button>
+      )}
+      {(showAll || items.length < 6) &&
+        suggestions.slice(0, 8).map((s) => (
+          <button key={s} className="chip add" onClick={() => create(s)} aria-label={`Adicionar atividade ${s}`}>
+            <Plus size={13} /> {s}
+          </button>
+        ))}
+      {adding ? (
+        <input
+          className="input"
+          style={{ width: 180, minHeight: 36, padding: '6px 12px' }}
+          autoFocus
+          value={draft}
+          placeholder="Nome da atividade"
+          maxLength={200}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              create(draft);
+              setDraft('');
+              setAdding(false);
+            }
+          }}
+          onBlur={() => {
+            create(draft);
+            setDraft('');
+            setAdding(false);
+          }}
+        />
+      ) : (
+        <button className="chip add" onClick={() => setAdding(true)}>
+          <Plus size={14} /> nova
+        </button>
+      )}
     </div>
   );
 }

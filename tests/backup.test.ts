@@ -11,15 +11,15 @@ async function sampleData(): Promise<AppData> {
   const s = new Store(new MemoryStorage(), 0);
   await s.load();
   const strategy = s.upsert('repertoire', { kind: 'strategy', name: 'Ver um filme', tags: ['dia difícil'] } as any);
-  const exp = s.upsert('experiences', { at: '2026-03-02T20:00:00.000Z', title: 'Dia difícil no trabalho', learned: 'Filmes ajudam', tags: ['trabalho'], emotionIds: ['emo.ansiedade'] } as any);
+  const exp = s.upsert('experiences', { at: '2026-03-02T20:00:00', title: 'Dia difícil no trabalho', learned: 'Filmes ajudam', tags: ['trabalho'], emotionIds: ['emo.ansiedade'] } as any);
   s.upsert('uses', { itemId: strategy.id, at: exp.at, outcome: 'worked', experienceId: exp.id, tags: ['dia difícil'] } as any);
-  s.upsert('moodEntries', { at: '2026-03-01T10:00:00.000Z', valence: -1, energy: 2, emotionIds: ['emo.ansiedade', 'emo.cansaco'], indicators: { sleep: 2 }, tags: ['dormi mal'], note: 'Linha 1\n"aspas"; ponto e vírgula' } as any);
-  s.upsert('moodEntries', { at: '2026-03-02T10:00:00.000Z', valence: 2, energy: 4, emotionIds: [], indicators: {}, tags: [], note: '' } as any);
+  s.upsert('moodEntries', { at: '2026-03-01T10:00:00', valence: -1, energy: 2, emotionIds: ['emo.ansiedade', 'emo.cansaco'], indicators: { sleep: 2 }, tags: ['dormi mal'], note: 'Linha 1\n"aspas"; ponto e vírgula' } as any);
+  s.upsert('moodEntries', { at: '2026-03-02T10:00:00', valence: 2, energy: 4, emotionIds: [], indicators: {}, tags: [], note: '' } as any);
   const custom = s.upsert('emotions', { label: 'Melancolia doce' } as any);
-  s.upsert('moodEntries', { at: '2026-03-03T10:00:00.000Z', valence: 0, energy: null, emotionIds: [custom.id], indicators: {}, tags: [], note: '' } as any);
+  s.upsert('moodEntries', { at: '2026-03-03T10:00:00', valence: 0, energy: null, emotionIds: [custom.id], indicators: {}, tags: [], note: '' } as any);
   const q = s.list('questions')[0];
-  s.upsert('answers', { questionId: q.id, text: 'Hoje', layers: [{ text: 'Ontem', at: '2026-01-01T00:00:00.000Z' }] } as any);
-  s.upsert('discoveries', { title: 'Preciso de tempo só depois de eventos', at: '2026-03-04', confidence: 'recurring', revisions: [{ at: '2026-02-01T00:00:00.000Z', title: 'Talvez', description: '', confidence: 'hypothesis' }] } as any);
+  s.upsert('answers', { questionId: q.id, text: 'Hoje', layers: [{ text: 'Ontem', at: '2026-01-01T00:00:00' }] } as any);
+  s.upsert('discoveries', { title: 'Preciso de tempo só depois de eventos', at: '2026-03-04', confidence: 'recurring', revisions: [{ at: '2026-02-01T00:00:00', title: 'Talvez', description: '', confidence: 'hypothesis' }] } as any);
   const sit = s.upsert('situations', { title: 'Viagem', date: '2026-12-20', tags: ['viagem'], itemIds: [strategy.id], checklist: [{ id: 'c1', text: 'Reservar uma tarde livre' }] } as any);
   s.upsert('letters', { title: 'Para a viagem', body: 'Respire.', situationId: sit.id, openAt: '2026-12-20', sealed: true } as any);
   s.setPreferences({ valenceLabels: ['Tempestade', null, null, null, 'Sol'], themeId: 'lavanda' });
@@ -44,7 +44,7 @@ describe('backup completo', () => {
     expect(res.data.preferences.customThemes[0].name).toBe('Meu tema');
     expect(res.data.answers[0].layers[0].text).toBe('Ontem');
     expect(res.data.discoveries[0].revisions.length).toBe(1);
-    expect(res.range.from).toBe('2026-03-01T10:00:00.000Z');
+    expect(res.range.from).toBe('2026-03-01T10:00:00');
   });
 
   it('backup protegido por senha: exige a senha correta', async () => {

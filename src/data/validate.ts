@@ -64,6 +64,8 @@ export function repairIntegrity(input: AppData): { data: AppData; report: Integr
   const discs = has('discoveries');
   const sits = has('situations');
   const letters = has('letters');
+  const moods = has('moodEntries');
+  const evs = has('events');
 
   const keep = (set: Set<string>) => (ids: string[]) => {
     const out = ids.filter((i) => set.has(i));
@@ -78,7 +80,7 @@ export function repairIntegrity(input: AppData): { data: AppData; report: Integr
     return v;
   };
 
-  data.moodEntries = data.moodEntries.map((m: any) => ({ ...m, emotionIds: keep(emo)(m.emotionIds) }));
+  data.moodEntries = data.moodEntries.map((m: any) => ({ ...m, emotionIds: keep(emo)(m.emotionIds), itemIds: keep(items)(m.itemIds ?? []) }));
   data.experiences = data.experiences.map((x: any) => ({
     ...x,
     emotionIds: keep(emo)(x.emotionIds),
@@ -106,6 +108,8 @@ export function repairIntegrity(input: AppData): { data: AppData; report: Integr
     ...d,
     sectionId: nullIfMissing(secs, d.sectionId),
     experienceIds: keep(exps)(d.experienceIds),
+    moodEntryIds: keep(moods)(d.moodEntryIds ?? []),
+    eventIds: keep(evs)(d.eventIds ?? []),
   }));
   data.situations = data.situations.map((s: any) => ({
     ...s,
@@ -139,4 +143,5 @@ export const COLLECTION_LABELS: Record<CollectionName, string> = {
   discoveries: 'Descobertas',
   situations: 'Situações',
   letters: 'Cartas',
+  events: 'Acontecimentos da linha do tempo',
 };

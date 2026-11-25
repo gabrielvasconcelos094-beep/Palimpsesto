@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MemoryStorage } from '../src/data/storage';
 import { KEY_DATA, KEY_PREV, Store } from '../src/data/store';
 import { BUILTIN_EMOTIONS } from '../src/domain/seed';
+import { localIso } from '../src/domain/util';
 
 const mk = async (storage = new MemoryStorage()) => {
   const s = new Store(storage, 0);
@@ -20,7 +21,7 @@ describe('Store — persistência', () => {
 
   it('registros de humor sobrevivem a reinício', async () => {
     const { s, storage } = await mk();
-    const e = s.upsert('moodEntries', { at: new Date().toISOString(), valence: 1, energy: 3, emotionIds: ['emo.calma'], indicators: { sleep: 4 }, tags: ['tempo só'], note: 'ok' });
+    const e = s.upsert('moodEntries', { at: localIso(), valence: 1, energy: 3, emotionIds: ['emo.calma'], indicators: { sleep: 4 }, tags: ['tempo só'], note: 'ok' });
     await s.flush();
     const { s: s2 } = await mk(storage);
     const got = s2.get('moodEntries', e.id)!;
@@ -31,7 +32,7 @@ describe('Store — persistência', () => {
 
   it('rótulos personalizados não alteram valores gravados', async () => {
     const { s, storage } = await mk();
-    s.upsert('moodEntries', { at: new Date().toISOString(), valence: -2, energy: null, emotionIds: [], indicators: {}, tags: [], note: '' });
+    s.upsert('moodEntries', { at: localIso(), valence: -2, energy: null, emotionIds: [], indicators: {}, tags: [], note: '' });
     s.setPreferences({ valenceLabels: ['Tempestade', null, 'Névoa', null, 'Sol'] });
     await s.flush();
     const { s: s2 } = await mk(storage);
@@ -44,7 +45,7 @@ describe('Store — persistência', () => {
   it('rejeita entidades inválidas sem alterar o estado', async () => {
     const { s } = await mk();
     const before = s.getState().data;
-    expect(() => s.upsert('moodEntries', { at: new Date().toISOString(), valence: 7 } as any)).toThrow();
+    expect(() => s.upsert('moodEntries', { at: localIso(), valence: 7 } as any)).toThrow();
     expect(s.getState().data).toBe(before);
   });
 
@@ -77,7 +78,7 @@ describe('Store — persistência', () => {
   it('remoção em cascata limpa referências', async () => {
     const { s } = await mk();
     const item = s.upsert('repertoire', { kind: 'strategy', name: 'Caminhar' } as any);
-    const exp = s.upsert('experiences', { at: new Date().toISOString(), title: 'Dia longo' } as any);
+    const exp = s.upsert('experiences', { at: localIso(), title: 'Dia longo' } as any);
     s.upsert('uses', { itemId: item.id, at: exp.at, outcome: 'worked', experienceId: exp.id } as any);
     const sit = s.upsert('situations', { title: 'Viagem', itemIds: [item.id] } as any);
     s.remove('repertoire', item.id);

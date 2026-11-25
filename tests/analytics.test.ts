@@ -3,12 +3,15 @@ import { cliffsDelta, findPatterns, valenceCounts, buckets, periodPreset, previo
 import { gatherForSituation, stems } from '../src/domain/situations';
 import { initialData } from '../src/data/defaults';
 import type { MoodEntry } from '../src/domain/schema';
+import { localIso } from '../src/domain/util';
 
 const entry = (i: number, valence: number, tags: string[], extra: Partial<MoodEntry> = {}): MoodEntry => ({
   id: `m${i}`,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
-  at: new Date(2026, 0, 1 + i, 12).toISOString(),
+  at: localIso(new Date(2026, 0, 1 + i, 12)),
+  timePrecision: 'exact',
+  itemIds: [],
   valence,
   energy: 3,
   emotionIds: [],
@@ -72,7 +75,7 @@ describe('padrões', () => {
 
 describe('repertório e situações', () => {
   it('avaliações por contexto', () => {
-    const base = { createdAt: '', updatedAt: '', itemId: 'i', at: '', note: '', experienceId: null };
+    const base = { createdAt: '', updatedAt: '', itemId: 'i', at: '', note: '', experienceId: null, timePrecision: 'exact' as const };
     const r = outcomesByContext([
       { ...base, id: '1', outcome: 'worked', tags: ['dia difícil'] },
       { ...base, id: '2', outcome: 'worse', tags: ['viagem'] },
@@ -87,7 +90,7 @@ describe('repertório e situações', () => {
     const now = '2026-01-01T00:00:00.000Z';
     const q = d.questions.find((x) => x.sectionId === 'sec.relacoes')!;
     d.answers.push({ id: 'a1', createdAt: now, updatedAt: now, questionId: q.id, text: 'Depois de eventos sociais longos preciso ficar sozinho.', unfinished: false, layers: [] });
-    d.discoveries.push({ id: 'd1', createdAt: now, updatedAt: now, title: 'Viagens me cansam no 3º dia', description: '', sectionId: null, at: now, tags: ['viagem'], confidence: 'recurring', status: 'active', revisions: [], experienceIds: [], origin: 'user' });
+    d.discoveries.push({ id: 'd1', createdAt: now, updatedAt: now, title: 'Viagens me cansam no 3º dia', description: '', sectionId: null, at: now, tags: ['viagem'], confidence: 'recurring', status: 'active', revisions: [], experienceIds: [], moodEntryIds: [], eventIds: [], origin: 'user' });
     const sit = { id: 's1', createdAt: now, updatedAt: now, title: 'Festa de aniversário', description: '', date: null, endDate: null, tags: ['encontro social'], itemIds: [], discoveryIds: [], questionIds: [], noteIds: [], letterIds: [], checklist: [], archived: false };
     const g = gatherForSituation(d, sit);
     expect(g.answers.map((a) => a.x.id)).toContain('a1');

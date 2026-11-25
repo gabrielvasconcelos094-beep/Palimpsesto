@@ -5,6 +5,7 @@
  * operações destrutivas.
  */
 import {
+  SCHEMA_VERSION,
   AppDataSchema,
   CollectionSchemas,
   DeviceSettingsSchema,
@@ -12,8 +13,10 @@ import {
   type CollectionName,
   type DeviceSettings,
   type EntityOf,
+  type Known,
   type Preferences,
 } from '../domain/schema';
+import type { z } from 'zod';
 import { newId, nowIso } from '../domain/util';
 import { defaultDevice, initialData, syncBuiltIns } from './defaults';
 import { parseAppData } from './validate';
@@ -37,7 +40,8 @@ export interface StoreState {
 }
 
 type Listener = () => void;
-type NewEntity<C extends CollectionName> = Omit<EntityOf<C>, 'id' | 'createdAt' | 'updatedAt'> &
+/** Entidade nova: campos com valor padrão no esquema são opcionais. */
+type NewEntity<C extends CollectionName> = Omit<Known<z.input<(typeof CollectionSchemas)[C]>>, 'id' | 'createdAt' | 'updatedAt'> &
   Partial<Pick<EntityOf<C>, 'id' | 'createdAt' | 'updatedAt'>>;
 
 export class Store {
@@ -78,12 +82,18 @@ export class Store {
     const notices: string[] = [];
     let data: AppData | null = null;
 
+    let migratedFrom = SCHEMA_VERSION;
+    let rawMain: string | null = null;
     const tryKey = async (key: string): Promise<AppData | null> => {
       const raw = await this.storage.read(key).catch(() => null);
       if (raw === null) return null;
       try {
         const parsed = parseAppData(JSON.parse(raw));
-        if (parsed.ok) return parsed.data;
+        if (parsed.ok) {
+          migratedFrom = parsed.migratedFrom;
+          rawMain = raw;
+          return parsed.data;
+        }
         throw new Error(parsed.error);
       } catch (e) {
         // Preserva o arquivo problemático para eventual recuperação manual.
@@ -120,13 +130,23 @@ export class Store {
       }
     }
 
+    // Atualização de formato: guarda o arquivo original intacto antes de gravar o novo.
+    const migrated = !fresh && migratedFrom < SCHEMA_VERSION;
+    if (migrated && rawMain) {
+      await this.storage.write(`pre-migration-v${migratedFrom}.json`, rawMain).catch(() => {});
+      const key = `${SAFETY_PREFIX}${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      await this.storage
+        .write(key, JSON.stringify({ reason: `Antes da atualização do formato dos dados (v${migratedFrom} → v${SCHEMA_VERSION})`, createdAt: nowIso(), data: JSON.parse(rawMain) }))
+        .catch(() => {});
+    }
+
     this.set({ data, device, ready: true, recoveryNotice: notices.length ? notices.join(' ') : null });
 
     // Cópia da sessão anterior: o último arquivo bom vira data.prev.json.
-    if (hadMain && !notices.length) {
+    if (hadMain && !notices.length && !migrated) {
       await this.storage.write(KEY_PREV, JSON.stringify(data)).catch(() => {});
     }
-    if (fresh || notices.length) {
+    if (fresh || notices.length || migrated) {
       this.dirtyData = true;
       await this.flush();
     }
@@ -307,6 +327,7 @@ export function removeWithCascade(data: AppData, c: CollectionName, id: string):
       break;
     case 'repertoire':
       d.uses = d.uses.filter((u: any) => u.itemId !== id);
+      d.moodEntries = d.moodEntries.map((m: any) => (m.itemIds?.includes(id) ? { ...m, itemIds: strip(m.itemIds) } : m));
       d.situations = d.situations.map((s: any) => ({ ...s, itemIds: strip(s.itemIds) }));
       break;
     case 'experiences':
@@ -340,6 +361,12 @@ export function removeWithCascade(data: AppData, c: CollectionName, id: string):
     case 'situations':
       d.experiences = d.experiences.map((x: any) => (x.situationId === id ? { ...x, situationId: null } : x));
       d.letters = d.letters.map((x: any) => (x.situationId === id ? { ...x, situationId: null } : x));
+      break;
+    case 'moodEntries':
+      d.discoveries = d.discoveries.map((x: any) => (x.moodEntryIds?.includes(id) ? { ...x, moodEntryIds: strip(x.moodEntryIds) } : x));
+      break;
+    case 'events':
+      d.discoveries = d.discoveries.map((x: any) => (x.eventIds?.includes(id) ? { ...x, eventIds: strip(x.eventIds) } : x));
       break;
     case 'letters':
       d.situations = d.situations.map((s: any) => ({ ...s, letterIds: strip(s.letterIds) }));

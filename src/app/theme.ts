@@ -33,6 +33,8 @@ export function applyTokens(t: Tokens, prefs: Preferences, target: HTMLElement =
   if (target === document.documentElement) {
     target.dataset.dark = String(t.dark);
     target.dataset.reduceMotion = String(prefs.reduceMotion);
+    // Estilo visual independente da paleta.
+    target.dataset.style = prefs.visualStyle;
   }
 }
 

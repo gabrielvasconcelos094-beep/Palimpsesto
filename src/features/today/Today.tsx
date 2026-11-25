@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
-import { BookOpen, Feather, LifeBuoy, Mail, Settings, Sparkles } from 'lucide-react';
+import { BookOpen, Feather, LifeBuoy, Mail, Search, Settings, Sparkles } from 'lucide-react';
+import { timeLabel } from '../journal/Journal';
 import { navigate } from '../../app/router';
 import { store, useData } from '../../app/store';
 import { pickResurface } from '../../domain/analytics';
 import { energyLabel, valenceLabel, VALENCE_VALUES } from '../../domain/scales';
 import { isUpcoming } from '../../domain/situations';
 import { dayKey, fold, seededRandom } from '../../domain/util';
-import { fmtDate, fmtTime, Page, Section, WEEKDAYS, MONTHS } from '../../ui/components';
+import { fmtDate, Page, Section, WEEKDAYS, MONTHS } from '../../ui/components';
 import { ValenceMark } from '../../ui/pickers';
 import { MoodSheet } from '../journal/MoodSheet';
 import { SITUATION_TEMPLATES } from '../../domain/seed';
@@ -36,7 +37,7 @@ export function Today() {
   const emo = useMemo(() => new Map(data.emotions.map((e) => [e.id, e.label])), [data.emotions]);
 
   const todayKey = dayKey(now);
-  const todays = data.moodEntries.filter((m) => dayKey(m.at) === todayKey).sort((a, b) => b.at.localeCompare(a.at));
+  const todays = data.moodEntries.filter((m) => m.at.slice(0, 10) === todayKey).sort((a, b) => b.at.localeCompare(a.at));
   const lettersReady = data.letters.filter((l) => l.openAt && !l.openedAt && l.openAt.slice(0, 10) <= todayKey);
   const upcoming = data.situations.filter((s) => isUpcoming(s, now)).sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
   const layer = useMemo(
@@ -73,12 +74,17 @@ export function Today() {
       title={greeting(now)}
       ghost="hoje"
       actions={
-        <button className="icon-btn" aria-label="Ajustes" onClick={() => navigate('/ajustes')}>
-          <Settings size={22} strokeWidth={1.6} />
-        </button>
+        <>
+          <button className="icon-btn" aria-label="Buscar" onClick={() => navigate('/busca')}>
+            <Search size={21} strokeWidth={1.6} />
+          </button>
+          <button className="icon-btn" aria-label="Ajustes" onClick={() => navigate('/ajustes')}>
+            <Settings size={22} strokeWidth={1.6} />
+          </button>
+        </>
       }
     >
-      <div className="card">
+      <div className="card feature">
         <p className="h3" style={{ marginBottom: 14 }}>
           Como você está agora?
         </p>
@@ -115,7 +121,7 @@ export function Today() {
                       .join(' · ') || 'Sem detalhes'}
                   </div>
                 </div>
-                <span className="xs faint">{fmtTime(m.at)}</span>
+                <span className="xs faint">{timeLabel(m.at, m.timePrecision)}</span>
               </button>
             ))}
           </div>

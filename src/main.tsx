@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import './styles/fonts.css';
 import './styles/global.css';
+import './styles/organic.css';
 import { App } from './App';
 import { store } from './app/store';
 

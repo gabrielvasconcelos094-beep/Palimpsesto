@@ -13,6 +13,14 @@ describe('temas predefinidos', () => {
         expect(contrast(t.inkFaint, t.surface)).toBeGreaterThanOrEqual(4.5);
         expect(contrast(t.lineStrong, t.surface)).toBeGreaterThanOrEqual(3);
         for (const m of t.mood) expect(contrast(m, t.surface)).toBeGreaterThanOrEqual(3);
+        for (const m of t.moodOrganic) expect(contrast(m, t.surface)).toBeGreaterThanOrEqual(3);
+        // Blocos pastel do estilo orgânico continuam legíveis.
+        for (const tint of t.tints) {
+          expect(contrast(t.ink, tint)).toBeGreaterThanOrEqual(7);
+          expect(contrast(t.inkSoft, tint)).toBeGreaterThanOrEqual(4.5);
+          for (const m of t.moodOrganic) expect(contrast(m, tint)).toBeGreaterThanOrEqual(3);
+          expect(tint).not.toBe(t.surface);
+        }
         expect(t.dark).toBe(mode === 'dark');
       });
     }

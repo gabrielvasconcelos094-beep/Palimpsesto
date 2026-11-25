@@ -16,6 +16,34 @@ export const nowIso = () => new Date().toISOString();
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * Hora local "flutuante" (sem fuso): AAAA-MM-DDTHH:mm:ss. É o formato de `at`
+ * (quando a experiência aconteceu). `new Date(valor)` a interpreta como hora local.
+ */
+export function localIso(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** Converte um instante absoluto (com Z ou deslocamento) em hora local flutuante. */
+export function toLocalAt(value: string): string {
+  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(value)) {
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) return localIso(d);
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T12:00:00`;
+  return value;
+}
+
+/** Data (AAAA-MM-DD) de um `at` local, sem passar por conversões de fuso. */
+export function atDay(at: string): string {
+  return /^\d{4}-\d{2}-\d{2}T/.test(at) && !/([zZ]|[+-]\d{2}:?\d{2})$/.test(at) ? at.slice(0, 10) : dayKey(at);
+}
+
+/** Monta um `at` local a partir de data (AAAA-MM-DD) e hora (HH:mm). */
+export function composeAt(day: string, time = '12:00'): string {
+  return `${day}T${time.length === 5 ? time + ':00' : time}`;
+}
+
 /** Data local no formato YYYY-MM-DD. */
 export function dayKey(d: Date | string): string {
   const x = typeof d === 'string' ? new Date(d) : d;

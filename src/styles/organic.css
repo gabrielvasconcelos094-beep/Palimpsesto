@@ -1,0 +1,288 @@
+/* =====================================================================
+   Estilo B — Editorial orgânico
+   Todas as regras ficam sob :root[data-style='organic']: o Editorial
+   minimalista (padrão) não é afetado. Usa os mesmos tokens de cor da
+   paleta ativa — inclusive as personalizadas — mais os matizes pastel
+   (--tint-1…4) e a variante de tons do humor (--mood-o-*), todos com
+   contraste verificado em testes.
+   ===================================================================== */
+
+:root[data-style='organic'] {
+  --mood-1: var(--mood-o-1);
+  --mood-2: var(--mood-o-2);
+  --mood-3: var(--mood-o-3);
+  --mood-4: var(--mood-o-4);
+  --mood-5: var(--mood-o-5);
+  --r-a: 30px 14px 28px 18px;
+  --r-b: 16px 30px 18px 32px;
+  --r-c: 26px 26px 12px 26px;
+  --r-d: 34px 20px 34px 20px;
+}
+
+/* Fundo: manchas de cor muito suaves, fixas, atrás de tudo. */
+:root[data-style='organic'] body {
+  background:
+    radial-gradient(60vmax 44vmax at 108% -8%, color-mix(in srgb, var(--tint-2) 70%, transparent), transparent 62%),
+    radial-gradient(52vmax 40vmax at -14% 46%, color-mix(in srgb, var(--tint-3) 55%, transparent), transparent 64%),
+    radial-gradient(44vmax 36vmax at 110% 104%, color-mix(in srgb, var(--tint-1) 60%, transparent), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* Elemento gráfico abstrato do cabeçalho (só aparece no orgânico). */
+.decor {
+  display: none;
+}
+:root[data-style='organic'] .decor {
+  display: block;
+  position: absolute;
+  right: -14px;
+  top: -34px;
+  width: 150px;
+  height: 120px;
+  z-index: -2;
+  pointer-events: none;
+}
+:root[data-style='organic'] .page-head {
+  margin-bottom: 26px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cartões: sem contorno, cantos assimétricos, blocos pastel           */
+/* ------------------------------------------------------------------ */
+:root[data-style='organic'] .card {
+  border: 0;
+  box-shadow: none;
+  border-radius: var(--r-a);
+  background: var(--surface);
+}
+:root[data-style='organic'] .card:nth-child(3n + 2) {
+  border-radius: var(--r-b);
+}
+:root[data-style='organic'] .card:nth-child(3n) {
+  border-radius: var(--r-c);
+}
+/* Blocos coloridos em cartões de conteúdo (listas de cartões) */
+:root[data-style='organic'] .stack > .card:nth-child(4n + 1):not(.soft):not(.accent):not(.dashed),
+:root[data-style='organic'] .flow > .card:nth-child(4n + 1) {
+  background: var(--tint-1);
+}
+:root[data-style='organic'] .stack > .card:nth-child(4n + 2):not(.soft):not(.accent):not(.dashed),
+:root[data-style='organic'] .flow > .card:nth-child(4n + 2) {
+  background: var(--tint-3);
+}
+:root[data-style='organic'] .stack > .card:nth-child(4n + 3):not(.soft):not(.accent):not(.dashed),
+:root[data-style='organic'] .flow > .card:nth-child(4n + 3) {
+  background: var(--tint-2);
+}
+:root[data-style='organic'] .stack > .card:nth-child(4n):not(.soft):not(.accent):not(.dashed),
+:root[data-style='organic'] .flow > .card:nth-child(4n) {
+  background: var(--tint-4);
+}
+:root[data-style='organic'] .card.soft {
+  background: var(--tint-1);
+  border-radius: var(--r-d);
+}
+:root[data-style='organic'] .card.accent {
+  background: var(--tint-2);
+  border-radius: var(--r-b);
+}
+:root[data-style='organic'] .card.dashed {
+  border: 1.5px dashed var(--line-strong);
+  background: transparent;
+  border-radius: var(--r-d);
+}
+/* Pequeno círculo decorativo no canto dos cartões de destaque */
+:root[data-style='organic'] .card.feature {
+  overflow: hidden;
+}
+:root[data-style='organic'] .card.feature::after {
+  content: '';
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  right: -46px;
+  top: -52px;
+  border-radius: 46% 54% 60% 40% / 48% 40% 60% 52%;
+  background: var(--tint-2);
+  opacity: 0.9;
+  z-index: 0;
+  pointer-events: none;
+}
+:root[data-style='organic'] .card.feature > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Composição livre: duas colunas com deslocamento alternado */
+:root[data-style='organic'] .flow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+  padding-bottom: 22px;
+}
+:root[data-style='organic'] .flow > :nth-child(even) {
+  margin-top: 22px;
+  margin-bottom: -22px;
+}
+:root[data-style='organic'] .flow > .card {
+  padding: 16px 14px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+:root[data-style='organic'] .flow .h3 {
+  font-size: calc(var(--fs-lg) * var(--display-scale, 1) * 0.94);
+}
+
+/* Listas: blocos arredondados, separadores suaves */
+:root[data-style='organic'] .list {
+  border: 0;
+  box-shadow: none;
+  border-radius: 26px 18px 26px 18px;
+  background: var(--surface);
+}
+:root[data-style='organic'] .list > * + * {
+  border-top-color: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+/* Grade de atalhos: tons diferentes e leve escalonamento */
+:root[data-style='organic'] .grid-2 > .card:nth-child(1) {
+  background: var(--tint-1);
+}
+:root[data-style='organic'] .grid-2 > .card:nth-child(2) {
+  background: var(--tint-2);
+  border-radius: var(--r-b);
+}
+:root[data-style='organic'] .grid-2 > .card:nth-child(3) {
+  background: var(--tint-3);
+  border-radius: var(--r-c);
+}
+:root[data-style='organic'] .grid-2 > .card:nth-child(4) {
+  background: var(--tint-4);
+  border-radius: var(--r-d);
+}
+
+/* ------------------------------------------------------------------ */
+/* Controles                                                           */
+/* ------------------------------------------------------------------ */
+:root[data-style='organic'] .btn,
+:root[data-style='organic'] .chip,
+:root[data-style='organic'] .segmented,
+:root[data-style='organic'] .segmented button {
+  border-radius: 999px;
+}
+:root[data-style='organic'] .btn.primary {
+  border-radius: 999px 999px 999px 22px;
+}
+:root[data-style='organic'] .chip {
+  border-color: transparent;
+  background: var(--surface);
+}
+:root[data-style='organic'] .chip[aria-pressed='true'] {
+  background: var(--primary-fill);
+}
+:root[data-style='organic'] .chip.add {
+  border-color: var(--line-strong);
+  background: transparent;
+}
+:root[data-style='organic'] .chip.static {
+  background: var(--tint-1);
+}
+:root[data-style='organic'] .segmented {
+  background: var(--tint-1);
+  border: 0;
+}
+:root[data-style='organic'] .input,
+:root[data-style='organic'] .textarea,
+:root[data-style='organic'] .select {
+  border-radius: 18px 14px 18px 14px;
+}
+:root[data-style='organic'] .textarea.writing {
+  border-radius: 0;
+}
+:root[data-style='organic'] .scale button,
+:root[data-style='organic'] .vscale button {
+  border-color: transparent;
+  background: var(--surface);
+  border-radius: 20px 14px 20px 14px;
+}
+:root[data-style='organic'] .vscale button[aria-pressed='true'],
+:root[data-style='organic'] .scale button[aria-pressed='true'] {
+  background: var(--tint-2);
+  border-color: var(--ink);
+}
+:root[data-style='organic'] .cal .day {
+  border-color: transparent;
+  border-radius: 40% 46% 44% 50% / 46% 42% 50% 44%;
+}
+:root[data-style='organic'] .icon-btn.filled {
+  border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%;
+}
+
+/* Marcador orgânico antes dos títulos de seção */
+:root[data-style='organic'] .kicker::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  vertical-align: 0;
+  border-radius: 60% 40% 55% 45%;
+  background: var(--accent);
+}
+
+/* Navegação flutuante em pílula */
+:root[data-style='organic'] .nav {
+  left: 10px;
+  right: 10px;
+  bottom: calc(var(--safe-bottom) + 10px);
+  max-width: 660px;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 30px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 10px 30px -14px color-mix(in srgb, var(--ink) 45%, transparent);
+  padding-bottom: 0;
+}
+:root[data-style='organic'] .nav button[aria-current='page']::after {
+  top: auto;
+  bottom: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+:root[data-style='organic'] .page {
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 44px);
+}
+:root[data-style='organic'] .page.no-nav {
+  padding-bottom: calc(var(--safe-bottom) + 40px);
+}
+
+/* Folhas e diálogos */
+:root[data-style='organic'] .sheet {
+  border-radius: 36px 28px 0 0;
+  background:
+    radial-gradient(220px 160px at 100% 0%, var(--tint-2), transparent 70%),
+    var(--bg);
+}
+:root[data-style='organic'] .dialog {
+  border-radius: 32px 22px 32px 22px;
+}
+
+/* Barras e gráficos com pontas mais macias */
+:root[data-style='organic'] .bar-track,
+:root[data-style='organic'] .stackbar {
+  background: var(--tint-1);
+}
+:root[data-style='organic'] .notice {
+  border-left: 0;
+  border-radius: 20px 14px 20px 14px;
+}
+
+/* A barra superior fica sempre acima das formas decorativas. */
+:root[data-style='organic'] .topbar {
+  position: relative;
+  z-index: 2;
+}

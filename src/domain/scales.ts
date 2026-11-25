@@ -98,6 +98,11 @@ export const KIND_LABELS: Record<RepertoireKind, { singular: string; plural: str
     plural: 'Estratégias',
     hint: 'O que você faz para atravessar momentos difíceis — e como funcionou em cada contexto.',
   },
+  activity: {
+    singular: 'Atividade',
+    plural: 'Atividades',
+    hint: 'O que você faz no dia a dia — ler, caminhar, estudar… Marque-as nos registros de humor para ver, na Trajetória, como costumam aparecer.',
+  },
   drain: {
     singular: 'Algo que me desgasta',
     plural: 'O que me desgasta',
