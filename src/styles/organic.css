@@ -36,10 +36,10 @@
 :root[data-style='organic'] .decor {
   display: block;
   position: absolute;
-  right: -14px;
-  top: -34px;
-  width: 150px;
-  height: 120px;
+  right: -22px;
+  top: -52px;
+  width: 140px;
+  height: 108px;
   z-index: -2;
   pointer-events: none;
 }

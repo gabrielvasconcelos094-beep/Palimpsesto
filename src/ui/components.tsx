@@ -60,7 +60,7 @@ function Decor({ seed }: { seed: string }) {
   return (
     <svg className="decor" viewBox="0 0 130 110" aria-hidden>
       <path d={d} fill={c} transform={`rotate(${(h % 40) - 20} 64 52)`} />
-      <circle cx={(h % 30) + 18} cy={86} r={9} fill="none" stroke="var(--accent)" strokeWidth={1.4} opacity={0.7} />
+      <circle cx={(h % 24) + 6} cy={14} r={8} fill="none" stroke="var(--accent)" strokeWidth={1.4} opacity={0.7} />
       <circle cx={118} cy={(h % 20) + 12} r={3.5} fill="var(--comp1)" opacity={0.55} />
     </svg>
   );
