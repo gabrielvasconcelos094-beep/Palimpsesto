@@ -20,6 +20,8 @@ export interface ThemeDefinition {
   displayFont: DisplayFont;
   light: ThemeColors;
   dark: ThemeColors;
+  /** Polos opcionais da escala de humor [desagradável, agradável], quando as cores do tema não servem. */
+  mood?: { light: [string, string]; dark: [string, string] };
 }
 
 const c = (
@@ -131,6 +133,7 @@ export const PRESET_THEMES: ThemeDefinition[] = [
     displayFont: 'fraunces',
     light: c('#F7F7F4', '#FFFFFF', '#22365C', '#B23A48', '#3F7F7A', '#C9CFDC'),
     dark: c('#0F1420', '#18202F', '#A9BEEA', '#F08A96', '#7CC4BD', '#2E3C5A'),
+    mood: { light: ['#6E5A8A', '#3F7F7A'], dark: ['#B3A1D6', '#7CC4BD'] },
   },
 ];
 

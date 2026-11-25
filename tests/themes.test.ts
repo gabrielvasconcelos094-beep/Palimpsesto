@@ -7,7 +7,7 @@ describe('temas predefinidos', () => {
   for (const theme of PRESET_THEMES) {
     for (const mode of ['light', 'dark'] as const) {
       it(`${theme.name} (${mode}) cumpre os contrastes mínimos`, () => {
-        const { tokens: t, checks } = deriveTokens(theme[mode], theme);
+        const { tokens: t, checks } = deriveTokens(theme[mode], theme, theme.mood?.[mode]);
         for (const c of checks) expect(c.ratio, c.label).toBeGreaterThanOrEqual(c.min);
         expect(contrast(t.ink, t.bg)).toBeGreaterThanOrEqual(7);
         expect(contrast(t.inkFaint, t.surface)).toBeGreaterThanOrEqual(4.5);

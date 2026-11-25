@@ -15,6 +15,13 @@ import { z } from 'zod';
 
 export const SCHEMA_VERSION = 1;
 
+/**
+ * Remove a assinatura de índice que `looseObject` acrescenta ao tipo, mantendo
+ * apenas as chaves conhecidas (a preservação de campos desconhecidos continua
+ * valendo em tempo de execução).
+ */
+export type Known<T> = { [K in keyof T as string extends K ? never : number extends K ? never : K]: T[K] };
+
 const id = z.string().min(1).max(120);
 const iso = z.string().min(10).max(40);
 const text = (max = 20000) => z.string().max(max);
@@ -53,7 +60,7 @@ export const MoodEntrySchema = z.looseObject({
   tags,
   note: text().default(''),
 });
-export type MoodEntry = z.infer<typeof MoodEntrySchema>;
+export type MoodEntry = Known<z.infer<typeof MoodEntrySchema>>;
 
 export const EmotionSchema = z.looseObject({
   ...base,
@@ -61,7 +68,7 @@ export const EmotionSchema = z.looseObject({
   builtIn: z.boolean().default(false),
   hidden: z.boolean().default(false),
 });
-export type Emotion = z.infer<typeof EmotionSchema>;
+export type Emotion = Known<z.infer<typeof EmotionSchema>>;
 
 export const ExperienceSchema = z.looseObject({
   ...base,
@@ -80,7 +87,7 @@ export const ExperienceSchema = z.looseObject({
   /** Situação especial à qual esta experiência pertence (opcional). */
   situationId: id.nullable().default(null),
 });
-export type Experience = z.infer<typeof ExperienceSchema>;
+export type Experience = Known<z.infer<typeof ExperienceSchema>>;
 
 /* ------------------------------------------------------------------ */
 /* Repertório                                                          */
@@ -107,7 +114,7 @@ export const RepertoireItemSchema = z.looseObject({
   tags,
   archived: z.boolean().default(false),
 });
-export type RepertoireItem = z.infer<typeof RepertoireItemSchema>;
+export type RepertoireItem = Known<z.infer<typeof RepertoireItemSchema>>;
 
 export const OUTCOMES = ['worked', 'partial', 'didnt', 'worse', 'unknown'] as const;
 export type Outcome = (typeof OUTCOMES)[number];
@@ -122,7 +129,7 @@ export const StrategyUseSchema = z.looseObject({
   note: text().default(''),
   experienceId: id.nullable().default(null),
 });
-export type StrategyUse = z.infer<typeof StrategyUseSchema>;
+export type StrategyUse = Known<z.infer<typeof StrategyUseSchema>>;
 
 /* ------------------------------------------------------------------ */
 /* Mapa (fichas, perguntas, respostas, notas, descobertas)             */
@@ -136,7 +143,7 @@ export const MapSectionSchema = z.looseObject({
   builtIn: z.boolean().default(false),
   hidden: z.boolean().default(false),
 });
-export type MapSection = z.infer<typeof MapSectionSchema>;
+export type MapSection = Known<z.infer<typeof MapSectionSchema>>;
 
 export const QuestionSchema = z.looseObject({
   ...base,
@@ -148,14 +155,14 @@ export const QuestionSchema = z.looseObject({
   hidden: z.boolean().default(false),
   order: z.number().default(0),
 });
-export type Question = z.infer<typeof QuestionSchema>;
+export type Question = Known<z.infer<typeof QuestionSchema>>;
 
 /** Uma camada anterior de um texto reescrito. */
 export const LayerSchema = z.looseObject({
   text: text(),
   at: iso,
 });
-export type Layer = z.infer<typeof LayerSchema>;
+export type Layer = Known<z.infer<typeof LayerSchema>>;
 
 export const AnswerSchema = z.looseObject({
   ...base,
@@ -166,7 +173,7 @@ export const AnswerSchema = z.looseObject({
   /** Versões anteriores, da mais antiga para a mais recente. */
   layers: z.array(LayerSchema).max(500).default([]),
 });
-export type Answer = z.infer<typeof AnswerSchema>;
+export type Answer = Known<z.infer<typeof AnswerSchema>>;
 
 export const MapNoteSchema = z.looseObject({
   ...base,
@@ -175,7 +182,7 @@ export const MapNoteSchema = z.looseObject({
   tags,
   layers: z.array(LayerSchema).max(500).default([]),
 });
-export type MapNote = z.infer<typeof MapNoteSchema>;
+export type MapNote = Known<z.infer<typeof MapNoteSchema>>;
 
 export const CONFIDENCE = ['hypothesis', 'recurring', 'consolidated'] as const;
 export type Confidence = (typeof CONFIDENCE)[number];
@@ -189,7 +196,7 @@ export const DiscoveryRevisionSchema = z.looseObject({
   /** Por que a percepção mudou. */
   note: text().default(''),
 });
-export type DiscoveryRevision = z.infer<typeof DiscoveryRevisionSchema>;
+export type DiscoveryRevision = Known<z.infer<typeof DiscoveryRevisionSchema>>;
 
 export const DiscoverySchema = z.looseObject({
   ...base,
@@ -208,7 +215,7 @@ export const DiscoverySchema = z.looseObject({
   /** Se nasceu de uma associação sugerida pela Trajetória, guardamos a origem. */
   origin: z.enum(['user', 'pattern', 'experience']).default('user'),
 });
-export type Discovery = z.infer<typeof DiscoverySchema>;
+export type Discovery = Known<z.infer<typeof DiscoverySchema>>;
 
 /* ------------------------------------------------------------------ */
 /* Guia                                                                */
@@ -236,7 +243,7 @@ export const SituationSchema = z.looseObject({
   checklist: z.array(ChecklistItemSchema).max(300).default([]),
   archived: z.boolean().default(false),
 });
-export type Situation = z.infer<typeof SituationSchema>;
+export type Situation = Known<z.infer<typeof SituationSchema>>;
 
 export const LetterSchema = z.looseObject({
   ...base,
@@ -250,7 +257,7 @@ export const LetterSchema = z.looseObject({
   situationId: id.nullable().default(null),
   tags,
 });
-export type Letter = z.infer<typeof LetterSchema>;
+export type Letter = Known<z.infer<typeof LetterSchema>>;
 
 /* ------------------------------------------------------------------ */
 /* Preferências (exportáveis)                                          */
@@ -264,7 +271,7 @@ export const ThemeColorsSchema = z.looseObject({
   complement1: z.string(),
   complement2: z.string(),
 });
-export type ThemeColors = z.infer<typeof ThemeColorsSchema>;
+export type ThemeColors = Known<z.infer<typeof ThemeColorsSchema>>;
 
 export const CustomThemeSchema = z.looseObject({
   ...base,
@@ -274,7 +281,7 @@ export const CustomThemeSchema = z.looseObject({
   cardStyle: z.enum(['outline', 'filled', 'paper']).default('filled'),
   displayFont: z.enum(['fraunces', 'cormorant', 'lora']).default('fraunces'),
 });
-export type CustomTheme = z.infer<typeof CustomThemeSchema>;
+export type CustomTheme = Known<z.infer<typeof CustomThemeSchema>>;
 
 export const PreferencesSchema = z.looseObject({
   /** Rótulos personalizados das 5 categorias de valência; null = padrão. */
@@ -292,7 +299,7 @@ export const PreferencesSchema = z.looseObject({
   /** Mostrar "camadas antigas" na tela inicial. */
   resurfacing: z.boolean().default(true),
 });
-export type Preferences = z.infer<typeof PreferencesSchema>;
+export type Preferences = Known<z.infer<typeof PreferencesSchema>>;
 
 /* ------------------------------------------------------------------ */
 /* Documento completo                                                  */
@@ -329,7 +336,7 @@ export const CollectionSchemas = {
   letters: LetterSchema,
 } as const;
 
-export type EntityOf<C extends CollectionName> = z.infer<(typeof CollectionSchemas)[C]>;
+export type EntityOf<C extends CollectionName> = Known<z.infer<(typeof CollectionSchemas)[C]>>;
 
 export const AppDataSchema = z.looseObject({
   schemaVersion: z.literal(SCHEMA_VERSION),
@@ -347,7 +354,7 @@ export const AppDataSchema = z.looseObject({
   letters: z.array(LetterSchema).default([]),
   preferences: PreferencesSchema.default(PreferencesSchema.parse({})),
 });
-export type AppData = z.infer<typeof AppDataSchema>;
+export type AppData = Known<z.infer<typeof AppDataSchema>>;
 
 /**
  * Configurações do dispositivo — NÃO fazem parte do backup.
@@ -371,4 +378,4 @@ export const DeviceSettingsSchema = z.looseObject({
   failedUnlocks: z.number().int().default(0),
   lockedUntil: z.number().default(0),
 });
-export type DeviceSettings = z.infer<typeof DeviceSettingsSchema>;
+export type DeviceSettings = Known<z.infer<typeof DeviceSettingsSchema>>;

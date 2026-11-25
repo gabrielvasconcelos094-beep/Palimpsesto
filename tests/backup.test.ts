@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { exportBackupText, inspectBackup, buildBackup } from '../src/data/backup';
 import { mergeData } from '../src/data/merge';
-import { initialData } from '../src/data/defaults';
 import { migrate, NewerSchemaError } from '../src/data/migrations';
 import { moodCsv, experiencesCsv, csvCell } from '../src/data/csv';
 import { MemoryStorage } from '../src/data/storage';

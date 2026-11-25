@@ -52,6 +52,7 @@ export interface ContrastCheck {
 export function deriveTokens(
   colors: ThemeColors,
   shape: { radius: number; cardStyle: CardStyle; displayFont: DisplayFont },
+  moodPoles?: [string, string],
 ): { tokens: Tokens; checks: ContrastCheck[] } {
   const dark = isDarkColor(colors.background);
   // Fundos de tom médio não permitem texto legível: clareamos/escurecemos o necessário.
@@ -93,8 +94,8 @@ export function deriveTokens(
   const dangerSoft = mix(danger, surface, 0.88);
 
   // Escala divergente do humor: complemento 1 (desagradável) → neutro → destaque (agradável).
-  const neg = colors.complement1;
-  const pos = colors.accent;
+  const neg = moodPoles?.[0] ?? colors.complement1;
+  const pos = moodPoles?.[1] ?? colors.accent;
   const neutral = mix(ink, surface, 0.55);
   const m2 = ensureContrast(mix(neg, surface, 0.28), [surface], 3);
   const m4 = ensureContrast(mix(pos, surface, 0.28), [surface], 3);

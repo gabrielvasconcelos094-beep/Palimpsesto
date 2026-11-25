@@ -1,0 +1,276 @@
+import { useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { store, useData } from '../app/store';
+import { DEFAULT_ENERGY_LABELS, energyLabel, valenceLabel, VALENCE_VALUES } from '../domain/scales';
+import { CONTEXT_SUGGESTIONS } from '../domain/seed';
+import { cleanTag, fold, uniqTags } from '../domain/util';
+
+/* ------------------------------------------------------------------ */
+/* Marca de valência: cor + forma (anel → disco cheio)                  */
+/* ------------------------------------------------------------------ */
+export function ValenceMark({ v, size = 22, title }: { v: number; size?: number; title?: string }) {
+  const i = v + 2; // 0..4
+  const color = `var(--mood-${i + 1})`;
+  // Preenchimento cresce com a intensidade a partir do centro: ambos os
+  // extremos são discos cheios; o neutro é um anel. A cor distingue o lado.
+  const fill = [1, 0.62, 0.0, 0.62, 1][i];
+  const r = size / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={title ?? ''} style={{ flex: 'none' }}>
+      <circle cx={r} cy={r} r={r - 1.25} fill="none" stroke={color} strokeWidth={2.5} />
+      {fill > 0 && <circle cx={r} cy={r} r={(r - 1.25) * fill} fill={color} />}
+      {i === 2 && <circle cx={r} cy={r} r={Math.max(1.5, size / 10)} fill={color} />}
+      {i < 2 && <line x1={r - r * 0.36} x2={r + r * 0.36} y1={r} y2={r} stroke="var(--surface)" strokeWidth={Math.max(1.4, size / 12)} strokeLinecap="round" />}
+      {i > 2 && (
+        <>
+          <line x1={r - r * 0.36} x2={r + r * 0.36} y1={r} y2={r} stroke="var(--surface)" strokeWidth={Math.max(1.4, size / 12)} strokeLinecap="round" />
+          <line y1={r - r * 0.36} y2={r + r * 0.36} x1={r} x2={r} stroke="var(--surface)" strokeWidth={Math.max(1.4, size / 12)} strokeLinecap="round" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+export function ValencePicker({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+  const labels = useData().preferences.valenceLabels;
+  // Lista vertical: acomoda nomes personalizados longos; "para cima" = mais agradável.
+  return (
+    <div className="vscale" role="radiogroup" aria-label="Como você está se sentindo">
+      {[...VALENCE_VALUES].reverse().map((v) => (
+        <button key={v} role="radio" aria-checked={value === v} aria-pressed={value === v} onClick={() => onChange(v)}>
+          <ValenceMark v={v} size={24} />
+          <span>{valenceLabel(v, labels)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function EnergyBars({ e, size = 16 }: { e: number; size?: number }) {
+  return (
+    <svg width={size * 1.2} height={size} viewBox="0 0 24 20" aria-hidden style={{ flex: 'none' }}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <rect
+          key={i}
+          x={i * 5}
+          y={20 - (i + 1) * 4}
+          width={3.4}
+          height={(i + 1) * 4}
+          rx={1}
+          fill={i < e ? 'var(--primary-ink)' : 'var(--line-strong)'}
+          opacity={i < e ? 1 : 0.5}
+        />
+      ))}
+    </svg>
+  );
+}
+
+export function EnergyPicker({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  const labels = useData().preferences.energyLabels;
+  return (
+    <div className="scale" role="radiogroup" aria-label="Nível de energia">
+      {[1, 2, 3, 4, 5].map((e) => (
+        <button key={e} role="radio" aria-checked={value === e} aria-pressed={value === e} onClick={() => onChange(value === e ? null : e)}>
+          <EnergyBars e={e} size={20} />
+          <span>{energyLabel(e, labels)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function LevelPicker({
+  value,
+  onChange,
+  levels,
+  label,
+}: {
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  levels: string[];
+  label: string;
+}) {
+  return (
+    <div className="scale compact" role="radiogroup" aria-label={label}>
+      {levels.map((l, i) => (
+        <button key={l} role="radio" aria-checked={value === i + 1} aria-pressed={value === i + 1} onClick={() => onChange(value === i + 1 ? undefined : i + 1)}>
+          <span>{l}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Emoções                                                             */
+/* ------------------------------------------------------------------ */
+export function EmotionPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const data = useData();
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [showAll, setShowAll] = useState(false);
+
+  // Emoções mais usadas primeiro; as selecionadas sempre visíveis.
+  const ordered = useMemo(() => {
+    const freq = new Map<string, number>();
+    for (const m of data.moodEntries) for (const id of m.emotionIds) freq.set(id, (freq.get(id) ?? 0) + 1);
+    const builtOrder = new Map(data.emotions.map((e, i) => [e.id, i]));
+    return data.emotions
+      .filter((e) => !e.hidden || value.includes(e.id))
+      .sort((a, b) => (freq.get(b.id) ?? 0) - (freq.get(a.id) ?? 0) || builtOrder.get(a.id)! - builtOrder.get(b.id)!);
+  }, [data.emotions, data.moodEntries, value]);
+  const LIMIT = 14;
+  const visible = showAll ? ordered : ordered.filter((e, i) => i < LIMIT || value.includes(e.id));
+
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  const add = () => {
+    const label = draft.trim();
+    if (!label) return setAdding(false);
+    const existing = data.emotions.find((e) => fold(e.label) === fold(label));
+    const e = existing ?? store.upsert('emotions', { label, builtIn: false, hidden: false } as any);
+    if (existing?.hidden) store.patch('emotions', existing.id, { hidden: false });
+    if (!value.includes(e.id)) onChange([...value, e.id]);
+    setDraft('');
+    setAdding(false);
+  };
+
+  return (
+    <div className="chips" role="group" aria-label="Emoções">
+      {visible.map((e) => (
+        <button key={e.id} className="chip" aria-pressed={value.includes(e.id)} onClick={() => toggle(e.id)}>
+          {e.label}
+        </button>
+      ))}
+      {!showAll && ordered.length > visible.length && (
+        <button className="chip add" onClick={() => setShowAll(true)}>
+          mais {ordered.length - visible.length}…
+        </button>
+      )}
+      {adding ? (
+        <input
+          className="input"
+          style={{ width: 180, minHeight: 36, padding: '6px 12px' }}
+          autoFocus
+          value={draft}
+          placeholder="Nome da emoção"
+          maxLength={60}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          onBlur={add}
+        />
+      ) : (
+        <button className="chip add" onClick={() => setAdding(true)}>
+          <Plus size={14} /> outra
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Marcadores (contexto)                                               */
+/* ------------------------------------------------------------------ */
+export function useAllTags(): string[] {
+  const d = useData();
+  return useMemo(() => {
+    const all = [
+      ...d.moodEntries.flatMap((x) => x.tags),
+      ...d.experiences.flatMap((x) => x.tags),
+      ...d.repertoire.flatMap((x) => x.tags),
+      ...d.uses.flatMap((x) => x.tags),
+      ...d.discoveries.flatMap((x) => x.tags),
+      ...d.situations.flatMap((x) => x.tags),
+      ...d.letters.flatMap((x) => x.tags),
+      ...d.notes.flatMap((x) => x.tags),
+    ];
+    const freq = new Map<string, { t: string; n: number }>();
+    for (const t of all) {
+      const k = fold(t);
+      const c = freq.get(k);
+      if (c) c.n++;
+      else freq.set(k, { t, n: 1 });
+    }
+    return [...freq.values()].sort((a, b) => b.n - a.n).map((x) => x.t);
+  }, [d]);
+}
+
+export function TagInput({
+  value,
+  onChange,
+  suggestions,
+  placeholder = 'Novo marcador',
+  max = 10,
+}: {
+  value: string[];
+  onChange: (t: string[]) => void;
+  suggestions?: string[];
+  placeholder?: string;
+  max?: number;
+}) {
+  const existing = useAllTags();
+  const [draft, setDraft] = useState('');
+  const pool = uniqTags([...existing, ...(suggestions ?? CONTEXT_SUGGESTIONS)]);
+  const selected = new Set(value.map(fold));
+  const q = fold(draft);
+  const options = pool.filter((t) => !selected.has(fold(t)) && (!q || fold(t).includes(q))).slice(0, q ? 8 : max);
+  const add = (t: string) => {
+    const c = cleanTag(t);
+    if (!c) return;
+    onChange(uniqTags([...value, c]));
+    setDraft('');
+  };
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      {value.length > 0 && (
+        <div className="chips">
+          {value.map((t) => (
+            <button key={t} className="chip tag" aria-pressed="true" aria-label={`Remover ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
+              {t} <span aria-hidden>×</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <input
+        className="input"
+        value={draft}
+        placeholder={placeholder}
+        maxLength={60}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            add(draft);
+          }
+        }}
+        enterKeyHint="done"
+      />
+      <div className="chips">
+        {draft.trim() && !pool.some((t) => fold(t) === q) && (
+          <button className="chip add" onClick={() => add(draft)}>
+            <Plus size={14} /> criar “{cleanTag(draft)}”
+          </button>
+        )}
+        {options.map((t) => (
+          <button key={t} className="chip tag" aria-pressed="false" onClick={() => add(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function TagList({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+  return (
+    <div className="chips" style={{ gap: 6 }}>
+      {tags.map((t) => (
+        <span key={t} className="chip static tag">
+          {t}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+export { DEFAULT_ENERGY_LABELS };
