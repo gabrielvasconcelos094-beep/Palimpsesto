@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown, Sparkles, Trash2 } from 'lucide-react';
 import { navigate } from '../../app/router';
 import { store, useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import type { IndicatorKey, MoodEntry } from '../../domain/schema';
 import { INDICATORS } from '../../domain/scales';
@@ -70,8 +71,7 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
     if (!existing) return;
     const ok = await ask({ title: 'Excluir este registro?', body: 'Ele será removido definitivamente.', confirm: 'Excluir', danger: true });
     if (!ok) return;
-    store.remove('moodEntries', existing.id);
-    toast('Registro excluído.');
+    removeWithUndo('moodEntries', existing.id, 'Registro excluído.');
     props.onClose();
   };
   const retro = draft.at.slice(0, 10) !== dayKey(new Date()) || draft.timePrecision !== 'exact';
@@ -160,7 +160,7 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
           </div>
         )}
 
-        <div className="row" style={{ marginTop: 4 }}>
+        <div className="row sheet-actions">
           {existing && (
             <button className="icon-btn" aria-label="Excluir registro" onClick={remove} style={{ color: 'var(--danger)' }}>
               <Trash2 size={20} />

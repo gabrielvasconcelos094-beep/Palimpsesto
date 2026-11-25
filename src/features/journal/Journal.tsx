@@ -240,7 +240,7 @@ export function MoodRow({ m, onOpen }: { m: MoodEntry; onOpen: () => void }) {
   const ctx = useMemo(() => contextFor(data), [data]);
   return (
     <button className="list-row" onClick={onOpen}>
-      <ValenceMark v={m.valence} size={22} title={valenceLabel(m.valence, data.preferences.valenceLabels)} />
+      <ValenceMark v={m.valence} size={28} title={valenceLabel(m.valence, data.preferences.valenceLabels)} />
       <div className="grow">
         <div className="title">{valenceLabel(m.valence, data.preferences.valenceLabels)}</div>
         <div className="meta">

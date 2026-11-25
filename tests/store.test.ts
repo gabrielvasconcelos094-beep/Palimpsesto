@@ -86,6 +86,31 @@ describe('Store — persistência', () => {
     expect(s.get('situations', sit.id)!.itemIds).toEqual([]);
   });
 
+  it('desfazer exclusão restaura a entidade e as referências da cascata', async () => {
+    const { s } = await mk();
+    const item = s.upsert('repertoire', { kind: 'strategy', name: 'Caminhar' } as any);
+    const exp = s.upsert('experiences', { at: localIso(), title: 'Dia longo' } as any);
+    s.upsert('uses', { itemId: item.id, at: exp.at, outcome: 'worked', experienceId: exp.id } as any);
+    const sit = s.upsert('situations', { title: 'Viagem', itemIds: [item.id] } as any);
+    const undo = s.removeUndoable('repertoire', item.id);
+    expect(s.get('repertoire', item.id)).toBeUndefined();
+    undo();
+    expect(s.get('repertoire', item.id)!.name).toBe('Caminhar');
+    expect(s.list('uses').length).toBe(1);
+    expect(s.get('situations', sit.id)!.itemIds).toEqual([item.id]);
+  });
+
+  it('desfazer depois de outras alterações não apaga o que veio depois', async () => {
+    const { s } = await mk();
+    const a = s.upsert('moodEntries', { at: localIso(), valence: 1 } as any);
+    const undo = s.removeUndoable('moodEntries', a.id);
+    const b = s.upsert('moodEntries', { at: localIso(), valence: -1 } as any);
+    undo();
+    expect(s.get('moodEntries', a.id)!.valence).toBe(1);
+    expect(s.get('moodEntries', b.id)!.valence).toBe(-1);
+    expect(s.list('moodEntries').length).toBe(2);
+  });
+
   it('remover uma ficha remove perguntas, respostas e notas dela', async () => {
     const { s } = await mk();
     const q = s.list('questions').find((q) => q.sectionId === 'sec.valores')!;

@@ -11,8 +11,8 @@
   --fs-lg: calc(18px * var(--text-scale));
   --fs-xl: calc(23px * var(--text-scale) * var(--display-scale, 1));
   --fs-2xl: calc(32px * var(--text-scale) * var(--display-scale, 1));
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --nav-h: 64px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 220ms;
@@ -1071,4 +1071,81 @@ button.list-row:active {
     padding-left: 28px;
     padding-right: 28px;
   }
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: max-content;
+}
+.toast-action {
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: 0;
+  padding: 6px 2px;
+  margin: -6px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Hoje — últimos 7 dias */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 10px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: 0;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+  min-height: 64px;
+}
+.week-day:disabled {
+  cursor: default;
+}
+.week-day:not(:disabled):active {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.week-day .wd {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+}
+.week-day.today .wd {
+  color: var(--ink);
+  font-weight: 600;
+}
+.week-empty {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+}
+.week-empty::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+/* Ações fixas no rodapé da folha: "Salvar" sempre ao alcance, mesmo com o formulário longo. */
+.sheet-actions {
+  position: sticky;
+  bottom: calc(-1 * (var(--safe-bottom) + 20px));
+  z-index: 2;
+  margin: 4px -18px calc(-1 * (var(--safe-bottom) + 20px));
+  padding: 12px 18px calc(var(--safe-bottom) + 16px);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 0%, transparent), var(--bg) 14px);
 }

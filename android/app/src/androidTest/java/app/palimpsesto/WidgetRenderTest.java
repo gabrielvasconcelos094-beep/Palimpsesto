@@ -64,7 +64,7 @@ public class WidgetRenderTest {
     /** Variante de teste que reutiliza os PNGs padrão (d_light_*) do pacote de assets. */
     private static String variant(String bg, String surface, String ink, String inkSoft, String line, String[] tints, String[] mood, int radius, String k) {
         return "{\"bg\":\"" + bg + "\",\"surface\":\"" + surface + "\",\"ink\":\"" + ink + "\",\"inkSoft\":\"" + inkSoft + "\",\"line\":\"" + line
-            + "\",\"radius\":" + radius + ",\"moodColors\":" + arr(mood) + ",\"tints\":" + arr(tints) + ",\"title\":\"d_" + k + "_t.png\",\"mood\":[\"d_" + k + "_m0.png\",\"d_" + k
+            + "\",\"radius\":" + radius + ",\"moodColors\":" + arr(mood) + ",\"tints\":" + arr(tints) + ",\"mood\":[\"d_" + k + "_m0.png\",\"d_" + k
             + "_m1.png\",\"d_" + k + "_m2.png\",\"d_" + k + "_m3.png\",\"d_" + k + "_m4.png\"],\"actions\":[\"d_" + k + "_a0.png\",\"d_" + k + "_a1.png\"]}";
     }
 
@@ -110,6 +110,16 @@ public class WidgetRenderTest {
         }
     }
 
+    private static int countTextViews(View v) {
+        if (v instanceof TextView) return v.getVisibility() == View.VISIBLE ? 1 : 0;
+        int n = 0;
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) n += countTextViews(g.getChildAt(i));
+        }
+        return n;
+    }
+
     @Test
     public void moodWidget_defaultsWithoutAppSync() throws Exception {
         // Nenhuma configuração gravada pelo app: usa o conjunto padrão empacotado.
@@ -118,19 +128,16 @@ public class WidgetRenderTest {
         for (int id : new int[] {R.id.cell0, R.id.cell1, R.id.cell2, R.id.cell3, R.id.cell4}) assertTrue(v.findViewById(id).hasOnClickListeners());
         assertEquals("Registrar humor: Muito desagradável", v.findViewById(R.id.cell0).getContentDescription().toString());
         assertEquals("Registrar humor: Muito agradável", v.findViewById(R.id.cell4).getContentDescription().toString());
-        assertEquals(View.GONE, v.findViewById(R.id.label0).getVisibility());
         assertEquals(View.VISIBLE, v.findViewById(R.id.stroke).getVisibility());
         assertEquals(View.GONE, v.findViewById(R.id.blob).getVisibility());
-        assertEquals(View.GONE, v.findViewById(R.id.title).getVisibility()); // 1 linha: só os poços
         assertEquals(View.VISIBLE, v.findViewById(R.id.ring0).getVisibility());
     }
 
     @Test
-    public void moodWidget_tallerShowsLabels_andResizes() throws Exception {
+    public void moodWidget_noText_atAnySize() throws Exception {
         View v = render(WidgetRenderer.mood(ctx, size(120, 320)), 320, 120, "mood-labels");
-        assertEquals(View.VISIBLE, v.findViewById(R.id.label2).getVisibility());
-        assertEquals(View.VISIBLE, v.findViewById(R.id.title).getVisibility());
-        assertEquals("Intermediário", ((TextView) v.findViewById(R.id.label2)).getText().toString());
+        assertEquals(0, countTextViews(v)); // nenhum texto visível, em qualquer tamanho
+        assertEquals("Registrar humor: Intermediário", v.findViewById(R.id.cell2).getContentDescription().toString());
         render(WidgetRenderer.mood(ctx, size(48, 200)), 200, 48, "mood-narrow");
         render(WidgetRenderer.mood(ctx, size(150, 320)), 320, 150, "mood-tall");
     }
@@ -144,10 +151,9 @@ public class WidgetRenderTest {
         View one = render(WidgetRenderer.mood(ctx, size(56, 320)), 320, 56, "mood-organic-dark-1x");
         assertEquals(View.GONE, one.findViewById(R.id.blob).getVisibility()); // 1 linha: nada sobre os poços
         View v = render(WidgetRenderer.mood(ctx, size(120, 320)), 320, 120, "mood-organic-dark");
-        assertEquals(View.VISIBLE, v.findViewById(R.id.blob).getVisibility()); // com título: há espaço para a forma
+        assertEquals(0, countTextViews(v));
         assertEquals(View.GONE, v.findViewById(R.id.stroke).getVisibility());
         assertEquals(View.GONE, v.findViewById(R.id.ring0).getVisibility()); // orgânico: sem anel
-        assertEquals("Tempestade", ((TextView) v.findViewById(R.id.label0)).getText().toString());
         assertEquals("Registrar humor: Sol", v.findViewById(R.id.cell4).getContentDescription().toString());
         assertFiveIcons(v);
     }
@@ -175,7 +181,7 @@ public class WidgetRenderTest {
             assertTrue(v.findViewById(cells[i]).hasOnClickListeners());
             assertEquals(names[i], v.findViewById(cells[i]).getContentDescription().toString());
         }
-        assertEquals("Experiência", ((TextView) v.findViewById(R.id.label1)).getText().toString());
+        assertEquals(0, countTextViews(v));
         assertTrue(((ImageView) v.findViewById(R.id.icon0)).getDrawable() instanceof BitmapDrawable);
         render(WidgetRenderer.shortcuts(ctx, size(40, 180)), 180, 40, "shortcuts-compact");
         render(WidgetRenderer.shortcuts(ctx, size(100, 260)), 260, 100, "shortcuts-tall");

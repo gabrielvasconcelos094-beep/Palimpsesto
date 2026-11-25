@@ -12,6 +12,51 @@ import { fmtDate, Page, Section, WEEKDAYS, MONTHS } from '../../ui/components';
 import { ValenceMark } from '../../ui/pickers';
 import { MoodSheet } from '../journal/MoodSheet';
 import { SITUATION_TEMPLATES } from '../../domain/seed';
+import { daySeries } from '../../domain/series';
+
+/**
+ * Os últimos sete dias num relance: o símbolo de cada data é a mediana dos
+ * registros dela (escala ordinal, sem médias). Dias vazios ficam vazios —
+ * não é sequência, nem meta: lacunas não são problema.
+ */
+function WeekStrip({ now }: { now: Date }) {
+  const data = useData();
+  const labels = data.preferences.valenceLabels;
+  const days = useMemo(() => {
+    const keys = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+      return { key: dayKey(d), d };
+    });
+    const first = keys[0].key;
+    const pts = new Map(daySeries(data.moodEntries.filter((m) => m.at.slice(0, 10) >= first)).map((p) => [p.day, p]));
+    return keys.map((k) => ({ ...k, p: pts.get(k.key) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.moodEntries, dayKey(now)]);
+  if (!days.some((d) => d.p)) return null;
+  return (
+    <Section kicker="Últimos 7 dias" action={<button className="btn ghost sm" onClick={() => navigate('/trajetoria')}>Trajetória</button>}>
+      <div className="week-strip" role="list">
+        {days.map(({ key, d, p }, i) => {
+          const name = `${WEEKDAYS[d.getDay()]}, ${d.getDate()}`;
+          const v = p?.mood != null ? p.mood - 3 : null;
+          return (
+            <button
+              key={key}
+              role="listitem"
+              className={`week-day${i === 6 ? ' today' : ''}`}
+              disabled={!p}
+              aria-label={p ? `${name}: ${valenceLabel(v!, labels)}${p.records > 1 ? ` (mediana de ${p.records} registros)` : ''}` : `${name}: sem registro`}
+              onClick={() => navigate(`/diario?de=${key}&ate=${key}`)}
+            >
+              <span className="wd">{i === 6 ? 'hoje' : WEEKDAYS[d.getDay()].slice(0, 3).toLowerCase()}</span>
+              {v != null ? <ValenceMark v={v} size={26} /> : <span className="week-empty" aria-hidden />}
+            </button>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -105,7 +150,7 @@ export function Today() {
               aria-label={valenceLabel(v, labels)}
               onClick={() => setSheet({ open: true, valence: v, id: null })}
             >
-              <ValenceMark v={v} size={34} />
+              <ValenceMark v={v} size={38} />
             </button>
           ))}
         </div>
@@ -115,12 +160,14 @@ export function Today() {
         </div>
       </div>
 
+      <WeekStrip now={now} />
+
       {todays.length > 0 && (
         <Section kicker="Registros de hoje">
           <div className="list">
             {todays.map((m) => (
               <button key={m.id} className="list-row" onClick={() => setSheet({ open: true, valence: null, id: m.id })}>
-                <ValenceMark v={m.valence} size={22} />
+                <ValenceMark v={m.valence} size={28} />
                 <div className="grow">
                   <div className="title">{valenceLabel(m.valence, labels)}</div>
                   <div className="meta">

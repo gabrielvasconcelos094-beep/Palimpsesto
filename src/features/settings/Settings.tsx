@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Database, Heart, Info, Lock, Palette, SlidersHorizontal, Tags, Type } from 'lucide-react';
 import { navigate } from '../../app/router';
 import { store, useData, useStoreState } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import { DEFAULT_ENERGY_LABELS, DEFAULT_VALENCE_LABELS, INDICATORS } from '../../domain/scales';
 import { INDICATOR_KEYS } from '../../domain/schema';
@@ -249,7 +250,7 @@ export function EmotionsPage() {
                           danger: true,
                         })
                       )
-                        store.remove('emotions', e.id);
+                        removeWithUndo('emotions', e.id, 'Emoção excluída.');
                     }}
                   >
                     Excluir

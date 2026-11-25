@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
 export type SymbolSet = 'nature' | 'faces' | 'fine' | 'moon' | 'weather' | 'emoji';
 
 export const SYMBOL_SETS: Array<{ id: SymbolSet; name: string; description: string }> = [
-  { id: 'nature', name: 'Elementos da natureza', description: 'Do ramo seco à planta vigorosa: uma progressão de vitalidade.' },
+  { id: 'nature', name: 'Elementos da natureza', description: 'Da planta murcha à planta em flor: uma progressão de vitalidade.' },
   { id: 'faces', name: 'Clássico minimalista', description: 'Cinco rostos simples, de traço firme.' },
   { id: 'fine', name: 'Traço delicado', description: 'Rostos em linhas finas, com expressões discretas.' },
   { id: 'moon', name: 'Fases da lua', description: 'Da lua nova à lua cheia: luminosidade crescente.' },
@@ -25,58 +25,73 @@ const EMOJI = ['😣', '🙁', '😐', '🙂', '😄'];
 /* ------------------------------------------------------------------ */
 /* Elementos da natureza                                               */
 /* ------------------------------------------------------------------ */
+/**
+ * Folha: base em (x, y), apontando para `deg` graus (0 = direita, −90 = para
+ * cima). A borda de cima é mais cheia que a de baixo, como uma folha de verdade;
+ * `flip` espelha a curva para as folhas do lado esquerdo.
+ */
+function leaf(x: number, y: number, deg: number, len: number, w: number, c: string, o: { fill?: number; flip?: boolean; k?: number } = {}): ReactNode {
+  const s = o.flip ? -1 : 1;
+  const a = -w * 1.15 * s;
+  const b = w * 0.75 * s;
+  const d = `M0 0C${len * 0.22} ${a} ${len * 0.68} ${a} ${len} 0C${len * 0.7} ${b} ${len * 0.3} ${b} 0 0Z`;
+  const fill = o.fill ?? 1;
+  return <path key={o.k} d={d} transform={`translate(${x} ${y}) rotate(${deg})`} fill={c} fillOpacity={fill} strokeWidth={fill < 1 ? 1.1 : 0.8} />;
+}
+
 function nature(i: number, c: string): ReactNode {
-  const ground = <path d="M5.5 21.2H18.5" stroke={c} strokeWidth={1.3} opacity={0.55} />;
-  const fillO = [0, 0.2, 0.35, 0.55, 0.85][i];
-  const leaf = (d: string, k: number) => <path key={k} d={d} fill={c} fillOpacity={fillO} />;
+  // A mesma terra e a mesma base de caule em todos os níveis: só a planta muda.
+  const ground = <path d="M5.2 21.4C7.6 19.7 16.4 19.7 18.8 21.4Z" fill={c} fillOpacity={0.32} stroke="none" />;
+  const stem = (d: string) => <path d={d} strokeWidth={1.5} />;
   switch (i) {
-    case 0: // ramo seco, quebrado, sem folhas
+    case 0: // planta murcha: caule arqueado, folhas secas pendendo
       return (
         <>
           {ground}
-          <path d="M12 21L12.2 15.6L9.6 10.8L10.3 5.8" />
-          <path d="M12.1 15.8L15.4 13.1L16.1 10.9" />
-          <path d="M10.4 9.3L7.6 7.6" />
-          <path d="M14.4 13.9L15.6 15.3" opacity={0.7} />
+          {stem('M11 20.4C10.8 15.2 11.6 10.6 14.4 9.4C16.6 8.5 17.9 10.3 17.6 12.6')}
+          {leaf(17.6, 12.6, 100, 5, 1.6, c, { fill: 1, k: 1 })}
+          {leaf(11.1, 15.4, 150, 4.4, 1.5, c, { fill: 1, flip: true, k: 2 })}
         </>
       );
-    case 1: // uma folha isolada, pendente
+    case 1: // broto cansado, inclinado
       return (
         <>
           {ground}
-          <path d="M11.6 21C11.6 16.2 12.2 13.1 14.1 11.2" />
-          {leaf('M14.1 11.2C17.9 10.7 19.8 13.6 18.8 17.4C15.5 16.9 13.6 14.6 14.1 11.2Z', 1)}
+          {stem('M11.4 20.4C11.2 16.2 11.9 12.8 14 10.6')}
+          {leaf(14, 10.6, 10, 5.8, 2.2, c, { fill: 1, k: 1 })}
+          {leaf(11.4, 16.2, 198, 4.4, 1.7, c, { fill: 1, flip: true, k: 2 })}
         </>
       );
-    case 2: // broto começando a surgir
+    case 2: // broto reto com duas folhinhas (neutro, simétrico)
       return (
         <>
           {ground}
-          <path d="M12 21V15.2" />
-          {leaf('M12 15.4C9.3 15.4 7.7 13.8 7.7 11.6C10.4 11.6 12 13.2 12 15.4Z', 1)}
-          {leaf('M12 15.4C14.7 15.4 16.3 13.8 16.3 11.6C13.6 11.6 12 13.2 12 15.4Z', 2)}
+          {stem('M12 20.4V12.2')}
+          {leaf(12, 12.4, -150, 6, 2.3, c, { fill: 1, flip: true, k: 1 })}
+          {leaf(12, 12.4, -30, 6, 2.3, c, { fill: 1, k: 2 })}
         </>
       );
-    case 3: // planta jovem
+    case 3: // planta jovem, crescendo
       return (
         <>
           {ground}
-          <path d="M12 21V6.8" />
-          {leaf('M12 17.6C8.4 17.8 6 15.8 5.6 12.9C9 12.7 11.6 14.7 12 17.6Z', 1)}
-          {leaf('M12 13.4C15.6 13.6 18 11.6 18.4 8.7C15 8.5 12.4 10.5 12 13.4Z', 2)}
-          {leaf('M12 8.8C10.9 7.6 10.9 5.8 12 4.6C13.1 5.8 13.1 7.6 12 8.8Z', 3)}
+          {stem('M12 20.4V7')}
+          {leaf(12, 16.6, -145, 5.4, 2.1, c, { flip: true, k: 1 })}
+          {leaf(12, 12.6, -35, 5.4, 2.1, c, { k: 2 })}
+          {leaf(12, 7.6, -90, 4, 1.6, c, { k: 3 })}
         </>
       );
-    default: // planta vigorosa, folhas abertas
+    default: // planta em flor
       return (
         <>
           {ground}
-          <path d="M12 21V4.6" />
-          {leaf('M12 18.4C8.4 18.6 6 16.6 5.6 13.7C9 13.5 11.6 15.5 12 18.4Z', 1)}
-          {leaf('M12 16.6C15.6 16.8 18 14.8 18.4 11.9C15 11.7 12.4 13.7 12 16.6Z', 2)}
-          {leaf('M12 12.6C9.1 12.6 7.3 10.8 7.3 8.4C10.1 8.4 12 10.2 12 12.6Z', 3)}
-          {leaf('M12 10.4C14.9 10.4 16.7 8.6 16.7 6.2C13.9 6.2 12 8 12 10.4Z', 4)}
-          {leaf('M12 6.4C10.8 5.2 10.8 3.4 12 2.2C13.2 3.4 13.2 5.2 12 6.4Z', 5)}
+          {stem('M12 20.4V6.6')}
+          {leaf(12, 17.4, -145, 5.2, 2, c, { flip: true, k: 1 })}
+          {leaf(12, 13.8, -35, 5.2, 2, c, { k: 2 })}
+          {[0, 72, 144, 216, 288].map((a) => (
+            <ellipse key={a} cx={12} cy={2.85} rx={1.35} ry={1.75} transform={`rotate(${a} 12 5.2)`} fill={c} fillOpacity={0.62} stroke="none" />
+          ))}
+          <circle cx={12} cy={5.2} r={1.5} fill={c} stroke="none" />
         </>
       );
   }

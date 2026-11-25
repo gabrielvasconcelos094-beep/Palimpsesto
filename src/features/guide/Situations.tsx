@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Archive, Check, Feather, Mail, Pin, PinOff, Plus, Trash2, X } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import { gatherForSituation, isUpcoming } from '../../domain/situations';
 import { KIND_LABELS } from '../../domain/scales';
@@ -337,7 +338,7 @@ function SituationView({ s }: { s: Situation }) {
         <SituationForm s={s} onClose={() => setEdit(false)} onDelete={async () => {
           setEdit(false);
           if (await ask({ title: 'Excluir esta situação?', body: 'A lista de cuidados será excluída. Experiências e cartas ligadas a ela são mantidas.', confirm: 'Excluir', danger: true })) {
-            store.remove('situations', s.id);
+            removeWithUndo('situations', s.id, 'Situação excluída.');
             goBack('/guia?t=situacoes');
           }
         }} />

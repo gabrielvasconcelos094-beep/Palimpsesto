@@ -29,7 +29,6 @@ final class WidgetRenderer {
 
     private static final int[] CELL = {R.id.cell0, R.id.cell1, R.id.cell2, R.id.cell3, R.id.cell4};
     private static final int[] ICON = {R.id.icon0, R.id.icon1, R.id.icon2, R.id.icon3, R.id.icon4};
-    private static final int[] LABEL = {R.id.label0, R.id.label1, R.id.label2, R.id.label3, R.id.label4};
     private static final int[] WELL = {R.id.well0, R.id.well1, R.id.well2, R.id.well3, R.id.well4};
     private static final int[] RING = {R.id.ring0, R.id.ring1, R.id.ring2, R.id.ring3, R.id.ring4};
     private static final int[] TILE = {R.id.tile0, R.id.tile1, R.id.tile2};
@@ -111,16 +110,8 @@ final class WidgetRenderer {
 
         int h = heightDp(options);
         int w = widthDp(options, 250);
-        boolean title = h >= 84 && v.title != null;
-        frame(rv, organic, v, title);
-        boolean labels = h >= 112;
-        Bitmap tb = title ? WidgetStore.bitmap(c, v.title) : null;
-        if (tb != null) {
-            rv.setImageViewBitmap(R.id.title, tb);
-            rv.setViewVisibility(R.id.title, View.VISIBLE);
-        } else {
-            rv.setViewVisibility(R.id.title, View.GONE);
-        }
+        // Sem texto: só os cinco símbolos. Os nomes ficam na descrição de acessibilidade.
+        frame(rv, organic, v, false);
 
         // Poço: fundo tingido com a cor do nível (minimalista) ou círculo da superfície (orgânico).
         int bgColor = organic ? v.tints[0] : v.surface;
@@ -135,15 +126,12 @@ final class WidgetRenderer {
                 rv.setViewVisibility(RING[i], View.VISIBLE);
                 rv.setInt(RING[i], "setColorFilter", mix(level, bgColor, 0.55f));
             }
-            rv.setTextViewText(LABEL[i], cfg.labels[i]);
-            rv.setTextColor(LABEL[i], v.inkSoft);
-            rv.setViewVisibility(LABEL[i], labels ? View.VISIBLE : View.GONE);
             rv.setContentDescription(CELL[i], "Registrar humor: " + cfg.labels[i]);
         }
 
         // Tamanhos: o poço cresce até 52dp e o símbolo ocupa ~60% dele, centralizado.
         float cellW = (w - 16f) / 5f;
-        float availH = h - 16f - (title ? 26f : 0f) - (labels ? 32f : 0f); // nomes reservam 2 linhas em todas as células
+        float availH = h - 16f;
         float box = Math.max(24f, Math.min(cellW, availH));
         float well = Math.min(52f, box - 2f);
         float wellPad = Math.max(1f, (box - well) / 2f);
@@ -156,7 +144,7 @@ final class WidgetRenderer {
         return rv;
     }
 
-    /** Widget de atalhos: três tiles com ícone e rótulo. */
+    /** Widget de atalhos: três tiles só com ícone (o nome fica na descrição de acessibilidade). */
     static RemoteViews shortcuts(Context c, Bundle options) {
         RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.widget_shortcuts);
         rv.setOnClickPendingIntent(R.id.cell0, action(c, "mood/new", 20));
@@ -180,21 +168,16 @@ final class WidgetRenderer {
         }
         int h = heightDp(options);
         int w = widthDp(options, 180);
-        boolean labels = h >= 48;
-        String[] names = {"Humor", "Experiência", "Acontecimento"};
         Bitmap[] icons = {WidgetStore.bitmap(c, v.mood[3]), WidgetStore.bitmap(c, v.actions[0]), WidgetStore.bitmap(c, v.actions[1])};
         int[] tileColor = organic ? new int[] {v.tints[1], v.tints[2], v.tints[3]} : new int[] {mix(v.tints[0], v.surface, 0.35f), mix(v.tints[0], v.surface, 0.35f), mix(v.tints[0], v.surface, 0.35f)};
         for (int i = 0; i < 3; i++) {
             rv.setImageViewResource(TILE[i], organic ? TILE_ORGANIC[i] : tileRes(v));
             rv.setInt(TILE[i], "setColorFilter", tileColor[i]);
             if (icons[i] != null) rv.setImageViewBitmap(ICON[i], icons[i]);
-            rv.setTextViewText(LABEL[i], names[i]);
-            rv.setTextColor(LABEL[i], v.ink);
-            rv.setViewVisibility(LABEL[i], labels ? View.VISIBLE : View.GONE);
         }
         // O ícone nunca passa de 34dp; o resto vira respiro dentro do tile.
         float tileW = (w - 12f) / 3f - 6f;
-        float availH = h - 12f - 6f - 4f - (labels ? 18f : 0f);
+        float availH = h - 12f - 6f - 4f;
         float box = Math.max(18f, Math.min(tileW, availH));
         float pad = Math.max(2f, (box - Math.min(34f, box - 2f)) / 2f);
         for (int i = 0; i < 3; i++) rv.setViewPadding(ICON[i], px(c, pad), px(c, pad), px(c, pad), px(c, pad));

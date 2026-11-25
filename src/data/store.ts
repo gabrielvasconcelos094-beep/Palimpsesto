@@ -233,6 +233,31 @@ export class Store {
     this.commitData(removeWithCascade(this.state.data, c, id));
   }
 
+  /**
+   * Remove e devolve uma função que desfaz a exclusão. Se nada mudou desde
+   * então, volta exatamente ao estado anterior (inclusive as referências
+   * limpas pela cascata); se houve outras alterações, só recoloca o que foi
+   * removido, sem desfazer o trabalho feito depois.
+   */
+  removeUndoable(c: CollectionName, id: string): () => void {
+    const before = this.state.data;
+    this.remove(c, id);
+    const after = this.state.data;
+    return () => {
+      if (this.state.data === after) return this.commitData(before);
+      const next: any = { ...this.state.data };
+      for (const k of Object.keys(before) as Array<keyof AppData>) {
+        const old = before[k];
+        if (!Array.isArray(old)) continue;
+        const cur = (next[k] ?? []) as Array<{ id: string }>;
+        const ids = new Set(cur.map((e) => e.id));
+        const back = (old as Array<{ id: string }>).filter((e) => !ids.has(e.id) && !(after[k] as Array<{ id: string }>).some((x) => x.id === e.id));
+        if (back.length) next[k] = [...cur, ...back];
+      }
+      this.transact(() => next);
+    };
+  }
+
   setPreferences(patch: Partial<Preferences>) {
     const preferences = AppDataSchema.shape.preferences.parse({ ...this.state.data.preferences, ...patch });
     this.commitData({ ...this.state.data, preferences });

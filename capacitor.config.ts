@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'app.palimpsesto',
   appName: 'Palimpsesto',
   webDir: 'dist',
-  backgroundColor: '#F4EFE6',
   android: {
     // O conteúdo é servido a partir do próprio APK; nada é carregado da rede.
     allowMixedContent: false,

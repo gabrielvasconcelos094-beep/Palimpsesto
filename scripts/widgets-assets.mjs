@@ -26,7 +26,6 @@ for (const [key, v] of Object.entries(payload.variants)) {
   config.variants[key] = {
     bg: v.bg, surface: v.surface, ink: v.ink, inkSoft: v.inkSoft, line: v.line, radius: v.radius,
     moodColors: v.moodColors, tints: v.tints,
-    title: save(v.title, `d_${key}_t.png`),
     mood: v.mood.map((b, i) => save(b, `d_${key}_m${i}.png`)),
     actions: v.actions.map((b, i) => save(b, `d_${key}_a${i}.png`)),
   };

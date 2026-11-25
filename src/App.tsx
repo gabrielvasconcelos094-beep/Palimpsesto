@@ -4,7 +4,7 @@ import { closeTopOverlay } from './app/overlays';
 import { canGoBack, goBack, navigate, useRoute } from './app/router';
 import { store, useStoreState } from './app/store';
 import { useApplyTheme } from './app/theme';
-import { useToast } from './app/toast';
+import { dismissToast, useToast } from './app/toast';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
 import { setPrivacyScreen } from './platform/native';
 import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
@@ -193,7 +193,18 @@ export function App() {
       <BottomNav />
       {message && (
         <div className="toast" role="status">
-          {message}
+          <span>{message.text}</span>
+          {message.action && (
+            <button
+              className="toast-action"
+              onClick={() => {
+                message.action!.run();
+                dismissToast();
+              }}
+            >
+              {message.action.label}
+            </button>
+          )}
         </div>
       )}
       <Dialog

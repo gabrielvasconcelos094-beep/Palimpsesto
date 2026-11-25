@@ -12,7 +12,7 @@ acompanhamento psicológico ou psiquiátrico.
 
 ## Instalar
 
-O APK pronto está em [`release/Palimpsesto-1.3.0.apk`](release/). No Android:
+O APK pronto está em [`release/Palimpsesto-1.4.0.apk`](release/). No Android:
 copie o arquivo para o aparelho, abra-o e permita "instalar apps desconhecidos" para o
 gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
@@ -24,7 +24,7 @@ gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
 | Aba | Conteúdo |
 |---|---|
-| **Hoje** | Busca geral; **widgets** na tela inicial (ver abaixo); registro do humor em um toque; registros do dia; cartas que chegaram; situações próximas; uma "camada antiga" para reler; uma pergunta opcional; atalho "Para dias difíceis". |
+| **Hoje** | Busca geral; **widgets** na tela inicial (ver abaixo); registro do humor em um toque; os **últimos 7 dias** num relance (mediana de cada data; dias vazios ficam vazios); registros do dia; cartas que chegaram; situações próximas; uma "camada antiga" para reler; uma pergunta opcional; atalho "Para dias difíceis". |
 | **Diário** | Humor (valência −2…+2 com nomes e símbolos personalizáveis, várias emoções, energia, atividades, indicadores opcionais, contexto, anotação), experiências e acontecimentos da linha do tempo — **inclusive retroativos** (agora, hoje, ontem ou outra data; horário exato, período do dia ou sem horário). Linha do tempo, calendário com "registrar neste dia", filtros combináveis e edição completa de registros antigos. |
 | **Mapa** | 10 fichas (identidade, preferências, necessidades, valores, limites, emoções, relações, hábitos, enfrentamento, desejos) com 80 perguntas reflexivas e anotações livres; respostas com histórico em camadas; perguntas e fichas próprias; favoritas. **Descobertas** com grau de confiança (hipótese → recorrente → consolidada), histórico de mudanças e experiências que as sustentam. |
 | **Guia** | **Repertório** (o que faz bem, estratégias, o que desgasta) com avaliações por circunstância; **Situações** (viagem, festa, dia difícil…) que reúnem o que *você* já registrou, com lista de cuidados e registro de como foi; **Cartas** para si, lacradas até uma data. |
@@ -37,14 +37,15 @@ Toque e segure na tela inicial → *Widgets* → *Palimpsesto*:
 
 - **Humor (4×1, redimensionável):** cinco "poços" circulares, cada um tingido com a cor do seu
   nível, com o símbolo da família escolhida em Ajustes → Escala de humor. Tocar em um abre o
-  registro de humor já com aquele nível selecionado (pronto para salvar). Com duas linhas de
-  altura aparece o título "Como você está?" na fonte editorial do app; com três, os nomes.
-- **Atalhos (3×1, redimensionável):** três tiles pastel — Registrar humor, experiência e
+  registro de humor já com aquele nível selecionado (pronto para salvar). Sem texto: só os
+  símbolos, em qualquer tamanho.
+- **Atalhos (3×1, redimensionável):** três tiles pastel só com ícones — humor, experiência e
   acontecimento; cada um abre a tela de criação correspondente.
 
 Seguem o tema (claro/escuro), o estilo visual e os símbolos escolhidos, funcionam com o app
 fechado e se atualizam quando essas escolhas mudam. Com PIN ativado, o toque leva primeiro à
-tela de bloqueio. Os widgets mostram só símbolos e nomes da escala — nenhum registro.
+tela de bloqueio. Os widgets mostram só símbolos — nenhum registro. Os nomes dos níveis ficam disponíveis
+para leitores de tela.
 Detalhes técnicos em [docs/ARQUITETURA.md](docs/ARQUITETURA.md) (seção 8).
 
 ## Desenvolvimento

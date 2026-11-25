@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Lock, Mail, MailOpen, Plus, Trash2 } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import type { Letter } from '../../domain/schema';
 import { dayKey } from '../../domain/util';
@@ -134,8 +135,7 @@ function LetterEditor() {
     if (!id) return goBack('/guia?t=cartas');
     if (await ask({ title: 'Excluir esta carta?', body: 'Ela será apagada definitivamente.', confirm: 'Excluir', danger: true })) {
       auto.cancel();
-      store.remove('letters', id);
-      toast('Carta excluída.');
+      removeWithUndo('letters', id, 'Carta excluída.');
       goBack('/guia?t=cartas');
     }
   };

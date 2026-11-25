@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Briefcase, Flag, Heart, Plane, Repeat, Sparkles, Stethoscope, Swords, Trash2, Trophy, Play, Square, Circle } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
-import { store, useData } from '../../app/store';
-import { toast } from '../../app/toast';
+import { useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { EVENT_CATEGORIES, type EventCategory, type LifeEvent } from '../../domain/schema';
 import { dayKey } from '../../domain/util';
 import { AutoText, Field, fmtDate, Page, useConfirm } from '../../ui/components';
@@ -97,8 +97,7 @@ function EventEditor() {
             onClick={async () => {
               if (await ask({ title: 'Excluir este acontecimento?', body: 'Os registros do Diário desse período não são afetados.', confirm: 'Excluir', danger: true })) {
                 auto.cancel();
-                store.remove('events', id);
-                toast('Acontecimento excluído.');
+                removeWithUndo('events', id, 'Acontecimento excluído.');
                 goBack('/diario');
               }
             }}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link2, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
-import { toast } from '../../app/toast';
+import { removeWithUndo } from '../../app/undo';
 import { KIND_LABELS, OUTCOME_LABELS, OUTCOME_ORDER } from '../../domain/scales';
 import type { Experience, Outcome, RepertoireKind } from '../../domain/schema';
 import { AutoText, Field, Page, Section, Sheet, useConfirm } from '../../ui/components';
@@ -91,8 +91,7 @@ export function ExperienceEditor() {
     });
     if (!ok) return;
     auto.cancel();
-    if (auto.id.current) store.remove('experiences', auto.id.current);
-    toast('Experiência excluída.');
+    if (auto.id.current) removeWithUndo('experiences', auto.id.current, 'Experiência excluída.');
     goBack('/diario');
   };
 

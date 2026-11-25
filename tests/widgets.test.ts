@@ -8,7 +8,7 @@ import { contrast } from '../src/theme/color';
 
 const prefs = (p: Record<string, unknown> = {}) => PreferencesSchema.parse(p) as any;
 /** Rasterizador falso: devolve o próprio conteúdo para podermos inspecionar o que foi pedido. */
-const fake: Rasterizer = async (item) => Buffer.from('svg' in item ? item.svg : 'emoji' in item ? `emoji:${item.emoji}` : `title:${item.title}|${item.color}`).toString('base64');
+const fake: Rasterizer = async (item) => Buffer.from('svg' in item ? item.svg : `emoji:${item.emoji}`).toString('base64');
 const decode = (b64: string) => Buffer.from(b64, 'base64').toString('utf8');
 
 describe('ações dos widgets', () => {
@@ -70,7 +70,7 @@ describe('carga enviada ao nativo', () => {
     expect(light.actions).toHaveLength(2);
     expect(light.moodColors).toHaveLength(5);
     expect(light.tints).toHaveLength(4);
-    expect(decode(light.title)).toBe(`title:Como você está?|${light.ink}`);
+    expect('title' in light).toBe(false); // widget sem texto
     expect(p.labels).toEqual(['Muito desagradável', 'Desagradável', 'Intermediário', 'Agradável', 'Muito agradável']);
   });
   it('família de símbolos escolhida é a que vai nos ícones (padrão: natureza)', async () => {

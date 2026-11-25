@@ -15,5 +15,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // Tela privada ativa desde o início; o app ajusta conforme a preferência ao carregar.
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        // Fundo do WebView no tom do sistema (claro/escuro) até o tema do app carregar.
+        if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().setBackgroundColor(getColor(R.color.app_background));
     }
 }

@@ -4,6 +4,7 @@ import { ValenceMark } from '../../ui/pickers';
 import { valenceLabel } from '../../domain/scales';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import { CONFIDENCE_LABELS } from '../../domain/scales';
 import { CONFIDENCE, type Confidence, type Discovery } from '../../domain/schema';
@@ -176,7 +177,7 @@ function DiscoveryEditor() {
             onClick={async () => {
               if (await ask({ title: 'Excluir esta descoberta?', body: 'Ela e todas as suas camadas serão excluídas.', confirm: 'Excluir', danger: true })) {
                 auto.cancel();
-                store.remove('discoveries', saved.id);
+                removeWithUndo('discoveries', saved.id, 'Descoberta excluída.');
                 goBack('/mapa?t=descobertas');
               }
             }}

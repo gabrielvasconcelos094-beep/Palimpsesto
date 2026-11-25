@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Feather, Plus, Trash2 } from 'lucide-react';
 import { goBack, navigate, setQuery, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import { outcomeCounts, outcomesByContext } from '../../domain/analytics';
 import { FREQUENCY_LABELS, KIND_LABELS, OUTCOME_LABELS, OUTCOME_ORDER } from '../../domain/scales';
@@ -231,8 +232,7 @@ function ItemEditor() {
                 })
               ) {
                 auto.cancel();
-                store.remove('repertoire', itemId);
-                toast('Item excluído.');
+                removeWithUndo('repertoire', itemId, 'Item excluído.');
                 goBack('/guia');
               }
             }}

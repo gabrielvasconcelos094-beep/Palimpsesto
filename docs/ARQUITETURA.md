@@ -394,3 +394,44 @@ Decisões (`src/domain/series.ts`, `src/features/trajectory/LineChart.tsx`):
   Durante essa validação apareceram dois problemas que foram corrigidos: formas decorativas que
   invadiam os poços no orgânico e poços de tamanhos desiguais quando os nomes ocupavam uma ou
   duas linhas.
+
+## 10. Versão 1.4 — símbolos da natureza redesenhados, widgets sem texto e refinamentos
+
+### "Elementos da natureza", novo desenho
+Os cinco símbolos foram redesenhados como uma única planta que cresce, com a mesma terra e a
+mesma base de caule em todos os níveis (`src/ui/symbols.tsx`):
+**planta murcha** (caule arqueado, folhas pendendo) → **broto inclinado** → **broto reto com
+duas folhinhas** (neutro, simétrico) → **planta jovem** → **planta em flor**. As folhas são
+sólidas e têm uma borda mais cheia que a outra (função `leaf()`), o caule é mais fino (1,5) e
+nada depende de transparências baixas, que ficavam "lavadas" em tamanhos pequenos. A forma muda
+de nível a nível — não só a cor. Como os widgets rasterizam os mesmos SVGs, eles também mudam.
+
+### Widgets sem texto
+O título "Como você está?" e os nomes dos níveis saíram do widget de humor, e os rótulos saíram
+do widget de atalhos: só símbolos e ícones, em qualquer tamanho. Os nomes continuam em
+`contentDescription` (leitores de tela). A carga não tem mais `title`; uma configuração antiga
+que ainda o traga é simplesmente ignorada. Os layouts não têm mais `TextView`.
+`WidgetRenderTest` verifica que **nenhum texto visível** aparece em nenhum tamanho.
+
+### Refinamentos
+- **Desfazer exclusões:** toda exclusão (registro, experiência, acontecimento, item do
+  repertório, situação, carta, descoberta, ficha, pergunta, resposta, anotação, emoção) mostra
+  "Desfazer" por 6 s. `Store.removeUndoable()` devolve o estado anterior exatamente (inclusive
+  as referências limpas pela cascata) se nada mudou desde então; se houve outras alterações,
+  só recoloca o que foi removido, sem apagar o que veio depois. A confirmação continua.
+- **Hoje → Últimos 7 dias:** uma faixa com o símbolo de cada data (mediana ordinal dos
+  registros dela). Dias sem registro ficam vazios — não há contagem de sequência nem meta.
+  Tocar abre o Diário filtrado naquela data.
+- **"Salvar" sempre visível** no registro de humor (rodapé fixo da folha).
+- **Bordas da tela (Android 15+):** o app passou a usar as variáveis `--safe-area-inset-*`
+  injetadas pelo Capacitor (com `env()` como reserva), para o conteúdo não ficar sob a barra
+  de status ou de navegação no modo de tela cheia.
+- **Sem clarão branco no modo escuro:** fundo da janela, abertura e WebView seguem o modo do
+  sistema (`values-night/colors.xml`, `MainActivity`) até o tema do app carregar.
+- Símbolos um pouco maiores nas listas do Diário e do Hoje.
+
+### Testes
+`tests/store.test.ts` (+2: desfazer com cascata; desfazer depois de outras alterações),
+`tests/widgets.test.ts` (carga sem título), `e2e/widgets.mjs` (carga sem título),
+`WidgetRenderTest` (sem texto em nenhum tamanho); regressão do estilo minimalista: só mudaram
+alturas e larguras de conteúdo (a faixa nova e os símbolos maiores).

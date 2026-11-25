@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { EyeOff, MoreHorizontal, Plus, Star, Trash2 } from 'lucide-react';
 import { goBack, navigate, setQuery, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
+import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import type { MapNote, Question } from '../../domain/schema';
 import { AutoText, Empty, Field, fmtDate, Layers, Page, Section, Segmented, Sheet, Toggle, useConfirm } from '../../ui/components';
@@ -326,7 +327,7 @@ export function SectionPage() {
                   danger: true,
                 });
                 if (ok) {
-                  store.remove('sections', id);
+                  removeWithUndo('sections', id, 'Ficha excluída.');
                   goBack('/mapa');
                 }
               }}
@@ -382,8 +383,7 @@ function NoteEditor({ note, onClose }: { note: MapNote; onClose: () => void }) {
           style={{ color: 'var(--danger)' }}
           onClick={() => {
             auto.cancel();
-            store.remove('notes', note.id);
-            toast('Anotação excluída.');
+            removeWithUndo('notes', note.id, 'Anotação excluída.');
             onClose();
           }}
         >
@@ -539,7 +539,7 @@ function QuestionEditor({ q }: { q: Question }) {
                   setEditQ(false);
                   if (await ask({ title: 'Apagar a resposta?', body: 'A resposta e todas as suas camadas serão excluídas.', confirm: 'Apagar', danger: true })) {
                     auto.cancel();
-                    store.remove('answers', answer.id);
+                    removeWithUndo('answers', answer.id, 'Resposta excluída.');
                     goBack(`/mapa/ficha/${q.sectionId}`);
                   }
                 }}
@@ -555,7 +555,7 @@ function QuestionEditor({ q }: { q: Question }) {
                   setEditQ(false);
                   if (await ask({ title: 'Excluir a pergunta?', body: 'A pergunta e sua resposta serão excluídas.', confirm: 'Excluir', danger: true })) {
                     auto.cancel();
-                    store.remove('questions', q.id);
+                    removeWithUndo('questions', q.id, 'Pergunta excluída.');
                     goBack(`/mapa/ficha/${q.sectionId}`);
                   }
                 }}
