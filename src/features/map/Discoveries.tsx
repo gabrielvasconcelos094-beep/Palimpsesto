@@ -101,7 +101,7 @@ export function DiscoveryPage() {
         <span />
       </Page>
     );
-  return <DiscoveryEditor key={id === 'nova' ? 'nova' : 'edit'} />;
+  return <DiscoveryEditor />;
 }
 
 function DiscoveryEditor() {

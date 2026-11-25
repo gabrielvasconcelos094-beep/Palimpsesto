@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432" width="432" height="432">
+  <!-- Fundo: papel -->
+  <rect width="432" height="432" fill="#F4EFE6"/>
+  <!-- Pautas de manuscrito -->
+  <g stroke="#E4D9C7" stroke-width="3">
+    <line x1="0" y1="150" x2="432" y2="150"/>
+    <line x1="0" y1="214" x2="432" y2="214"/>
+    <line x1="0" y1="278" x2="432" y2="278"/>
+  </g>
+  <!-- Camada antiga, raspada -->
+  <text x="148" y="318" font-family="Cormorant Garamond" font-style="italic" font-weight="500" font-size="300" fill="#DCCDB4" transform="rotate(-8 216 216)">p</text>
+  <!-- Camada atual -->
+  <text x="216" y="292" text-anchor="middle" font-family="Cormorant Garamond" font-weight="600" font-size="230" fill="#2E2A26">P</text>
+  <!-- Gota de tinta -->
+  <circle cx="280" cy="288" r="11" fill="#A0522D"/>
+</svg>

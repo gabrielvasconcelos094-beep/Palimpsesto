@@ -86,12 +86,30 @@ function BottomNav() {
   );
 }
 
+/**
+ * Chave da tela: muda a cada registro diferente, mas é mantida quando um
+ * editor novo (/nova) passa a ter id (/<id>) — assim o editor não é remontado.
+ */
+function useScreenKey(route: ReturnType<typeof useRoute>) {
+  const ref = useRef<{ path: string; key: string }>({ path: route.path, key: route.path });
+  if (route.path !== ref.current.path) {
+    const prevParts = ref.current.path.split('/').filter(Boolean);
+    const wasNew = /^(nova|novo)$/.test(prevParts[prevParts.length - 1] ?? '');
+    const sameKind = prevParts.slice(0, -1).join('/') === route.parts.slice(0, -1).join('/');
+    ref.current = { path: route.path, key: route.replaced && wasNew && sameKind ? ref.current.key : route.path };
+  }
+  return ref.current.key;
+}
+
 export function App() {
   const st = useStoreState();
   useApplyTheme(st.data.preferences);
   const message = useToast();
   const route = useRoute();
-  const [locked, setLocked] = useState(() => st.device.lock.enabled);
+  // null = ainda não decidido: segue a configuração (evita mostrar o conteúdo antes do PIN).
+  const [lockedState, setLocked] = useState<boolean | null>(null);
+  const locked = lockedState ?? st.device.lock.enabled;
+  const screenKey = useScreenKey(route);
   const hiddenAt = useRef<number | null>(null);
   const lockRef = useRef(st.device.lock);
   lockRef.current = st.device.lock;
@@ -101,7 +119,7 @@ export function App() {
   useEffect(() => {
     if (st.ready && !lockedOnce.current) {
       lockedOnce.current = true;
-      setLocked(st.device.lock.enabled);
+      setLocked((l) => l ?? st.device.lock.enabled);
       void setPrivacyScreen(st.device.privacyScreen);
     }
   }, [st.ready, st.device.lock.enabled, st.device.privacyScreen]);
@@ -136,7 +154,7 @@ export function App() {
 
   return (
     <div className="app">
-      <Screen key={route.parts.slice(0, 2).join('/')} />
+      <Screen key={screenKey} />
       <BottomNav />
       {message && (
         <div className="toast" role="status">

@@ -158,7 +158,7 @@ export function ItemPage() {
         <span />
       </Page>
     );
-  return <ItemEditor key={id === 'novo' ? 'novo' : 'edit'} />;
+  return <ItemEditor />;
 }
 
 function ItemEditor() {

@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronRight, X } from 'lucide-react';
 import { goBack } from '../app/router';
@@ -104,13 +104,34 @@ export function Empty(props: { title: string; children?: ReactNode; action?: Rea
 /* Formulário                                                          */
 /* ------------------------------------------------------------------ */
 export function Field(props: { label: ReactNode; optional?: boolean; help?: ReactNode; children: ReactNode }) {
+  const id = useId();
+  const helpId = props.help ? `${id}-help` : undefined;
+  // Associa o rótulo ao controle (leitores de tela) e ao grupo, quando há vários.
+  let labelled = 0;
+  const children = Children.map(props.children, (child) => {
+    if (!isValidElement(child)) return child;
+    if (child.type === 'input' || child.type === 'textarea' || child.type === 'select') {
+      labelled++;
+      return cloneElement(child as any, { 'aria-labelledby': id, 'aria-describedby': helpId });
+    }
+    if (child.type === AutoText) {
+      labelled++;
+      return cloneElement(child as any, { ariaLabelledBy: id });
+    }
+    return child;
+  });
+  const group = labelled !== 1;
   return (
-    <div className="field">
-      <span className="label">
+    <div className="field" role={group ? 'group' : undefined} aria-labelledby={group ? id : undefined}>
+      <span className="label" id={id}>
         {props.label} {props.optional && <span className="opt">· opcional</span>}
       </span>
-      {props.children}
-      {props.help && <span className="help">{props.help}</span>}
+      {children}
+      {props.help && (
+        <span className="help" id={helpId}>
+          {props.help}
+        </span>
+      )}
     </div>
   );
 }
@@ -124,6 +145,7 @@ export function AutoText(props: {
   minRows?: number;
   autoFocus?: boolean;
   ariaLabel?: string;
+  ariaLabelledBy?: string;
   maxLength?: number;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -142,6 +164,7 @@ export function AutoText(props: {
       rows={props.minRows ?? 3}
       autoFocus={props.autoFocus}
       aria-label={props.ariaLabel}
+      aria-labelledby={props.ariaLabel ? undefined : props.ariaLabelledBy}
       maxLength={props.maxLength ?? 20000}
       onChange={(e) => props.onChange(e.target.value)}
     />

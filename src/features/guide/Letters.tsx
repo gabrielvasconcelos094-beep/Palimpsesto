@@ -72,7 +72,7 @@ export function LetterPage() {
       </Page>
     );
   if (letter && sealedAtOpen && isSealedNow(letter)) return <SealedLetter l={letter} />;
-  return <LetterEditor key={id === 'nova' ? 'nova' : 'edit'} />;
+  return <LetterEditor />;
 }
 
 function SealedLetter({ l }: { l: Letter }) {
