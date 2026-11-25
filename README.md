@@ -79,19 +79,20 @@ Capturas de tela: `npx vite --port 5179 & node e2e/screens.mjs <tema> <light|dar
 
 ## Melhorias recomendadas para versões futuras
 
-1. **Cifrar o arquivo local** com chave do Android Keystore (ou SQLCipher), depois de testes
+1. **Validar em aparelhos reais e remover a permissão INTERNET** do manifesto (o app já não faz conexões; a permissão só é usada pelo WebView para servir o conteúdo local).
+2. **Cifrar o arquivo local** com chave do Android Keystore (ou SQLCipher), depois de testes
    em aparelhos de vários fabricantes.
-2. **Lembretes gentis e opcionais** (notificações locais, desligadas por padrão, sem cobrança).
-3. **Busca global** em todas as áreas.
-4. **Linha do tempo de uma descoberta** com os registros de humor que a sustentam.
-5. **Análise por dia** (além de por registro) e padrões entre itens do repertório e o humor
+3. **Lembretes gentis e opcionais** (notificações locais, desligadas por padrão, sem cobrança).
+4. **Busca global** em todas as áreas.
+5. **Linha do tempo de uma descoberta** com os registros de humor que a sustentam.
+6. **Análise por dia** (além de por registro) e padrões entre itens do repertório e o humor
    dos dias seguintes.
-6. **Anexos** (fotos, áudio) em experiências e cartas.
-7. **Sincronização opcional e cifrada de ponta a ponta** entre aparelhos do próprio usuário
+7. **Anexos** (fotos, áudio) em experiências e cartas.
+8. **Sincronização opcional e cifrada de ponta a ponta** entre aparelhos do próprio usuário
    (por arquivo em pasta escolhida, sem servidor próprio).
-8. **Widget** de registro rápido na tela inicial do Android.
-9. Versão iOS (o código já é compatível com Capacitor iOS).
-10. Tradução da interface.
+9. **Widget** de registro rápido na tela inicial do Android.
+10. Versão iOS (o código já é compatível com Capacitor iOS).
+11. Tradução da interface.
 
 ## Licença das fontes e bibliotecas
 

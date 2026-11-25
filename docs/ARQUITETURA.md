@@ -31,7 +31,10 @@ e gravado na área privada do app (`Directory.Data`).
 
 ### Segurança e privacidade
 
-- Sem permissão de **INTERNET** no manifesto: o app é fisicamente incapaz de transmitir dados.
+- **Nenhuma conexão externa:** o código não acessa a rede e a política de segurança da página
+  (`connect-src 'self'`, `default-src 'self'`) bloqueia qualquer endereço de fora. A permissão
+  `INTERNET` permanece no manifesto porque o WebView do Capacitor a usa para servir o próprio
+  conteúdo empacotado (`https://localhost`); removê-la é uma melhoria a validar em aparelho real.
 - `allowBackup="false"` + regras de extração: os dados não vão para o backup do Google nem para
   transferências entre aparelhos ou `adb backup`.
 - **Bloqueio por PIN** (4–8 dígitos), guardado apenas como hash PBKDF2-SHA256 (210 000 iterações,

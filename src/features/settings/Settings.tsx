@@ -280,7 +280,7 @@ export function AboutPage() {
         <Section kicker="Privacidade">
           <ul className="small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
             <li>Sem conta, sem assinatura, sem anúncios e sem rastreamento.</li>
-            <li>Funciona totalmente sem internet; o aplicativo não faz nenhuma conexão de rede.</li>
+            <li>Funciona totalmente sem internet; o aplicativo não envia dados para lugar nenhum.</li>
             <li>Os dados ficam na área privada do aplicativo neste aparelho e não entram no backup automático do Android.</li>
             <li>Você pode exportar tudo, importar em outra instalação e apagar tudo definitivamente.</li>
           </ul>

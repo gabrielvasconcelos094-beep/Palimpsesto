@@ -38,6 +38,9 @@
         </provider>
     </application>
 
-    <!-- Permissões: nenhuma além do mínimo. O app funciona totalmente offline. -->
+    <!-- Permissões mínimas. INTERNET é exigida pelo WebView do Capacitor para servir o
+         próprio conteúdo empacotado (https://localhost); o app não acessa nenhum endereço
+         externo, e a política de segurança da página (CSP) bloqueia qualquer conexão de fora. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 </manifest>

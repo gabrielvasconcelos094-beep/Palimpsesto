@@ -24,7 +24,7 @@ export function PrivacyPage() {
         <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
           <li>Ficam na área privada do aplicativo, inacessível a outros apps, e protegidos pela criptografia do próprio Android.</li>
           <li>Não entram no backup automático do Google nem em cópias por cabo (adb).</li>
-          <li>O aplicativo não tem permissão de internet: nada é enviado a lugar algum.</li>
+          <li>O aplicativo não se conecta a nenhum servidor: não há contas, análises nem anúncios, e conexões externas são bloqueadas.</li>
           <li>Backups exportados podem ser cifrados com senha (AES-256).</li>
         </ul>
       </div>
