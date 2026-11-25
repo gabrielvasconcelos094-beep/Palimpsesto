@@ -16,9 +16,21 @@
    "ink": "#0c0c0b",
    "inkSoft": "#565551",
    "line": "#dad7d2",
-   "tint1": "#dddad4",
-   "tint2": "#e9d7cb",
    "radius": 4,
+   "moodColors": [
+    "#5B6C8F",
+    "#838da4",
+    "#8f8e8a",
+    "#b98064",
+    "#A0522D"
+   ],
+   "tints": [
+    "#dddad4",
+    "#e9d7cb",
+    "#e2d7c6",
+    "#e1e2e2"
+   ],
+   "title": "d_light_t.png",
    "mood": [
     "d_light_m0.png",
     "d_light_m1.png",
@@ -37,9 +49,21 @@
    "ink": "#faf9f7",
    "inkSoft": "#b3b2b0",
    "line": "#444240",
-   "tint1": "#45423f",
-   "tint2": "#4a382d",
    "radius": 4,
+   "moodColors": [
+    "#8FA3C9",
+    "#727f9a",
+    "#858482",
+    "#a76d4b",
+    "#D9895B"
+   ],
+   "tints": [
+    "#45423f",
+    "#4a382d",
+    "#4a4339",
+    "#3b3d43"
+   ],
+   "title": "d_dark_t.png",
    "mood": [
     "d_dark_m0.png",
     "d_dark_m1.png",

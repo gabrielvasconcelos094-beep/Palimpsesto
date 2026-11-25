@@ -33,7 +33,8 @@ public class WidgetRenderTest {
     @Before
     public void setUp() {
         ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        out = ctx.getExternalFilesDir(null);
+        out = new File(ctx.getFilesDir(), "renders");
+        out.mkdirs();
         deleteConfig();
     }
 
@@ -51,10 +52,20 @@ public class WidgetRenderTest {
         }
     }
 
-    private static String variant(String bg, String surface, String ink, String inkSoft, String line, String t1, String t2, int radius, String k) {
-        return "{\"bg\":\"" + bg + "\",\"surface\":\"" + surface + "\",\"ink\":\"" + ink + "\",\"inkSoft\":\"" + inkSoft + "\",\"line\":\"" + line + "\",\"tint1\":\"" + t1
-            + "\",\"tint2\":\"" + t2 + "\",\"radius\":" + radius + ",\"mood\":[\"d_" + k + "_m0.png\",\"d_" + k + "_m1.png\",\"d_" + k + "_m2.png\",\"d_" + k + "_m3.png\",\"d_" + k
-            + "_m4.png\"],\"actions\":[\"d_" + k + "_a0.png\",\"d_" + k + "_a1.png\"]}";
+    private static final String[] MOOD_LIGHT = {"#5C6F96", "#7F8FB0", "#8B8984", "#B87A5E", "#A0522D"};
+    private static final String[] MOOD_DARK = {"#9DB2E0", "#8493B8", "#9B988F", "#D79B78", "#F0A878"};
+
+    private static String arr(String[] a) {
+        StringBuilder b = new StringBuilder("[");
+        for (int i = 0; i < a.length; i++) b.append(i > 0 ? "," : "").append('"').append(a[i]).append('"');
+        return b.append("]").toString();
+    }
+
+    /** Variante de teste que reutiliza os PNGs padrão (d_light_*) do pacote de assets. */
+    private static String variant(String bg, String surface, String ink, String inkSoft, String line, String[] tints, String[] mood, int radius, String k) {
+        return "{\"bg\":\"" + bg + "\",\"surface\":\"" + surface + "\",\"ink\":\"" + ink + "\",\"inkSoft\":\"" + inkSoft + "\",\"line\":\"" + line
+            + "\",\"radius\":" + radius + ",\"moodColors\":" + arr(mood) + ",\"tints\":" + arr(tints) + ",\"title\":\"d_" + k + "_t.png\",\"mood\":[\"d_" + k + "_m0.png\",\"d_" + k
+            + "_m1.png\",\"d_" + k + "_m2.png\",\"d_" + k + "_m3.png\",\"d_" + k + "_m4.png\"],\"actions\":[\"d_" + k + "_a0.png\",\"d_" + k + "_a1.png\"]}";
     }
 
     private Bundle size(int heightDp, int widthDp) {
@@ -104,12 +115,15 @@ public class WidgetRenderTest {
         assertEquals(View.GONE, v.findViewById(R.id.label0).getVisibility());
         assertEquals(View.VISIBLE, v.findViewById(R.id.stroke).getVisibility());
         assertEquals(View.GONE, v.findViewById(R.id.blob).getVisibility());
+        assertEquals(View.GONE, v.findViewById(R.id.title).getVisibility()); // 1 linha: só os poços
+        assertEquals(View.VISIBLE, v.findViewById(R.id.ring0).getVisibility());
     }
 
     @Test
     public void moodWidget_tallerShowsLabels_andResizes() throws Exception {
         View v = render(WidgetRenderer.mood(ctx, size(110, 320)), 320, 110, "mood-labels");
         assertEquals(View.VISIBLE, v.findViewById(R.id.label2).getVisibility());
+        assertEquals(View.VISIBLE, v.findViewById(R.id.title).getVisibility());
         assertEquals("Intermediário", ((TextView) v.findViewById(R.id.label2)).getText().toString());
         render(WidgetRenderer.mood(ctx, size(48, 200)), 200, 48, "mood-narrow");
         render(WidgetRenderer.mood(ctx, size(150, 320)), 320, 150, "mood-tall");
@@ -118,13 +132,15 @@ public class WidgetRenderTest {
     @Test
     public void moodWidget_organicStyle_customLabels_dark() throws Exception {
         String cfg = "{\"v\":1,\"appearance\":\"dark\",\"style\":\"organic\",\"labels\":[\"Tempestade\",\"Chuva\",\"Névoa\",\"Brisa\",\"Sol\"],\"variants\":{\"dark\":"
-            + variant("#15201B", "#1D2A24", "#E8F2EC", "#B7C9BF", "#33443B", "#27403A", "#3B5A4C", 16, "dark") + ",\"light\":"
-            + variant("#EEF6F1", "#FAFDFB", "#1B2A22", "#4B5E54", "#CFE0D6", "#DDEEE5", "#F0D8D4", 16, "light") + "}}";
+            + variant("#15201B", "#1D2A24", "#E8F2EC", "#B7C9BF", "#33443B", new String[] {"#27403A", "#3B5A4C", "#4B4A3A", "#3A4A55"}, MOOD_DARK, 16, "dark") + ",\"light\":"
+            + variant("#EEF6F1", "#FAFDFB", "#1B2A22", "#4B5E54", "#CFE0D6", new String[] {"#DDEEE5", "#F0D8D4", "#EBE3C8", "#D5E3F2"}, MOOD_LIGHT, 16, "light") + "}}";
         writeConfig("dark", "organic", cfg);
         render(WidgetRenderer.mood(ctx, size(56, 320)), 320, 56, "mood-organic-dark-1x");
         View v = render(WidgetRenderer.mood(ctx, size(110, 320)), 320, 110, "mood-organic-dark");
         assertEquals(View.VISIBLE, v.findViewById(R.id.blob).getVisibility());
+        assertEquals(View.VISIBLE, v.findViewById(R.id.blob2).getVisibility());
         assertEquals(View.GONE, v.findViewById(R.id.stroke).getVisibility());
+        assertEquals(View.GONE, v.findViewById(R.id.ring0).getVisibility()); // orgânico: sem anel
         assertEquals("Tempestade", ((TextView) v.findViewById(R.id.label0)).getText().toString());
         assertEquals("Registrar humor: Sol", v.findViewById(R.id.cell4).getContentDescription().toString());
         assertFiveIcons(v);
@@ -133,8 +149,8 @@ public class WidgetRenderTest {
     @Test
     public void moodWidget_followsSystemNightMode_whenAppearanceIsSystem() throws Exception {
         String cfg = "{\"v\":1,\"appearance\":\"system\",\"style\":\"minimal\",\"variants\":{\"light\":"
-            + variant("#F4EFE6", "#FBF8F2", "#2A2622", "#5A534C", "#E3DCCF", "#E6DED0", "#F2D8C8", 4, "light") + ",\"dark\":"
-            + variant("#1C1B1A", "#262422", "#E8E1D5", "#B8B0A4", "#3A3733", "#2E2B28", "#3A2E27", 4, "dark") + "}}";
+            + variant("#F4EFE6", "#FBF8F2", "#2A2622", "#5A534C", "#E3DCCF", new String[] {"#E6DED0", "#F2D8C8", "#E5DCC4", "#D8DCE6"}, MOOD_LIGHT, 4, "light") + ",\"dark\":"
+            + variant("#1C1B1A", "#262422", "#E8E1D5", "#B8B0A4", "#3A3733", new String[] {"#2E2B28", "#3A2E27", "#35322A", "#2A2F38"}, MOOD_DARK, 4, "dark") + "}}";
         writeConfig("system", "minimal", cfg);
         WidgetStore.Config c = WidgetStore.load(ctx);
         assertNotNull(c);
@@ -158,6 +174,14 @@ public class WidgetRenderTest {
         render(WidgetRenderer.shortcuts(ctx, size(40, 180)), 180, 40, "shortcuts-compact");
         render(WidgetRenderer.shortcuts(ctx, size(100, 260)), 260, 100, "shortcuts-tall");
         render(WidgetRenderer.shortcuts(ctx, size(150, 320)), 320, 150, "shortcuts-huge");
+    }
+
+    /** Pré-visualizações do seletor de widgets: renders reais do tema padrão (Papel, natureza). */
+    @Test
+    public void zz_previews() throws Exception {
+        render(WidgetRenderer.mood(ctx, size(78, 330)), 330, 78, "preview-mood");
+        render(WidgetRenderer.shortcuts(ctx, size(78, 250)), 250, 78, "preview-shortcuts");
+        render(WidgetRenderer.mood(ctx, size(120, 330)), 330, 120, "preview-mood-tall");
     }
 
     @Test

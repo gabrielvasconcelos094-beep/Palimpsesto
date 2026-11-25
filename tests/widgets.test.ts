@@ -8,7 +8,7 @@ import { contrast } from '../src/theme/color';
 
 const prefs = (p: Record<string, unknown> = {}) => PreferencesSchema.parse(p) as any;
 /** Rasterizador falso: devolve o próprio conteúdo para podermos inspecionar o que foi pedido. */
-const fake: Rasterizer = async (item) => Buffer.from('svg' in item ? item.svg : `emoji:${item.emoji}`).toString('base64');
+const fake: Rasterizer = async (item) => Buffer.from('svg' in item ? item.svg : 'emoji' in item ? `emoji:${item.emoji}` : `title:${item.title}|${item.color}`).toString('base64');
 const decode = (b64: string) => Buffer.from(b64, 'base64').toString('utf8');
 
 describe('ações dos widgets', () => {
@@ -64,9 +64,13 @@ describe('carga enviada ao nativo', () => {
     const { light, dark } = p.variants as any;
     const lav = PRESET_THEMES.find((t) => t.id === 'lavanda')!;
     expect(light.bg.toLowerCase()).toBe(deriveTokens(lav.light, lav).tokens.bg.toLowerCase());
+    expect(light.tints.map((x: string) => x.toLowerCase())).toEqual(deriveTokens(lav.light, lav).tokens.tints.map((x) => x.toLowerCase()));
     expect(light.bg).not.toBe(dark.bg);
     expect(light.mood).toHaveLength(5);
     expect(light.actions).toHaveLength(2);
+    expect(light.moodColors).toHaveLength(5);
+    expect(light.tints).toHaveLength(4);
+    expect(decode(light.title)).toBe(`title:Como você está?|${light.ink}`);
     expect(p.labels).toEqual(['Muito desagradável', 'Desagradável', 'Intermediário', 'Agradável', 'Muito agradável']);
   });
   it('família de símbolos escolhida é a que vai nos ícones (padrão: natureza)', async () => {
@@ -112,6 +116,25 @@ describe('carga enviada ao nativo', () => {
         expect(contrast(v!.inkSoft, v!.surface), th.id).toBeGreaterThanOrEqual(4.5);
       }
     }
+  });
+  it('cada nível tem a sua cor, e o poço tingido mantém o símbolo legível em todos os temas e estilos', async () => {
+    const mixHex = (a: string, b: string, t: number) => {
+      const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+      const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+      return '#' + pa.map((x, i) => Math.round(x + (pb[i] - x) * t).toString(16).padStart(2, '0')).join('');
+    };
+    for (const th of PRESET_THEMES)
+      for (const style of ['minimal', 'organic']) {
+        const p = await buildWidgetPayload(prefs({ themeId: th.id, visualStyle: style }), fake);
+        for (const v of Object.values(p.variants)) {
+          expect(new Set(v!.moodColors).size, `${th.id} ${style}`).toBeGreaterThanOrEqual(4);
+          for (const mc of v!.moodColors) {
+            // Mesmas misturas do renderizador nativo: minimalista = 88% do fundo; orgânico = círculo da superfície.
+            const well = style === 'organic' ? v!.surface : mixHex(mc, v!.surface, 0.88);
+            expect(contrast(mc, well), `${th.id} ${style} ${mc}`).toBeGreaterThanOrEqual(2.4);
+          }
+        }
+      }
   });
   it('a chave de aparência muda só quando algo visual muda', () => {
     const a = widgetAppearanceKey(prefs());

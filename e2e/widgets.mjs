@@ -56,6 +56,15 @@ for (const v of Object.values(p.variants)) {
     assert.ok(i.bytes > 200 && i.bytes < 20000, `tamanho ${i.bytes}`);
   }
 }
+for (const v of Object.values(p.variants)) {
+  const t = pngInfo(v.title);
+  assert.equal(t.h, 72, 'título com altura fixa');
+  assert.ok(t.w > 120 && t.w < 600, `largura do título ${t.w}`);
+  assert.equal(v.moodColors.length, 5);
+  assert.equal(v.tints.length, 4);
+}
+fs.mkdirSync('/tmp/widget-icons', { recursive: true });
+fs.writeFileSync('/tmp/widget-icons/title.png', Buffer.from(p.variants.light.title, 'base64'));
 const natureHashes = p.variants.light.mood.map((b) => pngInfo(b).hash);
 assert.equal(new Set(natureHashes).size, 5, 'os cinco níveis são desenhos distintos');
 fs.mkdirSync('/tmp/widget-icons', { recursive: true });

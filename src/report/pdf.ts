@@ -21,6 +21,7 @@ import { CONFIDENCE_LABELS, energyLabel, INDICATORS, OUTCOME_LABELS, OUTCOME_ORD
 import type { Tokens } from '../theme/tokens';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
 import { dayKey as dayStr } from '../domain/util';
+import { changes, recordSeries, segments, timeTicks } from '../domain/series';
 
 import { type ReportSection } from './sections';
 
@@ -193,6 +194,76 @@ export function buildReport(
       }
     });
     y += 8;
+  }
+
+  if (sections.includes('oscillations') && entries.length) {
+    ensure(58 + 56); // título, gráfico e legenda juntos na mesma página
+    heading('Oscilações de humor e energia');
+    text('Cada ponto é um registro; a linha é interrompida quando passam mais de 3 dias sem registro (ausência não é neutro). Humor e energia usam o mesmo eixo de 5 níveis.', { size: 8.5, color: soft });
+    const pts = recordSeries(entries);
+    y += 4;
+    const H = 58;
+    const X0 = M + 8;
+    const XW = CW - 10;
+    ensure(H + 22);
+    const fromMs = new Date(dayStr(period.from) + 'T00:00:00').getTime();
+    const toMs = Math.max(new Date(dayStr(period.to) + 'T23:59:59').getTime(), fromMs + 86400000);
+    const px = (t: number) => X0 + ((t - fromMs) / (toMs - fromMs)) * XW;
+    const py = (lv: number) => y + ((5 - lv) / 4) * H;
+    doc.setLineWidth(0.15);
+    for (let lv = 1; lv <= 5; lv++) {
+      doc.setDrawColor(215, 215, 215);
+      doc.line(X0, py(lv), X0 + XW, py(lv));
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...soft);
+      doc.text(String(lv), M + 3, py(lv) + 1, { align: 'center' });
+    }
+    // energia (tracejada) por baixo; humor (contínua) por cima
+    const drawLine = (key: 'mood' | 'energy') => {
+      for (const seg of segments(pts, key)) {
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(...(key === 'mood' ? ink : accent));
+        doc.setLineDashPattern(key === 'energy' ? [1.8, 1.2] : [], 0);
+        for (let i = 1; i < seg.points.length; i++) doc.line(px(seg.points[i - 1].t), py(seg.points[i - 1].v), px(seg.points[i].t), py(seg.points[i].v));
+        doc.setLineDashPattern([], 0);
+      }
+    };
+    if (pts.some((p) => p.energy !== null)) drawLine('energy');
+    drawLine('mood');
+    const dense = pts.length > 90;
+    for (const p of pts) {
+      if (dense) break;
+      if (p.energy !== null) {
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(...accent);
+        doc.setLineWidth(0.3);
+        doc.rect(px(p.t) - 0.9, py(p.energy) - 0.9, 1.8, 1.8, 'FD');
+      }
+      if (p.mood !== null) {
+        doc.setFillColor(...mood[p.mood - 1]);
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.25);
+        doc.circle(px(p.t), py(p.mood), 1.1, 'FD');
+      }
+    }
+    doc.setFontSize(7);
+    doc.setTextColor(...soft);
+    for (const t of timeTicks(fromMs, toMs, 6)) {
+      const d = new Date(t);
+      doc.text(`${d.getDate()} ${MONTHS[d.getMonth()]}`, px(t), y + H + 4, { align: 'center' });
+    }
+    y += H + 8;
+    doc.setFontSize(8);
+    doc.setTextColor(...ink);
+    doc.text(`Humor (linha contínua): 1 = ${vLabels[0]} ... 5 = ${vLabels[4]}`, M, y);
+    y += 4;
+    if (pts.some((p) => p.energy !== null)) {
+      doc.text(`Energia (tracejada): 1 = ${energyLabel(1, prefs.energyLabels)} ... 5 = ${energyLabel(5, prefs.energyLabels)}`, M, y);
+      y += 4;
+    }
+    const cm = changes(pts, 'mood');
+    if (cm.total) text(`Entre pontos consecutivos (sem lacuna), o humor subiu ${cm.up} vez(es), desceu ${cm.down} e ficou igual ${cm.same}.`, { size: 8.5, color: soft, gap: 3 });
   }
 
   if (sections.includes('energy') && entries.length) {

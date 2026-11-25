@@ -28,7 +28,11 @@ final class WidgetStore {
     static final String ASSET_DIR = "widget-defaults";
 
     static final class Variant {
-        int bg, surface, ink, inkSoft, line, tint1, tint2, radius;
+        int bg, surface, ink, inkSoft, line, radius;
+        /** Cor de cada nível da escala (−2…+2) e quatro matizes pastel do tema. */
+        int[] moodColors = new int[5];
+        int[] tints = new int[4];
+        String title;
         String[] mood = new String[5];
         String[] actions = new String[2];
     }
@@ -79,9 +83,12 @@ final class WidgetStore {
             x.ink = Color.parseColor(v.getString("ink"));
             x.inkSoft = Color.parseColor(v.getString("inkSoft"));
             x.line = Color.parseColor(v.getString("line"));
-            x.tint1 = Color.parseColor(v.getString("tint1"));
-            x.tint2 = Color.parseColor(v.getString("tint2"));
             x.radius = v.optInt("radius", 12);
+            JSONArray mc = v.getJSONArray("moodColors");
+            for (int i = 0; i < 5; i++) x.moodColors[i] = Color.parseColor(mc.getString(i));
+            JSONArray tn = v.getJSONArray("tints");
+            for (int i = 0; i < 4; i++) x.tints[i] = Color.parseColor(tn.getString(i));
+            x.title = v.optString("title", null);
             JSONArray m = v.getJSONArray("mood");
             for (int i = 0; i < 5; i++) x.mood[i] = m.getString(i);
             JSONArray a = v.getJSONArray("actions");

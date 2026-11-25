@@ -48,8 +48,15 @@ public class PalimpsestoWidgetsPlugin extends Plugin {
                 String key = keys.next();
                 JSONObject v = variants.getJSONObject(key);
                 JSONObject o = new JSONObject();
-                for (String k : new String[] {"bg", "surface", "ink", "inkSoft", "line", "tint1", "tint2"}) o.put(k, v.getString(k));
+                for (String k : new String[] {"bg", "surface", "ink", "inkSoft", "line"}) o.put(k, v.getString(k));
                 o.put("radius", v.optInt("radius", 12));
+                o.put("moodColors", v.getJSONArray("moodColors"));
+                o.put("tints", v.getJSONArray("tints"));
+                if (v.has("title")) {
+                    JSONArray t = new JSONArray();
+                    t.put(v.getString("title"));
+                    o.put("title", writeImages(dir, gen + key + "_t", t, keep).getString(0));
+                }
                 o.put("mood", writeImages(dir, gen + key + "_m", v.getJSONArray("mood"), keep));
                 o.put("actions", writeImages(dir, gen + key + "_a", v.getJSONArray("actions"), keep));
                 outVariants.put(key, o);

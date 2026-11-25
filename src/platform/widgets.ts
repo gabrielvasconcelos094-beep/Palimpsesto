@@ -26,9 +26,12 @@ export interface WidgetVariant {
   ink: string;
   inkSoft: string;
   line: string;
-  tint1: string;
-  tint2: string;
   radius: number;
+  /** Cor de cada nível da escala (−2…+2) e quatro matizes pastel do tema. */
+  moodColors: string[];
+  tints: string[];
+  /** Título "Como você está?" em fonte serifada (PNG em base64). */
+  title: string;
   /** PNG em base64: os cinco níveis, de −2 a +2. */
   mood: string[];
   /** PNG em base64: experiência e acontecimento. */
@@ -43,7 +46,7 @@ export interface WidgetPayload {
 }
 
 /** Converte um SVG (texto) ou um emoji em PNG base64. Injetável para testes. */
-export type Rasterizer = (item: { svg: string } | { emoji: string }, px: number) => Promise<string>;
+export type Rasterizer = (item: { svg: string } | { emoji: string } | { title: string; color: string }, px: number) => Promise<string>;
 
 /* ------------------------------------------------------------------------ */
 /* SVG dos símbolos, sem variáveis CSS                                        */
@@ -70,12 +73,26 @@ async function lucideSvg(icon: typeof Feather | typeof Flag, color: string, size
 
 const EMOJI = ['😣', '🙁', '😐', '🙂', '😄'];
 
+export const TITLE_PX = 72;
+
 export const canvasRasterizer: Rasterizer = async (item, px) => {
   const canvas = document.createElement('canvas');
   canvas.width = px;
   canvas.height = px;
   const ctx = canvas.getContext('2d')!;
-  if ('emoji' in item) {
+  if ('title' in item) {
+    // Título na fonte editorial do app; a largura se ajusta ao texto.
+    const font = `600 ${Math.round(TITLE_PX * 0.62)}px "Cormorant Garamond", Georgia, serif`;
+    await document.fonts.load(font, item.title).catch(() => {});
+    ctx.font = font;
+    const w = Math.ceil(ctx.measureText(item.title).width) + 8;
+    canvas.width = w;
+    canvas.height = TITLE_PX;
+    ctx.font = font;
+    ctx.fillStyle = item.color;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(item.title, 4, TITLE_PX * 0.66);
+  } else if ('emoji' in item) {
     ctx.font = `${Math.round(px * 0.78)}px "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -105,9 +122,10 @@ async function variantFor(t: Tokens, set: SymbolSet, organic: boolean, raster: R
     ink: t.ink,
     inkSoft: t.inkSoft,
     line: t.line,
-    tint1: t.tints[0],
-    tint2: t.tints[1],
     radius: t.radius,
+    moodColors: [...mood],
+    tints: [...t.tints],
+    title: await raster({ title: 'Como você está?', color: t.ink }, TITLE_PX),
     mood: await Promise.all(VALENCE_VALUES.map(mk)),
     actions: [await raster({ svg: await lucideSvg(Feather, t.primaryInk) }, ICON_PX), await raster({ svg: await lucideSvg(Flag, t.primaryInk) }, ICON_PX)],
   };

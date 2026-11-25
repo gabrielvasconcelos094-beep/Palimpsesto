@@ -329,3 +329,64 @@ desenha** os widgets: ele entrega ao código nativo a *aparência* atual e o nat
   fundo/contorno/forma por estilo, variante pelo modo noturno, redimensionamentos, ida e volta
   das ações pelos URIs e recuperação de configuração corrompida (que revelou e corrigiu um
   defeito de fallback).
+
+---
+
+## 9. Versão 1.3 — widgets redesenhados e gráfico em linha
+
+### Widgets: novo desenho
+A primeira versão tinha só ícones soltos sobre um retângulo. O redesenho segue a linguagem do app:
+
+- **Humor:** cada nível ganha um *poço* circular tingido com a **cor daquele nível** (mistura de
+  12% da cor sobre a superfície) com um anel suave; o símbolo da família escolhida fica no centro,
+  em até 52 dp, centralizado em qualquer redimensionamento. Com 2+ linhas de altura aparece o
+  título **"Como você está?" em fonte serifada** (desenhado pelo app com a própria fonte do
+  tema, já que `RemoteViews` não carrega fontes do app em todos os launchers) e, a partir de ~3
+  linhas, os nomes dos níveis.
+- **Atalhos:** três *tiles* pastel com ícone e rótulo em negrito; no minimalista, um único tom
+  discreto; no orgânico, matizes diferentes e cantos assimétricos (cada tile com o seu).
+- **Minimalista:** cartão na cor da superfície, fio fino do tema, cantos conforme o tema.
+  **Orgânico:** bloco pastel de cantos assimétricos, duas formas abstratas pequenas e círculos
+  brancos no lugar dos poços tingidos.
+- **Toque:** ripple discreto visível em fundo claro e escuro.
+- A carga enviada ao nativo agora inclui `moodColors` (cor de cada nível), `tints` (quatro
+  matizes pastel) e `title`. Uma configuração gravada pela 1.2 (sem esses campos) é descartada
+  e o widget volta ao visual padrão empacotado até o app ser aberto uma vez.
+- **Pré-visualizações do seletor** vêm do render real do código nativo (`WidgetRenderTest`),
+  não de uma maquete.
+
+### Gráfico em linha das oscilações
+Onde: **Trajetória → Valência → "Linha do tempo"** (versão compacta) e **Trajetória →
+Oscilações** (completa, com período, filtros, unidade, resumo e tabela). Também no relatório
+em PDF (seção "Oscilações de humor e energia").
+
+Decisões (`src/domain/series.ts`, `src/features/trajectory/LineChart.tsx`):
+- **Eixo único de 5 níveis.** Humor (valência + 3) e energia compartilham as mesmas 5 posições;
+  os **símbolos da família escolhida** rotulam o lado esquerdo (humor) e ícones de energia o
+  direito. Não há dois eixos com escalas diferentes. Se só uma série está ligada, o eixo
+  usa os ícones dela.
+- **Distinção sem depender de cor:** humor = linha contínua com marcadores circulares
+  preenchidos com a cor de cada nível; energia = linha tracejada com marcadores quadrados.
+- **Lacunas:** mais de 3 dias sem registro interrompem a linha (ausência ≠ neutro).
+- **Unidades:** *cada registro* (um ponto por registro, no horário em que aconteceu — registros
+  retroativos aparecem na data certa; "sem horário" fica ao meio-dia) ou *resumo por data*, em
+  que o ponto é a **mediana** da data (a categoria do meio; em número par, a inferior). Não há
+  médias, porque a escala é ordinal e uma média de −2 e +2 ("0") seria uma categoria que a
+  pessoa não registrou.
+- **Interação e acessibilidade:** toque/ponteiro e setas do teclado selecionam o ponto; o
+  detalhe mostra os nomes atuais da escala e abre o registro; a mesma informação existe como
+  tabela. Legenda sempre visível; rótulos no gráfico em texto de contraste ≥ 4,5:1.
+- **Descritivo:** o resumo conta quantas vezes a linha subiu, desceu ou ficou igual entre pontos
+  consecutivos (sem atravessar lacunas) e avisa quando há poucos pontos; não interpreta.
+
+### Testes
+- `tests/series.test.ts` (10): pontos por registro, data em que aconteceu (retroativo), mediana
+  ordinal, lacunas (inclusive o limite exato de 3 dias), energia ausente, variações, marcas do
+  eixo. `tests/widgets.test.ts` (14): + cores por nível e legibilidade do símbolo sobre o poço
+  tingido em todos os temas e estilos.
+- `e2e/linechart.mjs`: estado vazio; linhas de humor e energia, legenda e eixos com símbolos;
+  marcadores com a cor dos níveis; lacunas = trechos esperados; seleção por toque (abre o
+  registro) e por teclado; ligar/desligar séries; resumo por data; tabela; registro retroativo
+  na data certa; alternância na visão geral; filtros compartilhados.
+- `WidgetRenderTest` (Android, 7 testes) cobre o novo desenho: poços, anéis, título, formas
+  orgânicas, tiles e redimensionamentos.

@@ -3,7 +3,8 @@
  * qual unidade de análise usou e quantos registros sustentam o resultado.
  */
 import { useMemo, useState, type ReactNode } from 'react';
-import { Activity, BatteryLow, CalendarDays, Clock, Flag, GitCompareArrows, Heart, Layers3, Repeat2 } from 'lucide-react';
+import { Activity, BatteryLow, CalendarDays, ChartLine, Clock, Flag, GitCompareArrows, Heart, Layers3, Repeat2 } from 'lucide-react';
+import { OscillationPanel } from './Oscillations';
 import { navigate, useRoute } from '../../app/router';
 import { setSharedFilters, NO_FILTERS } from '../../app/filters';
 import { buckets, findPatterns, valenceCounts, energyCounts, PATTERN_MIN_ENTRIES } from '../../domain/analytics';
@@ -50,6 +51,7 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
 const monthLabel = (k: string) => `${MONTHS_SHORT[Number(k.slice(5, 7)) - 1]}/${k.slice(2, 4)}`;
 
 export const CATEGORIES = [
+  { id: 'oscilacoes', title: 'Oscilações', question: 'Gráfico em linha: como humor e energia variaram ao longo do tempo?', icon: ChartLine },
   { id: 'dias', title: 'Dias e horários', question: 'Há dias da semana ou horários diferentes dos outros?', icon: Clock },
   { id: 'emocoes', title: 'Emoções', question: 'Quais emoções aparecem, juntas ou separadas?', icon: Heart },
   { id: 'energia', title: 'Energia e disposição', question: 'Como sua energia varia e o que a acompanha?', icon: BatteryLow },
@@ -862,6 +864,7 @@ function RegularityBody() {
 }
 
 const BODIES: Record<(typeof CATEGORIES)[number]['id'], () => ReactNode> = {
+  oscilacoes: () => <OscillationPanel />,
   dias: DaysBody,
   emocoes: EmotionsBody,
   energia: EnergyBody,

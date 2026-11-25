@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Retorno discreto ao toque, visível em fundos claros e escuros. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="#44888888" android:radius="34dp" />

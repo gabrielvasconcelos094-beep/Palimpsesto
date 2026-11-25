@@ -12,6 +12,7 @@ import { FilterSheet, FilterSummary } from '../../ui/FilterSheet';
 import { ValenceMark } from '../../ui/pickers';
 import { Distribution } from './charts';
 import { CATEGORIES } from './categories';
+import { OscillationPanel } from './Oscillations';
 import { useTrajectory } from './useTrajectory';
 
 export const MOOD_COLORS = [1, 2, 3, 4, 5].map((i) => `var(--mood-${i})`);
@@ -64,6 +65,7 @@ export function Trajectory() {
   const t = useTrajectory();
   const prefs = t.data.preferences;
   const [unit, setUnit] = useState<Unit>('record');
+  const [view, setView] = useState<'dist' | 'line'>('dist');
   const [custom, setCustom] = useState(false);
   const labels = prefs.valenceLabels;
   const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, labels));
@@ -104,8 +106,21 @@ export function Trajectory() {
           <Empty title="Sem registros neste recorte">Escolha outro período, ajuste os filtros ou faça um registro — inclusive de dias anteriores. Lacunas não são problema.</Empty>
         </div>
       ) : (
-        <Section title="Valência" kicker="Como você tem se sentido">
+        <Section title={view === 'line' ? 'Oscilações' : 'Valência'} kicker={view === 'line' ? 'Humor e energia ao longo do tempo' : 'Como você tem se sentido'}>
           <div className="card stack lg">
+            <Segmented
+              ariaLabel="Tipo de gráfico"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'dist', label: 'Distribuição' },
+                { value: 'line', label: 'Linha do tempo' },
+              ]}
+            />
+            {view === 'line' ? (
+              <OscillationPanel compact />
+            ) : (
+              <>
             <Segmented
               ariaLabel="Unidade de análise"
               value={unit}
@@ -135,6 +150,8 @@ export function Trajectory() {
               checked={t.period.compare}
               onChange={(compare) => t.setPeriod({ ...t.period, compare })}
             />
+              </>
+            )}
           </div>
         </Section>
       )}
