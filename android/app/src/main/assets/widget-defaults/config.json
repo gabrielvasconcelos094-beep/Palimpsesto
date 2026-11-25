@@ -1,0 +1,56 @@
+{
+ "v": 1,
+ "appearance": "system",
+ "style": "minimal",
+ "labels": [
+  "Muito desagradável",
+  "Desagradável",
+  "Intermediário",
+  "Agradável",
+  "Muito agradável"
+ ],
+ "variants": {
+  "light": {
+   "bg": "#F4EFE6",
+   "surface": "#FBF8F2",
+   "ink": "#0c0c0b",
+   "inkSoft": "#565551",
+   "line": "#dad7d2",
+   "tint1": "#dddad4",
+   "tint2": "#e9d7cb",
+   "radius": 4,
+   "mood": [
+    "d_light_m0.png",
+    "d_light_m1.png",
+    "d_light_m2.png",
+    "d_light_m3.png",
+    "d_light_m4.png"
+   ],
+   "actions": [
+    "d_light_a0.png",
+    "d_light_a1.png"
+   ]
+  },
+  "dark": {
+   "bg": "#1C1B1A",
+   "surface": "#262422",
+   "ink": "#faf9f7",
+   "inkSoft": "#b3b2b0",
+   "line": "#444240",
+   "tint1": "#45423f",
+   "tint2": "#4a382d",
+   "radius": 4,
+   "mood": [
+    "d_dark_m0.png",
+    "d_dark_m1.png",
+    "d_dark_m2.png",
+    "d_dark_m3.png",
+    "d_dark_m4.png"
+   ],
+   "actions": [
+    "d_dark_a0.png",
+    "d_dark_a1.png"
+   ]
+  }
+ }
+}

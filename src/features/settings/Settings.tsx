@@ -79,6 +79,10 @@ export function ScalePage() {
         <p className="small muted" style={{ marginTop: 0 }}>
           Escolha como os cinco níveis aparecem. É só a aparência: os registros e os gráficos não mudam.
         </p>
+        <p className="xs muted" style={{ marginTop: -4 }}>
+          Os widgets da tela inicial usam esta família, o estilo e as cores do tema, e se atualizam sozinhos quando você muda algo aqui. Para adicionar: toque e segure na tela
+          inicial → Widgets → Palimpsesto.
+        </p>
         <div className="stack" role="radiogroup" aria-label="Família de símbolos">
           {SYMBOL_SETS.map((f) => (
             <button

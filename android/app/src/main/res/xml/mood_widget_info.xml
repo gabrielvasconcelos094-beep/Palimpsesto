@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget de humor: 4×1, redimensionável. Atualização periódica de 30 min só para
+     acompanhar o modo escuro do sistema; mudanças de tema/símbolos chegam do app na hora. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_mood_description"
+    android:initialLayout="@layout/widget_mood"
+    android:minWidth="250dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeHeight="160dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:previewImage="@drawable/widget_preview_mood"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

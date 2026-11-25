@@ -12,7 +12,7 @@ acompanhamento psicológico ou psiquiátrico.
 
 ## Instalar
 
-O APK pronto está em [`release/Palimpsesto-1.1.0.apk`](release/). No Android:
+O APK pronto está em [`release/Palimpsesto-1.2.0.apk`](release/). No Android:
 copie o arquivo para o aparelho, abra-o e permita "instalar apps desconhecidos" para o
 gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
@@ -24,12 +24,27 @@ gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
 | Aba | Conteúdo |
 |---|---|
-| **Hoje** | Busca geral; registro do humor em um toque; registros do dia; cartas que chegaram; situações próximas; uma "camada antiga" para reler; uma pergunta opcional; atalho "Para dias difíceis". |
+| **Hoje** | Busca geral; **widgets** na tela inicial (ver abaixo); registro do humor em um toque; registros do dia; cartas que chegaram; situações próximas; uma "camada antiga" para reler; uma pergunta opcional; atalho "Para dias difíceis". |
 | **Diário** | Humor (valência −2…+2 com nomes e símbolos personalizáveis, várias emoções, energia, atividades, indicadores opcionais, contexto, anotação), experiências e acontecimentos da linha do tempo — **inclusive retroativos** (agora, hoje, ontem ou outra data; horário exato, período do dia ou sem horário). Linha do tempo, calendário com "registrar neste dia", filtros combináveis e edição completa de registros antigos. |
 | **Mapa** | 10 fichas (identidade, preferências, necessidades, valores, limites, emoções, relações, hábitos, enfrentamento, desejos) com 80 perguntas reflexivas e anotações livres; respostas com histórico em camadas; perguntas e fichas próprias; favoritas. **Descobertas** com grau de confiança (hipótese → recorrente → consolidada), histórico de mudanças e experiências que as sustentam. |
 | **Guia** | **Repertório** (o que faz bem, estratégias, o que desgasta) com avaliações por circunstância; **Situações** (viagem, festa, dia difícil…) que reúnem o que *você* já registrou, com lista de cuidados e registro de como foi; **Cartas** para si, lacradas até uma data. |
 | **Trajetória** | Visão geral (distribuição por registro ou por data, comparação com o período anterior, "O que seus registros mostram") e categorias: dias e horários, emoções, energia, atividades e estratégias, evolução e comparação entre intervalos, linha do tempo, padrões por contexto, calendário e regularidade. Mesmos filtros do Diário. Relatório em PDF. |
 | **Ajustes** | Dois estilos visuais (Editorial minimalista e Editorial orgânico), seis famílias de símbolos da escala, 10 paletas (cada uma clara e escura), editor de temas com prévia e verificação de contraste, tipografia e tamanho do texto, nomes da escala, emoções, indicadores, backup/importação/CSV/PDF, PIN + biometria, tela privada, apagar tudo. |
+
+## Widgets da tela inicial (Android)
+
+Toque e segure na tela inicial → *Widgets* → *Palimpsesto*:
+
+- **Humor (4×1, redimensionável):** os cinco símbolos da escala, na família escolhida em
+  Ajustes → Escala de humor. Tocar em um abre o registro de humor já com aquele nível
+  selecionado (pronto para salvar). Em alturas maiores mostra também os nomes.
+- **Atalhos (3×1, redimensionável):** Registrar humor, experiência e acontecimento; cada
+  um abre a tela de criação correspondente.
+
+Seguem o tema (claro/escuro), o estilo visual e os símbolos escolhidos, funcionam com o app
+fechado e se atualizam quando essas escolhas mudam. Com PIN ativado, o toque leva primeiro à
+tela de bloqueio. Os widgets mostram só símbolos e nomes da escala — nenhum registro.
+Detalhes técnicos em [docs/ARQUITETURA.md](docs/ARQUITETURA.md) (seção 8).
 
 ## Desenvolvimento
 
@@ -38,7 +53,7 @@ Requisitos: Node 20+; para o APK, JDK 21 e Android SDK (plataforma 36, build-too
 ```bash
 npm install
 npm run dev          # app no navegador (http://localhost:5173), dados no IndexedDB
-npm test             # 82 testes (Vitest)
+npm test             # 95 testes (Vitest)
 npm run typecheck
 npm run build        # gera dist/
 ```
@@ -69,7 +84,11 @@ ou as variáveis `PALIMPSESTO_KEYSTORE`, `PALIMPSESTO_KEYSTORE_PASSWORD`,
 
 Ícones e telas de abertura: `node scripts/icons.mjs` (a partir de `assets/icon.svg`).
 Capturas de tela: `npx vite --port 5179 & node e2e/screens.mjs <tema> <light|dark>`.
-Testes de interface: `node e2e/flows.mjs` e `node e2e/flows2.mjs` (com o servidor na porta 5179).
+Testes de interface: `node e2e/flows.mjs`, `node e2e/flows2.mjs` e `node e2e/widgets.mjs` (com o servidor na porta 5179).
+Testes nativos dos widgets (precisam de um dispositivo ou emulador):
+`cd android && ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest`, instale os dois APKs e rode
+`adb shell am instrument -w -e class app.palimpsesto.WidgetRenderTest app.palimpsesto.test/androidx.test.runner.AndroidJUnitRunner`.
+Recursos padrão e pré-visualizações dos widgets: `node scripts/widgets-assets.mjs`.
 Regressão do estilo minimalista: `BASE=<url> node e2e/style-snapshot.mjs saida.json` na versão
 anterior e na atual, e compare os arquivos.
 

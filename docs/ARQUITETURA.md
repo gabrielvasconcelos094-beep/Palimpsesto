@@ -264,3 +264,68 @@ Critérios (`src/domain/insights.ts`):
   orgânico + paleta persistentes, símbolos persistentes sem alterar registros, paleta
   personalizada nos dois estilos, observações ocultáveis, categorias personalizáveis,
   importação de backup do esquema 1 pela interface.
+
+---
+
+## 8. Widgets da tela inicial (versão 1.2)
+
+### Escolha técnica
+Widgets do Android são desenhados pelo launcher a partir de `RemoteViews` (um conjunto
+restrito de views); não podem executar o WebView nem o React do app. Por isso o app **não
+desenha** os widgets: ele entrega ao código nativo a *aparência* atual e o nativo monta os
+`RemoteViews`, mesmo com o app fechado. Alternativas consideradas:
+
+| Alternativa | Por que não |
+|---|---|
+| Jetpack Glance (Compose) | Exigiria Kotlin + Compose só para dois widgets simples e novas dependências. `RemoteViews` clássico funciona desde o Android 7 (minSdk 24) sem acrescentar bibliotecas. |
+| Redesenhar cada widget inteiro como imagem | Quebra acessibilidade (texto), tamanhos adaptáveis e consome memória em widgets grandes. |
+| Reimplementar os símbolos em código nativo | Duplicaria os seis desenhos (risco de divergência). Em vez disso, os símbolos **são rasterizados pelo próprio app** a partir do mesmo código SVG. |
+
+### Fluxo
+1. **Aparência → nativo.** Ao abrir o app e sempre que mudar tema, estilo, símbolos ou nomes
+   da escala (`widgetAppearanceKey`), o app gera (`src/platform/widgets.ts`) uma carga com cores
+   derivadas dos tokens (já com contraste garantido), o estilo, os nomes e os ícones em PNG
+   128×128 — 5 níveis + 2 atalhos —, para a variante clara **e** a escura. Mudanças sem efeito
+   visual (tamanho do texto, etc.) não reenviam nada.
+2. **Gravação segura.** O plugin `PalimpsestoWidgets` grava os PNGs com nomes novos e troca o
+   `config.json` por último, de forma atômica; depois apaga os arquivos antigos e pede aos
+   dois providers que se redesenhem. Nenhum dado pessoal passa por aqui.
+3. **Desenho.** `WidgetRenderer` escolhe a variante (fixa, ou a do modo noturno do sistema),
+   pinta o fundo (forma de cantos arredondados tingida com a cor da superfície; contorno fino
+   no minimalista; cantos assimétricos e uma forma abstrata discreta no orgânico) e coloca os
+   ícones. Os ícones têm tamanho limitado e ficam centralizados em qualquer redimensionamento;
+   nomes aparecem quando a altura permite. Se o app nunca sincronizou (ou o arquivo estiver
+   corrompido), usa o conjunto padrão empacotado em `assets/widget-defaults`.
+4. **Toque → app.** Cada área tem um `PendingIntent` imutável para `MainActivity` com um URI
+   `palimpsesto://widget/mood/<-2…2>`, `mood/new`, `experience` ou `event`. O valor enviado é o
+   **valor interno** da valência: trocar símbolos ou nomes nunca muda o que é registrado.
+   O plugin entrega a ação ao app (evento retido, para o caso de o app ainda estar abrindo) e
+   a limpa da intent, para que nada se repita ao reabrir ou restaurar a atividade.
+5. **No app** (`src/app/widgetActions.ts`): a ação é validada (qualquer outra é ignorada) e só
+   executada com o app desbloqueado. `mood/N` abre a tela inicial com o registro de humor já com
+   a valência escolhida e o botão Salvar ativo; os atalhos abrem as telas de criação.
+
+### Consumo e compatibilidade
+- Sem serviços em segundo plano, sem alarmes, sem permissões novas. O Android atualiza o widget
+  a cada 30 min (`updatePeriodMillis`) apenas para acompanhar o modo escuro do sistema; fora
+  isso, só quando o app envia uma nova aparência ou o widget é redimensionado.
+- Receivers não exportados. Tamanhos: `minResize`/`maxResize` + `targetCell` (Android 12+).
+- **Limite conhecido:** o Android não avisa widgets sobre a troca claro/escuro do sistema.
+  Com a aparência em "Do sistema", o widget acompanha a troca na próxima atualização (até 30
+  min) ou quando o app é aberto. Temas personalizados têm aparência fixa.
+- Os nomes das categorias aparecem no widget de humor quando ele é alto o bastante; se isso for
+  indesejado, basta usar a altura de 1 célula (só símbolos).
+
+### Testes
+- `tests/widgets.test.ts` (13): rotas das ações e validação, SVGs sem variáveis CSS nas 5 famílias,
+  famílias distintas, variantes claro/escuro, tema personalizado, estilo orgânico, nomes
+  personalizados, contraste em todos os temas, chave de aparência.
+- `e2e/widgets.mjs`: PNGs válidos nas 6 famílias (inclusive emojis), atualização ao trocar
+  símbolos/tema/estilo/nomes, nada reenviado sem mudança visual, toque abrindo o registro
+  com a valência correta e salvando, atalhos, ação inválida ignorada, abertura a frio sem
+  repetir, e PIN (nada abre antes do desbloqueio).
+- `WidgetRenderTest` (Android, 7 testes, em emulador): infla os `RemoteViews` reais em
+  tamanho de widget, confere cinco ícones, textos, descrições de acessibilidade, cliques,
+  fundo/contorno/forma por estilo, variante pelo modo noturno, redimensionamentos, ida e volta
+  das ações pelos URIs e recuperação de configuração corrompida (que revelou e corrigiu um
+  defeito de fallback).

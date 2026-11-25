@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type { Preferences } from '../domain/schema';
-import { DEFAULT_THEME_ID, findPreset, PRESET_THEMES } from '../theme/presets';
-import { deriveTokens, tokensToCss, type Tokens } from '../theme/tokens';
+import { resolveTokens } from '../theme/resolve';
+import { tokensToCss, type Tokens } from '../theme/tokens';
 import { syncStatusBar } from '../platform/lifecycle';
 
 const mq = typeof matchMedia !== 'undefined' ? matchMedia('(prefers-color-scheme: dark)') : null;
@@ -15,14 +15,7 @@ export function useSystemDark() {
   );
 }
 
-/** Resolve o tema efetivo (predefinido ou personalizado, claro ou escuro). */
-export function resolveTokens(prefs: Preferences, systemDark: boolean): Tokens {
-  const custom = prefs.customThemes.find((t) => t.id === prefs.themeId);
-  if (custom) return deriveTokens(custom.colors, custom).tokens;
-  const preset = findPreset(prefs.themeId) ?? findPreset(DEFAULT_THEME_ID) ?? PRESET_THEMES[0];
-  const dark = prefs.appearance === 'dark' || (prefs.appearance === 'system' && systemDark);
-  return deriveTokens(dark ? preset.dark : preset.light, preset, preset.mood?.[dark ? 'dark' : 'light']).tokens;
-}
+export { resolveTokens };
 
 export function applyTokens(t: Tokens, prefs: Preferences, target: HTMLElement = document.documentElement) {
   const vars = tokensToCss(t, {

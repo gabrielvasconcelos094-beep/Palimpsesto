@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Feather, LifeBuoy, Mail, Search, Settings, Sparkles } from 'lucide-react';
 import { timeLabel } from '../journal/Journal';
-import { navigate } from '../../app/router';
+import { navigate, useRoute } from '../../app/router';
+import { parseValence } from '../../app/widgetActions';
 import { store, useData } from '../../app/store';
 import { pickResurface } from '../../domain/analytics';
 import { energyLabel, valenceLabel, VALENCE_VALUES } from '../../domain/scales';
@@ -32,7 +33,14 @@ export function openHardDay() {
 export function Today() {
   const data = useData();
   const now = new Date();
+  const route = useRoute();
+  // Aberto por um widget (?novo=humor&v=2): o registro já vem com a valência escolhida.
+  const novo = route.query.get('novo');
+  const novoValence = parseValence(route.query.get('v'));
   const [sheet, setSheet] = useState<{ open: boolean; valence: number | null; id: string | null }>({ open: false, valence: null, id: null });
+  useEffect(() => {
+    if (novo === 'humor') setSheet({ open: true, valence: novoValence, id: null });
+  }, [novo, novoValence]);
   const labels = data.preferences.valenceLabels;
   const emo = useMemo(() => new Map(data.emotions.map((e) => [e.id, e.label])), [data.emotions]);
 
@@ -209,7 +217,15 @@ export function Today() {
         </div>
       </Section>
 
-      <MoodSheet open={sheet.open} onClose={() => setSheet({ ...sheet, open: false })} initialValence={sheet.valence} entryId={sheet.id} />
+      <MoodSheet
+        open={sheet.open}
+        onClose={() => {
+          setSheet({ ...sheet, open: false });
+          if (novo) navigate('/', { replace: true });
+        }}
+        initialValence={sheet.valence}
+        entryId={sheet.id}
+      />
     </Page>
   );
 }

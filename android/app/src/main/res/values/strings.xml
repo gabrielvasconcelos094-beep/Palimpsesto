@@ -4,4 +4,8 @@
     <string name="title_activity_main">Palimpsesto</string>
     <string name="package_name">app.palimpsesto</string>
     <string name="custom_url_scheme">app.palimpsesto</string>
+    <string name="widget_mood_name">Palimpsesto · Humor</string>
+    <string name="widget_mood_description">Cinco símbolos para registrar como você está com um toque.</string>
+    <string name="widget_shortcuts_name">Palimpsesto · Atalhos</string>
+    <string name="widget_shortcuts_description">Registrar humor, experiência ou acontecimento.</string>
 </resources>

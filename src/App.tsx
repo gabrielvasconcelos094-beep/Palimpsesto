@@ -7,6 +7,8 @@ import { useApplyTheme } from './app/theme';
 import { useToast } from './app/toast';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
 import { setPrivacyScreen } from './platform/native';
+import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
+import { routeForWidgetAction } from './app/widgetActions';
 import { Today } from './features/today/Today';
 import { Journal } from './features/journal/Journal';
 import { ExperienceEditor } from './features/journal/ExperienceEditor';
@@ -130,6 +132,32 @@ export function App() {
       void setPrivacyScreen(st.device.privacyScreen);
     }
   }, [st.ready, st.device.lock.enabled, st.device.privacyScreen]);
+
+  // Widgets: mantém a aparência (tema, estilo, símbolos, nomes) em dia no lado nativo.
+  const prefs = st.data.preferences;
+  const appearanceKey = widgetAppearanceKey(prefs);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  useEffect(() => {
+    if (!st.ready) return;
+    const t = setTimeout(() => void syncWidgets(prefsRef.current).catch(() => {}), 500);
+    return () => clearTimeout(t);
+  }, [st.ready, appearanceKey]);
+
+  // Toques nos widgets: guarda a ação e só a executa com o app desbloqueado.
+  const [widgetAction, setWidgetAction] = useState<string | null>(null);
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    Widgets.consumeLaunchAction().then((r) => r.action && setWidgetAction(r.action)).catch(() => {});
+    Widgets.addListener('widgetAction', (e) => setWidgetAction(e.action)).then((h) => (off = () => void h.remove())).catch(() => {});
+    return () => off?.();
+  }, []);
+  useEffect(() => {
+    if (!widgetAction || !st.ready || locked || !st.device.onboardingDone) return;
+    const to = routeForWidgetAction(widgetAction);
+    setWidgetAction(null);
+    if (to) navigate(to);
+  }, [widgetAction, st.ready, locked, st.device.onboardingDone]);
 
   // Grava pendências ao sair; bloqueia de novo após o tempo configurado.
   useEffect(() => {

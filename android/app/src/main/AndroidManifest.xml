@@ -27,6 +27,30 @@
 
         </activity>
 
+        <!-- Widgets da tela inicial. Os receivers não são exportados: só o sistema os aciona. -->
+        <receiver
+            android:name=".MoodWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_mood_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mood_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".ShortcutsWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_shortcuts_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/shortcuts_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

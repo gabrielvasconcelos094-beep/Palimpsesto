@@ -4,6 +4,7 @@ import './styles/global.css';
 import './styles/organic.css';
 import { App } from './App';
 import { store } from './app/store';
+import { Widgets } from './platform/widgets';
 
 createRoot(document.getElementById('root')!).render(<App />);
 void store.load();
@@ -12,5 +13,7 @@ if (import.meta.env.DEV) {
   (window as any).__pal = {
     store,
     seed: async () => (await import('./dev/sample')).seedSample(store),
+    widgets: Widgets,
+    buildWidgets: async () => (await import('./platform/widgets')).buildWidgetPayload(store.getState().data.preferences),
   };
 }
