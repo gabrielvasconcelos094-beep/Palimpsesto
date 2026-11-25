@@ -388,5 +388,9 @@ Decisões (`src/domain/series.ts`, `src/features/trajectory/LineChart.tsx`):
   marcadores com a cor dos níveis; lacunas = trechos esperados; seleção por toque (abre o
   registro) e por teclado; ligar/desligar séries; resumo por data; tabela; registro retroativo
   na data certa; alternância na visão geral; filtros compartilhados.
-- `WidgetRenderTest` (Android, 7 testes) cobre o novo desenho: poços, anéis, título, formas
-  orgânicas, tiles e redimensionamentos.
+- `WidgetRenderTest` (Android, 8 testes, rodados em emulador) cobre o novo desenho: poços, anéis,
+  título, forma orgânica só na linha do título, tiles, nomes com altura uniforme e
+  redimensionamentos; e gera as pré-visualizações do seletor em 3x a partir do render real.
+  Durante essa validação apareceram dois problemas que foram corrigidos: formas decorativas que
+  invadiam os poços no orgânico e poços de tamanhos desiguais quando os nomes ocupavam uma ou
+  duas linhas.

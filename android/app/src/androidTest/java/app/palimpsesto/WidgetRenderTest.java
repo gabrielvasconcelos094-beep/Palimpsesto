@@ -77,17 +77,23 @@ public class WidgetRenderTest {
 
     /** Infla, mede em dp, desenha e grava a imagem. */
     private View render(RemoteViews rv, int wDp, int hDp, String name) throws Exception {
-        float d = ctx.getResources().getDisplayMetrics().density;
+        return renderIn(ctx, rv, wDp, hDp, name, 1f);
+    }
+
+    /** `scale` amplia o desenho no canvas (texto e formas continuam nítidos): usado nas pré-visualizações. */
+    private View renderIn(Context c, RemoteViews rv, int wDp, int hDp, String name, float scale) throws Exception {
+        float d = c.getResources().getDisplayMetrics().density;
         int w = Math.round(wDp * d);
         int h = Math.round(hDp * d);
-        FrameLayout parent = new FrameLayout(ctx);
-        View v = rv.apply(ctx, parent);
+        FrameLayout parent = new FrameLayout(c);
+        View v = rv.apply(c, parent);
         v.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY));
         v.layout(0, 0, w, h);
-        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bmp);
-        c.drawColor(0xFF7A7F86); // "papel de parede" para ver cantos arredondados e transparência
-        v.draw(c);
+        Bitmap bmp = Bitmap.createBitmap(Math.round(w * scale), Math.round(h * scale), Bitmap.Config.ARGB_8888);
+        Canvas cv = new Canvas(bmp);
+        if (scale == 1f) cv.drawColor(0xFF7A7F86); // "papel de parede" para ver cantos arredondados e transparência
+        cv.scale(scale, scale);
+        v.draw(cv);
         try (FileOutputStream o = new FileOutputStream(new File(out, name + ".png"))) {
             bmp.compress(Bitmap.CompressFormat.PNG, 100, o);
         }
@@ -121,7 +127,7 @@ public class WidgetRenderTest {
 
     @Test
     public void moodWidget_tallerShowsLabels_andResizes() throws Exception {
-        View v = render(WidgetRenderer.mood(ctx, size(110, 320)), 320, 110, "mood-labels");
+        View v = render(WidgetRenderer.mood(ctx, size(120, 320)), 320, 120, "mood-labels");
         assertEquals(View.VISIBLE, v.findViewById(R.id.label2).getVisibility());
         assertEquals(View.VISIBLE, v.findViewById(R.id.title).getVisibility());
         assertEquals("Intermediário", ((TextView) v.findViewById(R.id.label2)).getText().toString());
@@ -135,10 +141,10 @@ public class WidgetRenderTest {
             + variant("#15201B", "#1D2A24", "#E8F2EC", "#B7C9BF", "#33443B", new String[] {"#27403A", "#3B5A4C", "#4B4A3A", "#3A4A55"}, MOOD_DARK, 16, "dark") + ",\"light\":"
             + variant("#EEF6F1", "#FAFDFB", "#1B2A22", "#4B5E54", "#CFE0D6", new String[] {"#DDEEE5", "#F0D8D4", "#EBE3C8", "#D5E3F2"}, MOOD_LIGHT, 16, "light") + "}}";
         writeConfig("dark", "organic", cfg);
-        render(WidgetRenderer.mood(ctx, size(56, 320)), 320, 56, "mood-organic-dark-1x");
-        View v = render(WidgetRenderer.mood(ctx, size(110, 320)), 320, 110, "mood-organic-dark");
-        assertEquals(View.VISIBLE, v.findViewById(R.id.blob).getVisibility());
-        assertEquals(View.VISIBLE, v.findViewById(R.id.blob2).getVisibility());
+        View one = render(WidgetRenderer.mood(ctx, size(56, 320)), 320, 56, "mood-organic-dark-1x");
+        assertEquals(View.GONE, one.findViewById(R.id.blob).getVisibility()); // 1 linha: nada sobre os poços
+        View v = render(WidgetRenderer.mood(ctx, size(120, 320)), 320, 120, "mood-organic-dark");
+        assertEquals(View.VISIBLE, v.findViewById(R.id.blob).getVisibility()); // com título: há espaço para a forma
         assertEquals(View.GONE, v.findViewById(R.id.stroke).getVisibility());
         assertEquals(View.GONE, v.findViewById(R.id.ring0).getVisibility()); // orgânico: sem anel
         assertEquals("Tempestade", ((TextView) v.findViewById(R.id.label0)).getText().toString());
@@ -176,12 +182,12 @@ public class WidgetRenderTest {
         render(WidgetRenderer.shortcuts(ctx, size(150, 320)), 320, 150, "shortcuts-huge");
     }
 
-    /** Pré-visualizações do seletor de widgets: renders reais do tema padrão (Papel, natureza). */
+    /** Pré-visualizações do seletor de widgets: renders reais do tema padrão (Papel, natureza), em 3x e com fundo transparente. */
     @Test
     public void zz_previews() throws Exception {
-        render(WidgetRenderer.mood(ctx, size(78, 330)), 330, 78, "preview-mood");
-        render(WidgetRenderer.shortcuts(ctx, size(78, 250)), 250, 78, "preview-shortcuts");
-        render(WidgetRenderer.mood(ctx, size(120, 330)), 330, 120, "preview-mood-tall");
+        renderIn(ctx, WidgetRenderer.mood(ctx, size(78, 330)), 330, 78, "preview-mood", 3f);
+        renderIn(ctx, WidgetRenderer.shortcuts(ctx, size(78, 250)), 250, 78, "preview-shortcuts", 3f);
+        renderIn(ctx, WidgetRenderer.mood(ctx, size(120, 330)), 330, 120, "preview-mood-tall", 3f);
     }
 
     @Test

@@ -70,18 +70,16 @@ final class WidgetRenderer {
     }
 
     /** Cartão de fundo: cor, contorno (minimalista) ou formas abstratas (orgânico). */
-    private static void frame(RemoteViews rv, boolean organic, WidgetStore.Variant v) {
+    private static void frame(RemoteViews rv, boolean organic, WidgetStore.Variant v, boolean decor) {
         rv.setImageViewResource(R.id.bg, bgRes(organic, v));
         rv.setInt(R.id.bg, "setColorFilter", organic ? v.tints[0] : v.surface);
         if (organic) {
             rv.setViewVisibility(R.id.stroke, View.GONE);
-            rv.setViewVisibility(R.id.blob, View.VISIBLE);
-            rv.setViewVisibility(R.id.blob2, View.VISIBLE);
+            // A forma abstrata só aparece onde há espaço livre (ao lado do título), nunca sobre os poços.
+            rv.setViewVisibility(R.id.blob, decor ? View.VISIBLE : View.GONE);
             rv.setInt(R.id.blob, "setColorFilter", v.tints[1]);
-            rv.setInt(R.id.blob2, "setColorFilter", v.tints[3]);
         } else {
             rv.setViewVisibility(R.id.blob, View.GONE);
-            rv.setViewVisibility(R.id.blob2, View.GONE);
             rv.setViewVisibility(R.id.stroke, View.VISIBLE);
             rv.setImageViewResource(R.id.stroke, strokeRes(v));
             rv.setInt(R.id.stroke, "setColorFilter", v.line);
@@ -110,11 +108,11 @@ final class WidgetRenderer {
         if (cfg == null) return rv;
         WidgetStore.Variant v = WidgetStore.pick(c, cfg);
         boolean organic = "organic".equals(cfg.style);
-        frame(rv, organic, v);
 
         int h = heightDp(options);
         int w = widthDp(options, 250);
         boolean title = h >= 84 && v.title != null;
+        frame(rv, organic, v, title);
         boolean labels = h >= 112;
         Bitmap tb = title ? WidgetStore.bitmap(c, v.title) : null;
         if (tb != null) {
@@ -145,7 +143,7 @@ final class WidgetRenderer {
 
         // Tamanhos: o poço cresce até 52dp e o símbolo ocupa ~60% dele, centralizado.
         float cellW = (w - 16f) / 5f;
-        float availH = h - 16f - (title ? 26f : 0f) - (labels ? 26f : 0f);
+        float availH = h - 16f - (title ? 26f : 0f) - (labels ? 32f : 0f); // nomes reservam 2 linhas em todas as células
         float box = Math.max(24f, Math.min(cellW, availH));
         float well = Math.min(52f, box - 2f);
         float wellPad = Math.max(1f, (box - well) / 2f);
@@ -177,9 +175,8 @@ final class WidgetRenderer {
             rv.setInt(R.id.bg, "setColorFilter", v.surface);
             rv.setViewVisibility(R.id.stroke, View.GONE);
             rv.setViewVisibility(R.id.blob, View.GONE);
-            rv.setViewVisibility(R.id.blob2, View.GONE);
         } else {
-            frame(rv, false, v);
+            frame(rv, false, v, false);
         }
         int h = heightDp(options);
         int w = widthDp(options, 180);

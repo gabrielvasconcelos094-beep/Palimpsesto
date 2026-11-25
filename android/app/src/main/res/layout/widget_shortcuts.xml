@@ -5,7 +5,6 @@
     <ImageView android:id="@+id/bg" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/widget_bg_r12" />
     <ImageView android:id="@+id/stroke" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/widget_stroke_r12" />
     <ImageView android:id="@+id/blob" android:layout_width="34dp" android:layout_height="34dp" android:layout_gravity="end|top" android:layout_marginTop="5dp" android:layout_marginEnd="16dp" android:alpha="0.9" android:scaleType="fitXY" android:src="@drawable/widget_oval_fill" android:visibility="gone" />
-    <ImageView android:id="@+id/blob2" android:layout_width="24dp" android:layout_height="24dp" android:layout_gravity="start|bottom" android:layout_marginBottom="5dp" android:layout_marginStart="20dp" android:alpha="0.8" android:scaleType="fitXY" android:src="@drawable/widget_oval_fill" android:visibility="gone" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:padding="6dp">
         <FrameLayout android:id="@+id/cell0" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:foreground="@drawable/widget_ripple" android:layout_margin="3dp">
             <ImageView android:id="@+id/tile0" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitXY" android:src="@drawable/widget_tile_r8" />
