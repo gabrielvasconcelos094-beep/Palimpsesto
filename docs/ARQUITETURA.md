@@ -168,7 +168,7 @@ Regras da camada de dados:
 
 ## 6. Testes
 
-`npm test` executa 59 testes, cobrindo:
+`npm test` executa os testes unitários (82 na versão 1.1), cobrindo:
 - persistência, reinício, falha de escrita e nova tentativa, recuperação de arquivo corrompido,
   cascatas, cópias de segurança, apagar tudo;
 - exportação/importação completa (igualdade profunda), backups cifrados, senha errada,
@@ -178,3 +178,89 @@ Regras da camada de dados:
 - CSV (rótulos personalizados, escape, fórmulas);
 - estatística ordinal, períodos, padrões (inclusive ausência de conclusões com poucos dados);
 - contraste de todos os temas e de paletas personalizadas extremas.
+
+---
+
+## 7. Versão 1.1 — decisões das melhorias
+
+### Tempo: "aconteceu" × "escrito"
+- `at` = quando aconteceu (`occurred_at`), em **hora local flutuante** (sem fuso), para que
+  nenhuma conversão desloque um registro de dia. `createdAt`/`updatedAt` = quando foi
+  escrito/alterado. Tudo o que é estatística, calendário, filtro, busca e relatório usa `at`.
+- `timePrecision` (exato, período do dia, sem horário) permite registrar algo de semanas
+  atrás sem inventar um horário. Registros "sem horário" ficam fora das análises por período.
+- **"Quando aconteceu?"** aparece no topo de cada registro (Agora · Hoje · Ontem · Outra data
+  + Madrugada/Manhã/Tarde/Noite/Horário exato/Não sei). No calendário, "Registrar neste dia".
+  Registros retroativos mostram "Escrito em…", e há um filtro "só retroativos".
+- O esquema foi para a versão 2, com migração testada, cópia do arquivo original e cópia de
+  segurança restaurável.
+
+### Atividades = itens do repertório
+Em vez de criar um terceiro vocabulário (além de marcadores e repertório), atividades são
+itens do Repertório com um novo tipo, `activity`. No registro de humor, "O que você fez?"
+lista atividades, recursos e estratégias; sugestões (Ler, Caminhar, Ficar só…) só viram
+itens quando escolhidas. Assim, a mesma "Caminhada" aparece no Diário, no Repertório (com
+seus usos avaliados), nas Situações e na Trajetória, sem duplicação.
+Marcadores continuam como **contexto** (circunstâncias: "dormi mal", "trabalho").
+
+### Acontecimentos (linha do tempo) × experiências × situações
+- **Experiência**: um episódio refletido (o que houve, o que ajudou, o que aprendeu).
+- **Acontecimento**: um marco datado, que pode durar um período (viagem, mudança de trabalho,
+  começo de um projeto). Serve de contexto: aparece na linha do tempo do Diário, no
+  calendário e na Trajetória com os registros feitos durante ele — sem sugerir causa.
+- **Situação**: preparação para algo (futuro ou recorrente), no Guia.
+
+### Filtros e busca
+- Um único modelo de filtros (`src/domain/filters.ts`) serve Diário, Trajetória e relatório:
+  categorias diferentes se combinam com **E**; opções da mesma categoria com **OU** (emoções
+  podem exigir "todas juntas"). O Diário e a Trajetória compartilham os filtros; cada um tem
+  seu período (o Diário mostra tudo por padrão, a Trajetória começa em 30 dias).
+- Busca geral (`src/domain/search.ts`) em todos os módulos, sem acentos e sem maiúsculas,
+  com tipos e período; cartas lacradas não revelam conteúdo.
+
+### Trajetória
+Visão geral enxuta (período, filtros, distribuição da valência por registro **ou por
+data**, observações) e nove categorias que se abrem sob demanda — e podem ser ocultadas:
+dias e horários, emoções, energia, atividades e estratégias, evolução e comparação (inclusive
+dois intervalos escolhidos), linha do tempo, padrões por contexto, calendário e regularidade.
+
+Critérios (`src/domain/insights.ts`):
+- **Dias da semana**: por padrão cada **data** pesa o mesmo (proporção calculada em cada data
+  e depois combinada); a contagem por registro também está disponível. Só se aponta um dia
+  quando há pelo menos 4 dias da semana com 3 datas ou mais e uma diferença ≥ 10 pontos
+  percentuais para o segundo colocado. O texto informa registros, datas e a unidade usada.
+- **Atividades**: compara a proporção de registros agradáveis com e sem a atividade; exige
+  5 registros em cada grupo para destacar. A "mudança percebida" compara cada registro com o
+  anterior do mesmo dia.
+- **Estratégias**: agrupadas pela avaliação mais frequente; em empate, vale a mais cautelosa.
+- Ausência de registro nunca é tratada como neutra; regularidade é apenas descritiva.
+- **"O que seus registros mostram"**: observações só aparecem com dados suficientes, sempre
+  com a base numérica; podem ser ocultadas ou transformadas em hipótese (descoberta). Nada é
+  notificado nem cobrado.
+
+### Estilos visuais e símbolos
+- Estilo (minimalista/orgânico), paleta e família de símbolos são **três preferências
+  independentes**, combináveis livremente (inclusive com paletas personalizadas).
+- O Editorial orgânico vive em `src/styles/organic.css`, inteiramente sob
+  `:root[data-style='organic']`, e usa tokens derivados da paleta: quatro matizes pastel
+  (texto ≥ 7:1, secundário ≥ 4,5:1) e uma variante dos tons do humor (≥ 3:1 sobre os matizes).
+  O minimalista não recebeu nenhuma regra nova.
+- **Regressão do minimalista**: `e2e/style-snapshot.mjs` mede estilos computados de 36
+  componentes (805 propriedades) e compara com a versão anterior; a única diferença
+  remanescente é largura causada por conteúdo diferente.
+- Seis famílias de símbolos (`src/ui/symbols.tsx`), desenhadas em SVG numa grade 24×24:
+  Elementos da natureza (padrão), Clássico minimalista, Traço delicado, Fases da lua, Clima e
+  atmosfera e Emojis. O nível intermediário é neutro em todas (rosto com boca reta, meia-lua,
+  céu nublado, broto). Valores internos não mudam.
+
+### Testes adicionados
+- Unitários (82 no total): migração 1→2 (conversão de hora, cópias, idempotência), hora local
+  estrita, registros retroativos e na mesma data, filtros combinados, busca, dias da semana
+  com peso por data, critérios de suficiência, pares de emoções, atividades, estratégias,
+  regularidade, observações ocultáveis, contraste dos matizes, PDF com todas as seções.
+- Interface (`e2e/flows.mjs` + `e2e/flows2.mjs`): retroativo (ontem/tarde), outra data com
+  horário exato, vários na mesma data, edição de registro antigo preservando `createdAt`,
+  registro pelo calendário, acontecimento retroativo na Trajetória, filtros, busca, estilo
+  orgânico + paleta persistentes, símbolos persistentes sem alterar registros, paleta
+  personalizada nos dois estilos, observações ocultáveis, categorias personalizáveis,
+  importação de backup do esquema 1 pela interface.

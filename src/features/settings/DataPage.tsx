@@ -9,7 +9,7 @@ import { eventsCsv, experiencesCsv, moodCsv } from '../../data/csv';
 import { mergeData, type DuplicateStrategy } from '../../data/merge';
 import { COLLECTION_LABELS } from '../../data/validate';
 import { periodPreset } from '../../domain/analytics';
-import { COLLECTIONS } from '../../domain/schema';
+import { COLLECTIONS, SCHEMA_VERSION } from '../../domain/schema';
 import { dayKey } from '../../domain/util';
 import { useSharedFilters } from '../../app/filters';
 import { activeCount, contextFor, describeFilters, matchMood } from '../../domain/filters';
@@ -235,7 +235,7 @@ function ImportBackup() {
                 <span className="xs">
                   Exportado em {s.res.meta.exportedAt ? fmtDate(s.res.meta.exportedAt, { withYear: true }) : '?'} · app {s.res.meta.appVersion} · formato {s.res.meta.formatVersion} · esquema{' '}
                   {s.res.meta.schemaVersion}
-                  {s.res.migratedFrom !== s.res.meta.schemaVersion ? ` (convertido do esquema ${s.res.migratedFrom})` : ''}
+                  {s.res.migratedFrom < SCHEMA_VERSION ? ` (convertido do esquema ${s.res.migratedFrom} para o ${SCHEMA_VERSION})` : ''}
                 </span>
               </div>
             </div>

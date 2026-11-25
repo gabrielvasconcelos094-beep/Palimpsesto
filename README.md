@@ -12,7 +12,7 @@ acompanhamento psicológico ou psiquiátrico.
 
 ## Instalar
 
-O APK pronto está em [`release/Palimpsesto-1.0.0.apk`](release/). No Android:
+O APK pronto está em [`release/Palimpsesto-1.1.0.apk`](release/). No Android:
 copie o arquivo para o aparelho, abra-o e permita "instalar apps desconhecidos" para o
 gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
@@ -24,12 +24,12 @@ gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
 | Aba | Conteúdo |
 |---|---|
-| **Hoje** | Registro do humor em um toque; registros do dia; cartas que chegaram; situações próximas; uma "camada antiga" para reler; uma pergunta opcional; atalho "Para dias difíceis". |
-| **Diário** | Humor (valência −2…+2 com nomes personalizáveis, várias emoções, energia, indicadores opcionais, contexto, anotação) e experiências (o que houve, antes/depois, o que ajudou/piorou, aprendizado, estratégias usadas com avaliação). Linha do tempo, calendário emocional e filtros. |
+| **Hoje** | Busca geral; registro do humor em um toque; registros do dia; cartas que chegaram; situações próximas; uma "camada antiga" para reler; uma pergunta opcional; atalho "Para dias difíceis". |
+| **Diário** | Humor (valência −2…+2 com nomes e símbolos personalizáveis, várias emoções, energia, atividades, indicadores opcionais, contexto, anotação), experiências e acontecimentos da linha do tempo — **inclusive retroativos** (agora, hoje, ontem ou outra data; horário exato, período do dia ou sem horário). Linha do tempo, calendário com "registrar neste dia", filtros combináveis e edição completa de registros antigos. |
 | **Mapa** | 10 fichas (identidade, preferências, necessidades, valores, limites, emoções, relações, hábitos, enfrentamento, desejos) com 80 perguntas reflexivas e anotações livres; respostas com histórico em camadas; perguntas e fichas próprias; favoritas. **Descobertas** com grau de confiança (hipótese → recorrente → consolidada), histórico de mudanças e experiências que as sustentam. |
 | **Guia** | **Repertório** (o que faz bem, estratégias, o que desgasta) com avaliações por circunstância; **Situações** (viagem, festa, dia difícil…) que reúnem o que *você* já registrou, com lista de cuidados e registro de como foi; **Cartas** para si, lacradas até uma data. |
-| **Trajetória** | Distribuição e evolução da valência e da energia, indicadores, emoções e contextos recorrentes, comparação com o período anterior, calendário, repertório mais usado, descobertas, **padrões observados** (associações, nunca causas) e relatório em PDF. |
-| **Ajustes** | 10 temas (cada um claro e escuro), editor de temas com prévia e verificação de contraste, tipografia e tamanho do texto, nomes da escala, emoções, indicadores, backup/importação/CSV/PDF, PIN + biometria, tela privada, apagar tudo. |
+| **Trajetória** | Visão geral (distribuição por registro ou por data, comparação com o período anterior, "O que seus registros mostram") e categorias: dias e horários, emoções, energia, atividades e estratégias, evolução e comparação entre intervalos, linha do tempo, padrões por contexto, calendário e regularidade. Mesmos filtros do Diário. Relatório em PDF. |
+| **Ajustes** | Dois estilos visuais (Editorial minimalista e Editorial orgânico), seis famílias de símbolos da escala, 10 paletas (cada uma clara e escura), editor de temas com prévia e verificação de contraste, tipografia e tamanho do texto, nomes da escala, emoções, indicadores, backup/importação/CSV/PDF, PIN + biometria, tela privada, apagar tudo. |
 
 ## Desenvolvimento
 
@@ -38,7 +38,7 @@ Requisitos: Node 20+; para o APK, JDK 21 e Android SDK (plataforma 36, build-too
 ```bash
 npm install
 npm run dev          # app no navegador (http://localhost:5173), dados no IndexedDB
-npm test             # 59 testes (Vitest)
+npm test             # 82 testes (Vitest)
 npm run typecheck
 npm run build        # gera dist/
 ```
@@ -69,6 +69,9 @@ ou as variáveis `PALIMPSESTO_KEYSTORE`, `PALIMPSESTO_KEYSTORE_PASSWORD`,
 
 Ícones e telas de abertura: `node scripts/icons.mjs` (a partir de `assets/icon.svg`).
 Capturas de tela: `npx vite --port 5179 & node e2e/screens.mjs <tema> <light|dark>`.
+Testes de interface: `node e2e/flows.mjs` e `node e2e/flows2.mjs` (com o servidor na porta 5179).
+Regressão do estilo minimalista: `BASE=<url> node e2e/style-snapshot.mjs saida.json` na versão
+anterior e na atual, e compare os arquivos.
 
 ## Documentação
 

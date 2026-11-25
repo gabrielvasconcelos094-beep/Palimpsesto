@@ -167,7 +167,7 @@ export function DatePicker({ value, onChange, label, optional, min }: { value: s
         <button className="chip" aria-pressed={value === yesterday} onClick={() => onChange(yesterday)}>
           Ontem
         </button>
-        <input type="date" className="input" aria-label={label} style={{ width: 'auto', flex: 1, minWidth: 150 }} value={value ?? ''} min={min} onChange={(e) => onChange(e.target.value || (optional ? null : value))} />
+        <input type="date" className="input" aria-label={`${label} (data)`} style={{ width: "auto", flex: 1, minWidth: 150 }} value={value ?? ''} min={min} onChange={(e) => onChange(e.target.value || (optional ? null : value))} />
       </div>
     </div>
   );

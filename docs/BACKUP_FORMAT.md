@@ -1,6 +1,6 @@
 # Formato de backup do Palimpsesto
 
-Versão do formato: **1** · Versão do esquema de dados: **1**
+Versão do formato: **1** · Versão do esquema de dados: **2** (app 1.1.0)
 
 O backup é um arquivo JSON legível, gerado em **Ajustes → Seus dados → Exportar backup**.
 Ele contém *todos* os dados pessoais e as preferências visuais. Configurações específicas
@@ -56,26 +56,41 @@ essa verificação, mas continua validando o esquema.
 - `payload` decifrado é **exatamente** o arquivo simples da seção 1 (texto UTF-8).
 - Senha errada e arquivo adulterado produzem o mesmo erro (GCM não distingue os casos).
 
-## 3. Conteúdo de `data` (esquema 1)
+## 3. Conteúdo de `data` (esquema 2)
 
-Todas as entidades têm `id` (UUID), `createdAt` e `updatedAt` (ISO 8601). Relações são
-feitas **por id**, nunca por texto. Datas "de calendário" usam `YYYY-MM-DD`.
+Todas as entidades têm `id` (UUID), `createdAt` e `updatedAt` (ISO 8601, instantes em UTC:
+quando o registro foi escrito e alterado). Relações são feitas **por id**, nunca por texto.
+Datas "de calendário" usam `YYYY-MM-DD`.
+
+### Tempo: quando aconteceu × quando foi escrito
+
+- `at` é o **momento em que a experiência aconteceu** (equivale a `occurred_at`). Desde o
+  esquema 2, é guardado como **hora local flutuante**: `YYYY-MM-DDTHH:mm:ss`, sem fuso. Um
+  registro das 21h do dia 19 permanece no dia 19 às 21h mesmo que o aparelho mude de fuso.
+- `createdAt` (`created_at`) e `updatedAt` (`updated_at`) não mudam quando a data da
+  experiência é editada. Um registro é **retroativo** quando foi escrito num dia posterior
+  ao dia em que aconteceu.
+- `timePrecision`: `exact` (horário exato), `period` (período do dia: madrugada 03:00,
+  manhã 09:00, tarde 15:00, noite 20:00 como representantes) ou `day` (só a data; guardado
+  às 12:00 e excluído das análises por horário).
+- Estatísticas, calendário, filtros, busca e relatórios usam sempre `at`.
 
 | Coleção | Conteúdo | Relações |
 |---|---|---|
-| `moodEntries` | Registros de humor: `at`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`sleep`, `anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags`, `note` | `emotionIds → emotions` |
+| `moodEntries` | Registros de humor: `at`, `timePrecision`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`sleep`, `anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags` (contexto), `itemIds` (atividades), `note` | `emotionIds → emotions`, `itemIds → repertoire` |
 | `emotions` | Emoções nativas (`builtIn`, ids `emo.*`) e personalizadas; `hidden` | — |
-| `experiences` | Experiências: o que aconteceu, `feelingBefore`/`feelingAfter` (−2…+2), o que fez/ajudou/piorou, aprendizado, `tags` | `situationId → situations` |
-| `repertoire` | Itens do repertório: `kind` = `resource` (faz bem), `strategy`, `drain` (desgasta); categoria, circunstâncias, efeito, frequência percebida (1…4) | — |
-| `uses` | Cada uso de um item, com `outcome` (`worked`, `partial`, `didnt`, `worse`, `unknown`) e `tags` de contexto | `itemId → repertoire`, `experienceId → experiences` |
+| `experiences` | Experiências (`at`, `timePrecision`): o que aconteceu, `feelingBefore`/`feelingAfter` (−2…+2), o que fez/ajudou/piorou, aprendizado, `tags` | `situationId → situations` |
+| `repertoire` | Itens do repertório: `kind` = `resource` (faz bem), `strategy`, `activity` (atividade), `drain` (desgasta); categoria, circunstâncias, efeito, frequência percebida (1…4) | — |
+| `uses` | Cada uso de um item (`at`, `timePrecision`), com `outcome` (`worked`, `partial`, `didnt`, `worse`, `unknown`) e `tags` de contexto | `itemId → repertoire`, `experienceId → experiences` |
 | `sections` | Fichas do Mapa (nativas `sec.*` e criadas) | — |
 | `questions` | Perguntas (nativas `q.*` e criadas), `favorite`, `hidden` | `sectionId → sections` |
 | `answers` | Resposta atual + `layers` (versões anteriores, da mais antiga para a mais nova) | `questionId → questions` |
 | `notes` | Anotações livres das fichas, com `layers` | `sectionId → sections` |
-| `discoveries` | Descobertas: `confidence` (`hypothesis`, `recurring`, `consolidated`), `status` (`active`, `superseded`), `revisions` (estados anteriores, com `note` explicando a mudança), `origin` | `sectionId`, `experienceIds` |
+| `discoveries` | Descobertas: `confidence` (`hypothesis`, `recurring`, `consolidated`), `status` (`active`, `superseded`), `revisions` (estados anteriores, com `note` explicando a mudança), `origin` | `sectionId`, `experienceIds`, `moodEntryIds`, `eventIds` |
 | `situations` | Situações especiais: datas opcionais, `tags`, `checklist`, itens fixados | `itemIds`, `discoveryIds`, `questionIds`, `noteIds`, `letterIds` |
 | `letters` | Cartas: `openAt`, `sealed`, `openedAt` | `situationId → situations` |
-| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo, aparência, `customThemes`, tipografia, etc. | — |
+| `events` | Acontecimentos da linha do tempo: `title`, `description`, `date`, `endDate` (opcional), `category` (`viagem`, `trabalho`, `relacoes`, `conflito`, `conquista`, `projeto`, `rotina`, `inicio`, `encerramento`, `saude`, `outro`), `tags` | — |
+| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights` | — |
 
 **Escalas:** os valores numéricos são fixos. Os nomes personalizados ficam apenas em
 `preferences.valenceLabels`; trocá-los nunca altera registros.
@@ -108,6 +123,18 @@ atômica: se falhar, os dados anteriores permanecem.
 
 ## 5. Compatibilidade e evolução
 
+### Migração 1 → 2 (app 1.1.0)
+
+- `at` de `moodEntries`, `experiences` e `uses` passa de instante UTC para hora local
+  flutuante, usando o fuso do aparelho no momento da migração. O instante não muda.
+- `timePrecision: "exact"` para registros antigos; `itemIds: []`; `events: []`;
+  `moodEntryIds`/`eventIds: []` nas descobertas; novas preferências com valores padrão
+  (`visualStyle: "minimal"`, `symbolSet: "nature"`).
+- Ao abrir dados antigos, o app guarda o arquivo original intacto (`pre-migration-v1.json`)
+  e uma cópia de segurança restaurável ("Antes da atualização do formato dos dados").
+- Backups do esquema 1 continuam importáveis: passam pela mesma migração.
+
+
 - Campos desconhecidos são **preservados** (os esquemas são "abertos"), então um arquivo
   de uma versão futura com o mesmo `schemaVersion` não perde informação ao passar por
   uma versão mais antiga do app.
@@ -119,7 +146,9 @@ atômica: se falhar, os dados anteriores permanecem.
 
 ## 6. Exportações complementares
 
-- **CSV** (humor e experiências): separador `;`, UTF-8 com BOM, quebras de linha CRLF.
-  Valência sai como nível (1–5), valor (−2…+2) e rótulo atual. Células que começam com
+- **CSV** (humor, experiências e acontecimentos): separador `;`, UTF-8 com BOM, quebras de
+  linha CRLF. Valência sai como nível (1–5), valor (−2…+2) e rótulo atual. Data e hora vêm de
+  `at` (quando aconteceu), com a precisão do horário; `escrito_em`/`alterado_em` vêm de
+  `createdAt`/`updatedAt`. Atividades saem pelo nome. Células que começam com
   `=`, `+`, `-` ou `@` (exceto números) recebem `'` para evitar fórmulas em planilhas.
 - **PDF**: relatório gerado no aparelho, com período e seções escolhidos.

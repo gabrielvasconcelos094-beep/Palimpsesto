@@ -53,7 +53,7 @@ export function seedSample(store: Store) {
         at: atStr,
         timePrecision: retro ? 'period' : 'exact',
         itemIds,
-        ...(retro ? { createdAt: new Date(Math.min(Date.now(), new Date(atStr).getTime() + 3 * 86400000)).toISOString() } : {}),
+        createdAt: new Date(retro ? Math.min(Date.now(), new Date(atStr).getTime() + 3 * 86400000) : new Date(atStr).getTime()).toISOString(),
         valence: v,
         energy: Math.max(1, Math.min(5, 3 + v + (tags.includes('dormi mal') ? -1 : 0) + (r() < 0.3 ? 1 : 0))),
         emotionIds: [...new Set(emos)],

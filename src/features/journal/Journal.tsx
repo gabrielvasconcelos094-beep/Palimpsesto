@@ -104,7 +104,7 @@ export function Journal() {
     const registro = route.query.get('registro');
     if (registro) setSheet({ open: true, id: registro, day: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [route.query.get('registro'), route.query.get('emocao'), route.query.get('de'), route.query.get('ate')]);
 
   const active = activeCount(f);
   const items = useMemo(() => {
