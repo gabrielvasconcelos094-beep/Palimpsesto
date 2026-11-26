@@ -56,7 +56,7 @@ essa verificação, mas continua validando o esquema.
 - `payload` decifrado é **exatamente** o arquivo simples da seção 1 (texto UTF-8).
 - Senha errada e arquivo adulterado produzem o mesmo erro (GCM não distingue os casos).
 
-## 3. Conteúdo de `data` (esquema 2)
+## 3. Conteúdo de `data` (esquema 3)
 
 Todas as entidades têm `id` (UUID), `createdAt` e `updatedAt` (ISO 8601, instantes em UTC:
 quando o registro foi escrito e alterado). Relações são feitas **por id**, nunca por texto.
@@ -77,7 +77,7 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 
 | Coleção | Conteúdo | Relações |
 |---|---|---|
-| `moodEntries` | Registros de humor: `at`, `timePrecision`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`sleep`, `anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags` (contexto), `itemIds` (atividades), `sleepHours` (horas de sono da noite anterior, 0–24 ou `null`; desde a 1.6), `note` | `emotionIds → emotions`, `itemIds → repertoire` |
+| `moodEntries` | Registros de humor: `at`, `timePrecision`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags` (contexto), `itemIds` (atividades), `note` | `emotionIds → emotions`, `itemIds → repertoire` |
 | `emotions` | Emoções nativas (`builtIn`, ids `emo.*`) e personalizadas; `hidden` | — |
 | `experiences` | Experiências (`at`, `timePrecision`): o que aconteceu, `feelingBefore`/`feelingAfter` (−2…+2), o que fez/ajudou/piorou, aprendizado, `tags` | `situationId → situations` |
 | `repertoire` | Itens do repertório: `kind` = `resource` (faz bem), `strategy`, `activity` (atividade), `drain` (desgasta); categoria, circunstâncias, efeito, frequência percebida (1…4) | — |
@@ -90,10 +90,11 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 | `situations` | Situações especiais: datas opcionais, `tags`, `checklist`, itens fixados | `itemIds`, `discoveryIds`, `questionIds`, `noteIds`, `letterIds` |
 | `letters` | Cartas: `openAt`, `sealed`, `openedAt` | `situationId → situations` |
 | `events` | Acontecimentos da linha do tempo: `title`, `description`, `date`, `endDate` (opcional), `category` (`viagem`, `trabalho`, `relacoes`, `conflito`, `conquista`, `projeto`, `rotina`, `inicio`, `encerramento`, `saude`, `medicacao` (desde a 1.6), `outro`), `tags` | — |
+| `sleepLogs` | Sono (esquema 3): **no máximo uma noite por data**. `date` = manhã em que a noite terminou; `hours` (0–24 ou `null`), `quality` (1–5 ou `null`), `troubles` (`onset`, `awakenings`, `early`), `note` | — |
 | `assessments` | Questionários respondidos (1.6): `instrument` (`phq9`, `gad7`), `date` (AAAA-MM-DD), `answers` (0–3 por item; 9 no PHQ-9, 7 no GAD-7), `difficulty` (0–3 ou `null`), `note` | — |
 | `agenda` | Assuntos para a consulta (1.6): `text`, `forWhom` (`psiquiatria`, `psicologia`, `ambos`, `outro`), `doneAt` (data em que foi conversado ou `null`), `outcome` | — |
 | `safetyPlans` | Plano de segurança (1.6; no máximo um): listas de texto `warningSigns`, `copingAlone`, `distractions`, `helpers`, `professionals`, `safeEnvironment`, `reasons` | — |
-| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights`, `trackSleepHours` | — |
+| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights`, `trackSleep` | — |
 
 **Escalas:** os valores numéricos são fixos. Os nomes personalizados ficam apenas em
 `preferences.valenceLabels`; trocá-los nunca altera registros.
@@ -137,9 +138,19 @@ atômica: se falhar, os dados anteriores permanecem.
   e uma cópia de segurança restaurável ("Antes da atualização do formato dos dados").
 - Backups do esquema 1 continuam importáveis: passam pela mesma migração.
 
-### Acréscimos da 1.6 (mesmo esquema 2)
+### Migração 2 → 3 (app 1.7.0) — sono uma vez por noite
 
-As coleções `assessments`, `agenda` e `safetyPlans`, o campo `sleepHours` e a categoria
+- A qualidade do sono (`indicators.sleep`) e as horas (`sleepHours`) saem dos registros de
+  humor e vão para `sleepLogs`, **uma noite por data**: de cada data, o valor do registro mais
+  recente que o tinha. Assim, vários registros no mesmo dia não contam a mesma noite várias vezes.
+- `preferences.trackSleep` fica ligado se o indicador de sono ou as horas estavam ativos;
+  `"sleep"` sai de `enabledIndicators`.
+- Como em toda migração, o arquivo original e uma cópia de segurança são guardados antes.
+- Na importação e na mesclagem, duas noites na mesma data viram uma (fica a alterada por último).
+
+### Acréscimos da 1.6 (esquema 2)
+
+As coleções `assessments`, `agenda` e `safetyPlans`, o campo `sleepHours` (movido na 1.7) e a categoria
 `medicacao` são opcionais e têm valor padrão (`[]`/`null`). Backups anteriores importam sem
 migração; um backup da 1.6 aberto numa versão anterior preserva os campos desconhecidos.
 

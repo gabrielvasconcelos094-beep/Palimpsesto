@@ -31,6 +31,54 @@ export const MIGRATIONS: Record<number, Migration> = {
     discoveries: (d.discoveries ?? []).map((x: any) => ({ ...x, moodEntryIds: x.moodEntryIds ?? [], eventIds: x.eventIds ?? [] })),
     events: d.events ?? [],
   }),
+
+  /**
+   * 2 → 3 — o sono passa a ser UMA vez por noite.
+   * Antes, a qualidade do sono (`indicators.sleep`) e as horas (`sleepHours`, 1.6)
+   * ficavam em cada registro de humor; com vários registros no dia, a mesma noite
+   * podia ser contada várias vezes. Agora vão para `sleepLogs`, uma por data:
+   * de cada data, o valor do registro mais recente que o tinha (o último que você
+   * informou). Os campos saem dos registros de humor; nada mais muda.
+   */
+  2: (d) => {
+    const moods: any[] = d.moodEntries ?? [];
+    const by = new Map<string, { hours: any; quality: any; hAt: string; qAt: string; createdAt: string }>();
+    for (const m of moods) {
+      const date = String(m.at ?? '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+      const q = m.indicators?.sleep;
+      const h = m.sleepHours;
+      if (q == null && h == null) continue;
+      const cur = by.get(date) ?? { hours: null, quality: null, hAt: '', qAt: '', createdAt: m.createdAt };
+      if (h != null && String(m.at) >= cur.hAt) Object.assign(cur, { hours: h, hAt: String(m.at) });
+      if (q != null && String(m.at) >= cur.qAt) Object.assign(cur, { quality: q, qAt: String(m.at) });
+      by.set(date, cur);
+    }
+    const now = new Date().toISOString();
+    const sleepLogs = [...(d.sleepLogs ?? [])];
+    const have = new Set(sleepLogs.map((s: any) => s.date));
+    for (const [date, v] of by) {
+      if (have.has(date)) continue;
+      sleepLogs.push({ id: `sleep-${date}`, createdAt: v.createdAt ?? now, updatedAt: now, date, hours: v.hours, quality: v.quality, troubles: [], note: '' });
+    }
+    const prefs = { ...(d.preferences ?? {}) };
+    const enabled: string[] = prefs.enabledIndicators ?? [];
+    prefs.trackSleep = Boolean(prefs.trackSleep || prefs.trackSleepHours || enabled.includes('sleep'));
+    prefs.enabledIndicators = enabled.filter((k) => k !== 'sleep');
+    delete prefs.trackSleepHours;
+    return {
+      ...d,
+      schemaVersion: 3,
+      moodEntries: moods.map((m: any) => {
+        const { sleepHours: _h, ...rest } = m;
+        const ind = { ...(m.indicators ?? {}) };
+        delete ind.sleep;
+        return { ...rest, indicators: ind };
+      }),
+      sleepLogs,
+      preferences: prefs,
+    };
+  },
 };
 
 export class NewerSchemaError extends Error {

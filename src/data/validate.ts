@@ -54,6 +54,14 @@ export function repairIntegrity(input: AppData): { data: AppData; report: Integr
     }
     data[c] = [...map.values()];
   }
+  // Sono: no máximo uma noite por data (fica a versão alterada por último).
+  const nights = new Map<string, any>();
+  for (const s of data.sleepLogs as any[]) {
+    const prev = nights.get(s.date);
+    if (!prev || (s.updatedAt ?? '') >= (prev.updatedAt ?? '')) nights.set(s.date, s);
+  }
+  if (nights.size !== data.sleepLogs.length) report.notes.push(`${data.sleepLogs.length - nights.size} noite(s) de sono repetida(s) na mesma data foram unificadas.`);
+  data.sleepLogs = [...nights.values()];
   const has = (c: CollectionName) => new Set<string>((data[c] as any[]).map((e) => e.id));
   const emo = has('emotions');
   const items = has('repertoire');
@@ -147,4 +155,5 @@ export const COLLECTION_LABELS: Record<CollectionName, string> = {
   assessments: 'Questionários respondidos',
   agenda: 'Assuntos para a consulta',
   safetyPlans: 'Plano de segurança',
+  sleepLogs: 'Noites de sono',
 };

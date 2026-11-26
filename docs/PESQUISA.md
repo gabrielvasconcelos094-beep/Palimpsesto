@@ -60,10 +60,13 @@ duração de uma noite para outra — mais que a média — acompanhou a gravida
 humor (Kaufmann et al., 2016, transtorno bipolar, 41 pacientes). Os achados sobre efeito no
 dia seguinte são mistos e as amostras, pequenas.
 
-**No app:** horas de sono opcionais no registro (ativar em Ajustes → Indicadores); categoria
-"Sono" na Trajetória com noites informadas, mediana, variação entre noites (desvio-padrão),
-noites < 6 h e comparação descritiva do índice de humor após noites < 6 h × ≥ 7 h (com amostra
-mínima e o aviso de que a relação pode ir nos dois sentidos).
+**No app (desde a 1.7):** o sono é registrado **uma vez por noite**, à parte dos registros de
+humor, com as três medidas centrais do Diário de Sono Consensual (Carney et al., 2012): horas,
+qualidade percebida (1–5, com descrição de cada nível ancorada no descanso, não em horas) e
+dificuldades (demorar a dormir, acordar à noite, acordar cedo demais). A Trajetória mostra
+mediana, variação entre noites, qualidade, dificuldades e comparações descritivas do humor
+após noites curtas × longas e ruins × boas — com amostra mínima e o aviso de que a relação
+pode ir nos dois sentidos. Referência de duração: 7–9 h para adultos (Hirshkowitz et al., 2015).
 
 ## 6. Instabilidade afetiva: a ordem importa
 
@@ -114,6 +117,9 @@ gráfico de humor e energia, índice, estabilidade e RMSSD, sono, emoções e ac
 - WHO-5, quando o texto brasileiro oficial estiver confirmado.
 
 ## Fontes
+
+- Carney CE et al. The Consensus Sleep Diary: standardizing prospective sleep self-monitoring. *Sleep* 2012;35(2):287–302.
+- Hirshkowitz M et al. National Sleep Foundation's sleep time duration recommendations. *Sleep Health* 2015;1:40–43.
 
 - Fortney JC et al. A Tipping Point for Measurement-Based Care. *Psychiatr Serv* 2017;68:179–188.
 - Kroenke K, Spitzer RL, Williams JBW. The PHQ-9. *J Gen Intern Med* 2001;16:606–613.

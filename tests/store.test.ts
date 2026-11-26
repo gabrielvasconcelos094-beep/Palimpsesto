@@ -21,13 +21,13 @@ describe('Store — persistência', () => {
 
   it('registros de humor sobrevivem a reinício', async () => {
     const { s, storage } = await mk();
-    const e = s.upsert('moodEntries', { at: localIso(), valence: 1, energy: 3, emotionIds: ['emo.calma'], indicators: { sleep: 4 }, tags: ['tempo só'], note: 'ok' });
+    const e = s.upsert('moodEntries', { at: localIso(), valence: 1, energy: 3, emotionIds: ['emo.calma'], indicators: { anxiety: 4 }, tags: ['tempo só'], note: 'ok' });
     await s.flush();
     const { s: s2 } = await mk(storage);
     const got = s2.get('moodEntries', e.id)!;
     expect(got.valence).toBe(1);
     expect(got.emotionIds).toEqual(['emo.calma']);
-    expect(got.indicators.sleep).toBe(4);
+    expect(got.indicators.anxiety).toBe(4);
   });
 
   it('rótulos personalizados não alteram valores gravados', async () => {

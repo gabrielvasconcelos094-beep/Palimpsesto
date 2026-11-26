@@ -2,7 +2,7 @@
  * Exportação CSV (separador ";" e BOM UTF-8, compatível com planilhas em pt-BR).
  */
 import type { AppData } from '../domain/schema';
-import { INDICATORS, energyLabel, valenceLabel, OUTCOME_LABELS } from '../domain/scales';
+import { INDICATORS, energyLabel, valenceLabel, OUTCOME_LABELS, SLEEP_QUALITY } from '../domain/scales';
 import { INDICATOR_KEYS } from '../domain/schema';
 
 const SEP = ';';
@@ -44,7 +44,6 @@ export function moodCsv(data: AppData, from?: string, to?: string): string {
     'energia_rotulo',
     'emocoes',
     ...INDICATOR_KEYS.map((k) => `${k}_1a5`),
-    'horas_de_sono',
     'atividades',
     'contexto',
     'observacoes',
@@ -69,7 +68,6 @@ export function moodCsv(data: AppData, from?: string, to?: string): string {
         m.energy ? energyLabel(m.energy, data.preferences.energyLabels) : '',
         m.emotionIds.map((id) => emo.get(id) ?? id).join(', '),
         ...INDICATOR_KEYS.map((k) => m.indicators[k] ?? ''),
-        m.sleepHours ?? '',
         m.itemIds.map((id) => items.get(id) ?? id).join(', '),
         m.tags.join(', '),
         m.note,
@@ -138,5 +136,30 @@ export function eventsCsv(data: AppData): string {
   const rows = [...data.events]
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((e) => [e.id, e.date, e.endDate ?? '', e.category, e.title, e.description, e.tags.join(', '), created(e.createdAt)]);
+  return toCsv([header, ...rows]);
+}
+
+/** Uma linha por noite (pela manhã em que terminou). */
+export function sleepCsv(data: AppData, from?: string): string {
+  const header = ['data_manha', 'noite_de', 'horas', 'qualidade_1a5', 'qualidade_rotulo', 'demorou_a_dormir', 'acordou_durante_a_noite', 'acordou_cedo_demais', 'observacoes'];
+  const prev = (d: string) => {
+    const x = new Date(d + 'T12:00:00');
+    x.setDate(x.getDate() - 1);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  };
+  const rows = [...data.sleepLogs]
+    .filter((s) => !from || s.date >= from.slice(0, 10))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((s) => [
+      s.date,
+      prev(s.date),
+      s.hours ?? '',
+      s.quality ?? '',
+      s.quality ? SLEEP_QUALITY[s.quality - 1].label : '',
+      s.troubles.includes('onset') ? 'sim' : '',
+      s.troubles.includes('awakenings') ? 'sim' : '',
+      s.troubles.includes('early') ? 'sim' : '',
+      s.note,
+    ]);
   return toCsv([header, ...rows]);
 }

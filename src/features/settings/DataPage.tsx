@@ -5,7 +5,7 @@ import { store, useStoreState } from '../../app/store';
 import { resolveTokens, useSystemDark } from '../../app/theme';
 import { toast } from '../../app/toast';
 import { exportBackupText, inspectBackup, type BackupInspection } from '../../data/backup';
-import { eventsCsv, experiencesCsv, moodCsv } from '../../data/csv';
+import { eventsCsv, experiencesCsv, moodCsv, sleepCsv } from '../../data/csv';
 import { mergeData, type DuplicateStrategy } from '../../data/merge';
 import { COLLECTION_LABELS } from '../../data/validate';
 import { periodPreset } from '../../domain/analytics';
@@ -336,10 +336,10 @@ function ImportBackup() {
 function CsvExport() {
   const [range, setRange] = useState<'all' | '365d' | '90d'>('all');
   const from = range === 'all' ? undefined : dayKey(periodPreset(range).from);
-  const run = async (kind: 'mood' | 'exp' | 'event') => {
+  const run = async (kind: 'mood' | 'exp' | 'event' | 'sleep') => {
     const data = store.getState().data;
-    const csv = kind === 'mood' ? moodCsv(data, from) : kind === 'exp' ? experiencesCsv(data, from) : eventsCsv(data);
-    await deliverFile(`palimpsesto-${{ mood: 'humor', exp: 'experiencias', event: 'acontecimentos' }[kind]}-${stamp()}.csv`, csv, 'text/csv');
+    const csv = kind === 'mood' ? moodCsv(data, from) : kind === 'exp' ? experiencesCsv(data, from) : kind === 'sleep' ? sleepCsv(data, from) : eventsCsv(data);
+    await deliverFile(`palimpsesto-${{ mood: 'humor', exp: 'experiencias', event: 'acontecimentos', sleep: 'sono' }[kind]}-${stamp()}.csv`, csv, 'text/csv');
   };
   return (
     <Section title="Planilhas (CSV)" kicker="Exportar registros">
@@ -365,6 +365,9 @@ function CsvExport() {
           </button>
           <button className="btn secondary" onClick={() => run('event')}>
             Acontecimentos
+          </button>
+          <button className="btn secondary" onClick={() => run('sleep')}>
+            Sono
           </button>
         </div>
       </div>

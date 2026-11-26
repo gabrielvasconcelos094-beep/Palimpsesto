@@ -13,7 +13,7 @@ async function sampleData(): Promise<AppData> {
   const strategy = s.upsert('repertoire', { kind: 'strategy', name: 'Ver um filme', tags: ['dia difícil'] } as any);
   const exp = s.upsert('experiences', { at: '2026-03-02T20:00:00', title: 'Dia difícil no trabalho', learned: 'Filmes ajudam', tags: ['trabalho'], emotionIds: ['emo.ansiedade'] } as any);
   s.upsert('uses', { itemId: strategy.id, at: exp.at, outcome: 'worked', experienceId: exp.id, tags: ['dia difícil'] } as any);
-  s.upsert('moodEntries', { at: '2026-03-01T10:00:00', valence: -1, energy: 2, emotionIds: ['emo.ansiedade', 'emo.cansaco'], indicators: { sleep: 2 }, tags: ['dormi mal'], note: 'Linha 1\n"aspas"; ponto e vírgula' } as any);
+  s.upsert('moodEntries', { at: '2026-03-01T10:00:00', valence: -1, energy: 2, emotionIds: ['emo.ansiedade', 'emo.cansaco'], indicators: { anxiety: 2 }, tags: ['dormi mal'], note: 'Linha 1\n"aspas"; ponto e vírgula' } as any);
   s.upsert('moodEntries', { at: '2026-03-02T10:00:00', valence: 2, energy: 4, emotionIds: [], indicators: {}, tags: [], note: '' } as any);
   const custom = s.upsert('emotions', { label: 'Melancolia doce' } as any);
   s.upsert('moodEntries', { at: '2026-03-03T10:00:00', valence: 0, energy: null, emotionIds: [custom.id], indicators: {}, tags: [], note: '' } as any);

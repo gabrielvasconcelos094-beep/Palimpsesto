@@ -23,7 +23,7 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * Remove a assinatura de índice que `looseObject` acrescenta ao tipo, mantendo
@@ -56,7 +56,8 @@ export const Energy = z.number().int().min(1).max(5);
 /** Indicadores complementares: 1 … 5. */
 export const Level5 = z.number().int().min(1).max(5);
 
-export const INDICATOR_KEYS = ['sleep', 'anxiety', 'irritability', 'overload', 'loneliness'] as const;
+/** A qualidade do sono saiu daqui na versão 3: o sono é uma vez por noite (ver SleepLogSchema). */
+export const INDICATOR_KEYS = ['anxiety', 'irritability', 'overload', 'loneliness'] as const;
 export type IndicatorKey = (typeof INDICATOR_KEYS)[number];
 export const IndicatorKeySchema = z.enum(INDICATOR_KEYS);
 
@@ -77,8 +78,6 @@ export const MoodEntrySchema = z.looseObject({
   tags,
   /** Atividades (itens do repertório) feitas ou vividas nesse momento. */
   itemIds: z.array(id).max(60).default([]),
-  /** Horas de sono da noite anterior (opcional; 0–24, em meias horas). */
-  sleepHours: z.number().min(0).max(24).nullable().default(null),
   note: text().default(''),
 });
 export type MoodEntry = Known<z.infer<typeof MoodEntrySchema>>;
@@ -305,6 +304,31 @@ export const LetterSchema = z.looseObject({
 export type Letter = Known<z.infer<typeof LetterSchema>>;
 
 /* ------------------------------------------------------------------ */
+/* Sono: uma noite por data                                            */
+/* ------------------------------------------------------------------ */
+
+export const SLEEP_TROUBLES = ['onset', 'awakenings', 'early'] as const;
+export type SleepTrouble = (typeof SLEEP_TROUBLES)[number];
+
+/**
+ * A noite que TERMINOU na manhã de `date` (ex.: noite de 25 para 26 → date 26).
+ * Há no máximo uma por data — por isso não fica dentro dos registros de humor,
+ * que podem ser vários no mesmo dia.
+ */
+export const SleepLogSchema = z.looseObject({
+  ...base,
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Horas dormidas (0–24, em meias horas). */
+  hours: z.number().min(0).max(24).nullable().default(null),
+  /** Qualidade percebida, 1 (muito ruim) … 5 (muito boa) — como no Diário de Sono Consensual. */
+  quality: Level5.nullable().default(null),
+  /** Dificuldades: pegar no sono, acordar durante a noite, acordar cedo demais. */
+  troubles: z.array(z.enum(SLEEP_TROUBLES)).max(3).default([]),
+  note: text(2000).default(''),
+});
+export type SleepLog = Known<z.infer<typeof SleepLogSchema>>;
+
+/* ------------------------------------------------------------------ */
 /* Acompanhamento: questionários, pauta da consulta, plano de segurança */
 /* ------------------------------------------------------------------ */
 
@@ -397,8 +421,8 @@ export const PreferencesSchema = z.looseObject({
   symbolSet: z.enum(['nature', 'faces', 'fine', 'moon', 'weather', 'emoji']).default('nature'),
   /** Categorias da Trajetória que o usuário escolheu ocultar. */
   trajectoryHidden: z.array(z.string().max(40)).max(40).default([]),
-  /** Perguntar as horas de sono da noite anterior no registro de humor. */
-  trackSleepHours: z.boolean().default(false),
+  /** Acompanhar o sono (horas, qualidade e dificuldades), uma vez por noite. */
+  trackSleep: z.boolean().default(false),
   /** Mostrar "O que seus registros mostram". */
   showInsights: z.boolean().default(true),
   /** Observações sugeridas que o usuário ocultou (por id). */
@@ -427,6 +451,7 @@ export const COLLECTIONS = [
   'assessments',
   'agenda',
   'safetyPlans',
+  'sleepLogs',
 ] as const;
 export type CollectionName = (typeof COLLECTIONS)[number];
 
@@ -447,6 +472,7 @@ export const CollectionSchemas = {
   assessments: AssessmentSchema,
   agenda: AgendaItemSchema,
   safetyPlans: SafetyPlanSchema,
+  sleepLogs: SleepLogSchema,
 } as const;
 
 export type EntityOf<C extends CollectionName> = Known<z.infer<(typeof CollectionSchemas)[C]>>;
@@ -469,6 +495,7 @@ export const AppDataSchema = z.looseObject({
   assessments: z.array(AssessmentSchema).default([]),
   agenda: z.array(AgendaItemSchema).default([]),
   safetyPlans: z.array(SafetyPlanSchema).max(1).default([]),
+  sleepLogs: z.array(SleepLogSchema).default([]),
   preferences: PreferencesSchema.default(PreferencesSchema.parse({})),
 });
 export type AppData = Known<z.infer<typeof AppDataSchema>>;

@@ -228,6 +228,21 @@ export class Store {
     return this.upsert(c, { ...prev, ...patch, id } as EntityOf<C>);
   }
 
+  /**
+   * Sono da noite que terminou em `date`: cria ou atualiza A noite daquela data
+   * (nunca uma segunda). Sem nenhuma informação, a noite é removida.
+   */
+  setSleep(date: string, patch: { hours?: number | null; quality?: number | null; troubles?: string[]; note?: string }) {
+    const cur = this.list('sleepLogs').find((s) => s.date === date);
+    const next = { hours: null, quality: null, troubles: [], note: '', ...(cur ?? {}), ...patch, date } as any;
+    const empty = next.hours == null && next.quality == null && !next.troubles.length && !next.note.trim();
+    if (empty) {
+      if (cur) this.remove('sleepLogs', cur.id);
+      return undefined;
+    }
+    return this.upsert('sleepLogs', next);
+  }
+
   /** Remove uma entidade aplicando as regras de cascata. */
   remove(c: CollectionName, id: string) {
     this.commitData(removeWithCascade(this.state.data, c, id));

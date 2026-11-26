@@ -101,32 +101,60 @@ await shot('care-plan');
 await go('/guia?t=acompanhamento');
 await page.getByText('Meu plano de segurança').waitFor();
 
-step('horas de sono: ativar, registrar e ver na Trajetória');
+step('sono: ativar; uma noite por data, mesmo com vários registros no dia');
 await go('/ajustes/indicadores');
-await page.getByText('Horas de sono').click();
+await page.getByText('Sono', { exact: true }).click();
 await page.waitForTimeout(200);
-assert.equal((await data()).preferences.trackSleepHours, true);
+assert.equal((await data()).preferences.trackSleep, true);
 for (let i = 1; i <= 8; i++) {
   await page.evaluate((i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    window.__pal.store.upsert('moodEntries', { at: `${k}T09:00:00`, valence: i % 2 ? -1 : 1, sleepHours: i % 2 ? 5 : 8, timePrecision: 'exact' });
+    window.__pal.store.upsert('moodEntries', { at: `${k}T09:00:00`, valence: i % 2 ? -1 : 1, timePrecision: 'exact' });
+    window.__pal.store.setSleep(k, { hours: i % 2 ? 5 : 8, quality: i % 2 ? 2 : 4 });
   }, i);
 }
+step('"Como foi a noite?" no início: qualidade com descrição de cada nível');
 await go('/');
-await page.getByRole('button', { name: 'Agradável', exact: true }).first().click();
-await page.getByRole('button', { name: /Contexto, anotação e mais/ }).click();
-await page.getByRole('button', { name: 'Mais meia hora' }).click();
-assert.equal(await page.getByRole('spinbutton', { name: 'Horas de sono' }).inputValue(), '7');
-await page.locator('.sheet-actions .btn.primary').click();
-await page.waitForTimeout(200);
-const last = (await data()).moodEntries.sort((a, b) => a.createdAt.localeCompare(b.createdAt)).pop();
-assert.equal(last.sleepHours, 7);
+await page.getByText('Como foi a noite?').click();
+await page.getByText('Quase não descansei; acordei exausto(a).').waitFor();
+await page.getByRole('button', { name: 'Mais meia hora' }).click(); // 7
+await page.getByRole('radio', { name: /^Ruim/ }).click();
+await page.getByRole('button', { name: 'Acordei durante a noite' }).click();
+await shot('care-night-sheet');
+await page.locator('.sheet .sheet-actions .btn.primary').click();
+await page.waitForTimeout(250);
+const today = await page.evaluate(() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+});
+let todays = (await data()).sleepLogs.filter((x) => x.date === today);
+assert.equal(todays.length, 1);
+assert.deepEqual([todays[0].hours, todays[0].quality, todays[0].troubles], [7, 2, ['awakenings']]);
+await page.getByText('Noite registrada', { exact: true }).waitFor();
+
+step('três registros de humor no mesmo dia: a mesma noite aparece e é editada, sem duplicar');
+for (let k = 0; k < 3; k++) {
+  await page.getByRole('button', { name: 'Agradável', exact: true }).first().click();
+  await page.getByRole('button', { name: /^Sono · noite de/ }).click();
+  assert.equal(await page.getByRole('spinbutton', { name: 'Horas de sono' }).inputValue(), k === 0 ? '7' : '6.5');
+  if (k === 0) await page.getByRole('button', { name: 'Menos meia hora' }).click(); // 6,5
+  await page.locator('.sheet .sheet-actions .btn.primary').click();
+  await page.waitForTimeout(250);
+}
+todays = (await data()).sleepLogs.filter((x) => x.date === today);
+assert.equal(todays.length, 1, 'uma noite só');
+assert.equal(todays[0].hours, 6.5);
+assert.equal(todays[0].quality, 2, 'a qualidade informada antes foi preservada');
+
+step('Trajetória → Sono: noites, qualidade, dificuldades e comparações');
 await go('/trajetoria/sono');
 await page.getByText('noites informadas').waitFor();
+await page.getByText('Qualidade e dificuldades').waitFor();
+await page.getByText(/Acordei durante a noite: 1 noite/).waitFor();
 await page.getByText(/menos de 6 h/).first().waitFor();
-await page.getByText(/Associação descritiva/).waitFor();
+await page.getByText(/qualidade ruim ou muito ruim/).waitFor();
 await shot('care-sleep');
 
 step('medicação como acontecimento');

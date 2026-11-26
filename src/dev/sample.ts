@@ -57,7 +57,7 @@ export function seedSample(store: Store) {
         valence: v,
         energy: Math.max(1, Math.min(5, 3 + v + (tags.includes('dormi mal') ? -1 : 0) + (r() < 0.3 ? 1 : 0))),
         emotionIds: [...new Set(emos)],
-        indicators: { sleep: tags.includes('dormi mal') ? 2 : 4, overload: tags.includes('encontro social') ? 4 : 2 },
+        indicators: { overload: tags.includes('encontro social') ? 4 : 2 },
         tags,
         note: r() < 0.15 ? pick(['Dia comprido, mas terminou bem.', 'Muita gente ao mesmo tempo.', 'Caminhei até o parque e voltei mais leve.', 'Acordei pesado.']) : '',
       } as any);
@@ -105,6 +105,11 @@ export function seedSample(store: Store) {
   store.upsert('events', { title: 'Mudança de equipe no trabalho', date: day(40).slice(0, 10), endDate: day(25).slice(0, 10), category: 'trabalho', description: 'Primeiras semanas com a equipe nova.' } as any);
   store.upsert('events', { title: 'Viagem a Paraty', date: day(70).slice(0, 10), endDate: day(64).slice(0, 10), category: 'viagem', tags: ['viagem'] } as any);
   store.upsert('events', { title: 'Comecei a fazer cerâmica', date: day(15).slice(0, 10), category: 'inicio' } as any);
-  store.setPreferences({ enabledIndicators: ['sleep', 'overload'] });
+  // Uma noite por data com registro: "dormi mal" vira noite curta e ruim.
+  const byDay = new Map<string, boolean>();
+  for (const m of store.list('moodEntries')) byDay.set(m.at.slice(0, 10), (byDay.get(m.at.slice(0, 10)) ?? false) || m.tags.includes('dormi mal'));
+  for (const [date, bad] of byDay)
+    store.upsert('sleepLogs', { date, hours: bad ? 5 + Math.round(r() * 2) / 2 : 7 + Math.round(r() * 3) / 2, quality: bad ? 2 : r() < 0.3 ? 3 : 4, troubles: bad ? ['awakenings'] : [] } as any);
+  store.setPreferences({ enabledIndicators: ['overload'], trackSleep: true });
   store.setDevice({ onboardingDone: true });
 }

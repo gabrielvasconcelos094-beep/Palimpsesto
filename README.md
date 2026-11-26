@@ -12,7 +12,7 @@ acompanhamento psicológico ou psiquiátrico.
 
 ## Instalar
 
-O APK pronto está em [`release/Palimpsesto-1.6.0.apk`](release/). No Android:
+O APK pronto está em [`release/Palimpsesto-1.7.0.apk`](release/). No Android:
 copie o arquivo para o aparelho, abra-o e permita "instalar apps desconhecidos" para o
 gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 

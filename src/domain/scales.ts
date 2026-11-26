@@ -40,12 +40,6 @@ export function energyLabel(e: number, custom?: ReadonlyArray<string | null>): s
 }
 
 export const INDICATORS: Record<IndicatorKey, { label: string; low: string; high: string; levels: string[] }> = {
-  sleep: {
-    label: 'Qualidade do sono',
-    low: 'muito ruim',
-    high: 'muito boa',
-    levels: ['Muito ruim', 'Ruim', 'Razoável', 'Boa', 'Muito boa'],
-  },
   anxiety: {
     label: 'Ansiedade',
     low: 'nenhuma',
@@ -111,3 +105,22 @@ export const KIND_LABELS: Record<RepertoireKind, { singular: string; plural: str
 };
 
 export const FREQUENCY_LABELS = ['Raramente', 'Às vezes', 'Frequentemente', 'Quase sempre'];
+
+/**
+ * Qualidade do sono (1–5), como no Diário de Sono Consensual (Carney et al., 2012).
+ * As descrições ancoram cada nível no quanto você DESCANSOU — não em horas: duração
+ * e qualidade são medidas diferentes (dá para dormir 8 h e mal).
+ */
+export const SLEEP_QUALITY = [
+  { label: 'Muito ruim', hint: 'Quase não descansei; acordei exausto(a).' },
+  { label: 'Ruim', hint: 'Sono agitado ou interrompido; acordei cansado(a).' },
+  { label: 'Razoável', hint: 'Descansei em parte.' },
+  { label: 'Boa', hint: 'Dormi bem e acordei razoavelmente descansado(a).' },
+  { label: 'Muito boa', hint: 'Sono profundo e reparador; acordei descansado(a).' },
+] as const;
+
+export const SLEEP_TROUBLE_LABELS: Record<'onset' | 'awakenings' | 'early', string> = {
+  onset: 'Demorei a pegar no sono',
+  awakenings: 'Acordei durante a noite',
+  early: 'Acordei cedo demais',
+};

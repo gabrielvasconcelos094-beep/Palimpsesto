@@ -30,7 +30,7 @@ export function SettingsHome() {
         <div className="list">
           <Row left={icon(SlidersHorizontal)} title="Escala de humor" meta="Símbolos e nomes das categorias" onClick={() => navigate('/ajustes/escala')} />
           <Row left={icon(Heart)} title="Emoções" meta="Crie, renomeie ou oculte emoções" onClick={() => navigate('/ajustes/emocoes')} />
-          <Row left={icon(Tags)} title="Indicadores acompanhados" meta={prefs.enabledIndicators.length ? prefs.enabledIndicators.map((k) => INDICATORS[k].label).join(', ') : 'Nenhum além de valência e energia'} onClick={() => navigate('/ajustes/indicadores')} />
+          <Row left={icon(Tags)} title="Indicadores acompanhados" meta={[...(prefs.trackSleep ? ['Sono'] : []), ...prefs.enabledIndicators.map((k) => INDICATORS[k].label)].join(', ') || 'Nenhum além de valência e energia'} onClick={() => navigate('/ajustes/indicadores')} />
         </div>
       </Section>
       <Section kicker="Seus dados">
@@ -282,10 +282,10 @@ export function IndicatorsPage() {
             <Toggle key={k} label={INDICATORS[k].label} help={`De “${INDICATORS[k].low}” a “${INDICATORS[k].high}”`} checked={prefs.enabledIndicators.includes(k)} onChange={(on) => toggle(k, on)} />
           ))}
           <Toggle
-            label="Horas de sono"
-            help="Quantas horas você dormiu na noite anterior. A duração e a regularidade do sono costumam acompanhar o humor — e são úteis de levar à consulta."
-            checked={prefs.trackSleepHours}
-            onChange={(trackSleepHours) => store.setPreferences({ trackSleepHours })}
+            label="Sono"
+            help="Uma vez por noite: horas dormidas, qualidade e dificuldades. Aparece no registro de humor e no início, sem duplicar quando há vários registros no dia."
+            checked={prefs.trackSleep}
+            onChange={(trackSleep) => store.setPreferences({ trackSleep })}
           />
         </div>
       </Section>

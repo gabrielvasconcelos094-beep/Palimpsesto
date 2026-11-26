@@ -5,11 +5,12 @@ import { store, useData } from '../../app/store';
 import { removeWithUndo } from '../../app/undo';
 import { toast } from '../../app/toast';
 import type { IndicatorKey, MoodEntry } from '../../domain/schema';
-import { INDICATORS } from '../../domain/scales';
+import { INDICATORS, SLEEP_QUALITY } from '../../domain/scales';
 import { composeAt, dayKey } from '../../domain/util';
 import { Field, AutoText, Sheet, fmtDate, useConfirm } from '../../ui/components';
 import { ActivityPicker, EmotionPicker, EnergyPicker, LevelPicker, TagInput, ValencePicker } from '../../ui/pickers';
 import { nowWhen, WhenPicker } from '../../ui/WhenPicker';
+import { nightLabel, sleepOf, SleepFields, type SleepValue } from '../../ui/SleepFields';
 
 type Draft = Omit<MoodEntry, 'id' | 'createdAt' | 'updatedAt'> & { id?: string };
 
@@ -22,7 +23,6 @@ const blank = (valence: number | null, day?: string | null): Draft => ({
   tags: [],
   itemIds: [],
   note: '',
-  sleepHours: null,
 });
 
 /** "Registrado em 25 nov, às 10:12 · alterado em …" — distingue quando aconteceu de quando foi escrito. */
@@ -51,6 +51,16 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
   const [picked, setPicked] = useState<boolean>(!!existing || props.initialValence != null);
   const [more, setMore] = useState(false);
   const [pickerKey, setPickerKey] = useState(0);
+  // Sono: a noite da DATA do registro (uma por data), não um campo do registro.
+  const [sleep, setSleep] = useState<SleepValue>(() => sleepOf(undefined));
+  const [sleepTouched, setSleepTouched] = useState(false);
+  const [sleepOpen, setSleepOpen] = useState(false);
+  const sleepDate = draft.at.slice(0, 10);
+  useEffect(() => {
+    if (!props.open) return;
+    setSleep(sleepOf(store.getState().data.sleepLogs.find((s) => s.date === sleepDate)));
+    setSleepTouched(false);
+  }, [props.open, sleepDate]);
   const { ask, node } = useConfirm();
 
   useEffect(() => {
@@ -58,13 +68,15 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
     const ex = props.entryId ? store.get('moodEntries', props.entryId) : undefined;
     setDraft(ex ? { ...ex } : blank(props.initialValence ?? null, props.initialDay));
     setPicked(!!ex || props.initialValence != null);
-    setMore(!!ex && (!!ex.note || ex.tags.length > 0 || Object.keys(ex.indicators).length > 0 || ex.sleepHours != null));
+    setMore(!!ex && (!!ex.note || ex.tags.length > 0 || Object.keys(ex.indicators).length > 0));
+    setSleepOpen(false);
     setPickerKey((k) => k + 1);
   }, [props.open, props.entryId, props.initialValence, props.initialDay]);
 
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const save = () => {
     store.upsert('moodEntries', draft as MoodEntry);
+    if (sleepTouched) store.setSleep(sleepDate, sleep);
     toast(existing ? 'Registro atualizado.' : 'Registrado.');
     props.onClose();
   };
@@ -107,6 +119,33 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
               <ActivityPicker value={draft.itemIds} onChange={(itemIds) => set({ itemIds })} />
             </Field>
 
+            {prefs.trackSleep && (
+              <div className="card tight stack" style={{ gap: 8 }}>
+                <button className="row between" style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textAlign: 'left' }} onClick={() => setSleepOpen(!sleepOpen)} aria-expanded={sleepOpen}>
+                  <span>
+                    <span className="small" style={{ fontWeight: 600 }}>
+                      Sono · {nightLabel(sleepDate).replace('Noite de ', 'noite de ')}
+                    </span>
+                    <span className="xs muted" style={{ display: 'block' }}>
+                      {sleep.hours != null || sleep.quality != null
+                        ? [sleep.hours != null ? `${String(sleep.hours).replace('.', ',')} h` : null, sleep.quality != null ? SLEEP_QUALITY[sleep.quality - 1].label.toLowerCase() : null].filter(Boolean).join(' · ') + ' — vale para o dia todo'
+                        : 'Uma vez por noite; vale para todos os registros do dia'}
+                    </span>
+                  </span>
+                  <ChevronDown size={16} style={{ transform: sleepOpen ? 'rotate(180deg)' : undefined, transition: 'transform .2s', flex: 'none' }} />
+                </button>
+                {sleepOpen && (
+                  <SleepFields
+                    value={sleep}
+                    onChange={(v) => {
+                      setSleep(v);
+                      setSleepTouched(true);
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
             <button className="btn ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(!more)} aria-expanded={more}>
               <ChevronDown size={16} style={{ transform: more ? 'rotate(180deg)' : undefined, transition: 'transform .2s' }} />
               {more ? 'Menos detalhes' : 'Contexto, anotação e mais'}
@@ -114,40 +153,6 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
 
             {more && (
               <div className="stack lg">
-                {(prefs.trackSleepHours || draft.sleepHours != null) && (
-                  <Field label="Horas de sono na noite anterior" optional help="Uma estimativa basta. Se fizer mais de um registro no dia, informe só em um.">
-                    <div className="row" style={{ gap: 8 }}>
-                      <button className="icon-btn" aria-label="Menos meia hora" onClick={() => set({ sleepHours: Math.max(0, (draft.sleepHours ?? 7.5) - 0.5) })}>
-                        −
-                      </button>
-                      <input
-                        className="input"
-                        style={{ width: 90, textAlign: 'center' }}
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        max={24}
-                        step={0.5}
-                        aria-label="Horas de sono"
-                        placeholder="—"
-                        value={draft.sleepHours ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value === '' ? null : Math.max(0, Math.min(24, Math.round(Number(e.target.value.replace(',', '.')) * 2) / 2));
-                          set({ sleepHours: v === null || Number.isNaN(v) ? null : v });
-                        }}
-                      />
-                      <button className="icon-btn" aria-label="Mais meia hora" onClick={() => set({ sleepHours: Math.min(24, (draft.sleepHours ?? 6.5) + 0.5) })}>
-                        +
-                      </button>
-                      <span className="small muted">horas</span>
-                      {draft.sleepHours != null && (
-                        <button className="btn ghost sm" onClick={() => set({ sleepHours: null })}>
-                          Limpar
-                        </button>
-                      )}
-                    </div>
-                  </Field>
-                )}
                 {prefs.enabledIndicators.map((k: IndicatorKey) => (
                   <Field key={k} label={INDICATORS[k].label} optional>
                     <LevelPicker

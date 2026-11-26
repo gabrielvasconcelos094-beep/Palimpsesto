@@ -13,6 +13,9 @@ import { ValenceMark } from '../../ui/pickers';
 import { MoodSheet } from '../journal/MoodSheet';
 import { SITUATION_TEMPLATES } from '../../domain/seed';
 import { daySeries } from '../../domain/series';
+import { SleepSheet } from '../../ui/SleepFields';
+import { SLEEP_QUALITY } from '../../domain/scales';
+import { Moon } from 'lucide-react';
 
 /**
  * Os últimos sete dias num relance: o símbolo de cada data é o resultado do
@@ -160,6 +163,8 @@ export function Today() {
         </div>
       </div>
 
+      {data.preferences.trackSleep && <NightRow day={todayKey} />}
+
       <WeekStrip now={now} />
 
       {todays.length > 0 && (
@@ -274,5 +279,28 @@ export function Today() {
         entryId={sheet.id}
       />
     </Page>
+  );
+}
+
+/** "Como foi a noite?" — a noite que terminou hoje, uma vez só. */
+function NightRow({ day }: { day: string }) {
+  const data = useData();
+  const [open, setOpen] = useState(false);
+  const log = data.sleepLogs.find((s) => s.date === day);
+  const summary = log
+    ? [log.hours != null ? `${String(log.hours).replace('.', ',')} h` : null, log.quality != null ? SLEEP_QUALITY[log.quality - 1].label.toLowerCase() : null].filter(Boolean).join(' · ')
+    : null;
+  return (
+    <>
+      <button className="list-row" style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }} onClick={() => setOpen(true)}>
+        <Moon size={18} strokeWidth={1.6} className="faint" />
+        <div className="grow">
+          <div className="title">{log ? 'Noite registrada' : 'Como foi a noite?'}</div>
+          <div className="meta">{summary || (log ? 'Toque para completar' : 'Horas, qualidade e dificuldades — uma vez por noite')}</div>
+        </div>
+        <span className="xs faint">{log ? 'Editar' : 'Registrar'}</span>
+      </button>
+      <SleepSheet open={open} date={day} onClose={() => setOpen(false)} />
+    </>
   );
 }

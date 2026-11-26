@@ -524,3 +524,36 @@ ordem importa, lacunas). `e2e/care.mjs`: pauta (adicionar, conversado, combinado
 GAD-7, PHQ-9 com aviso de segurança, histórico e mudança, plano de segurança, horas de sono
 (ajuste, registro, Trajetória), medicação, RMSSD na Evolução e o PDF da consulta (download e
 cabeçalho `%PDF`).
+
+## 13. Versão 1.7 — sono uma vez por noite (esquema 3)
+
+**Problema:** a qualidade do sono era um indicador do registro de humor (e as horas, um campo
+dele). Com vários registros no dia, a mesma noite podia ser informada — e contada — várias
+vezes, inclusive com valores diferentes.
+
+**Solução:** o sono virou uma entidade própria, `sleepLogs`, com **uma noite por data**
+(`date` = manhã em que a noite terminou). O registro de humor mostra e edita a noite da sua
+data ("Sono · noite de 25 para 26"), sem criar outra; a tela Hoje tem "Como foi a noite?";
+`store.setSleep(date, patch)` cria ou atualiza a noite daquela data e a remove se ficar vazia;
+`repairIntegrity` unifica noites repetidas na mesma data (importação/mesclagem). Migração
+2 → 3 em `src/data/migrations.ts` (ver BACKUP_FORMAT.md).
+
+**Três medidas, como no Diário de Sono Consensual (Carney et al., 2012, *Sleep*):**
+- **Duração** em horas, com a referência geral de 7–9 h para adultos (Hirshkowitz et al.,
+  2015, National Sleep Foundation) — referência, não julgamento.
+- **Qualidade** 1–5 com descrição de cada nível ancorada no quanto descansou
+  (`SLEEP_QUALITY` em `scales.ts`). As descrições **não usam horas**: duração e qualidade são
+  medidas diferentes (dá para dormir 8 h fragmentadas e acordar exausto).
+- **Dificuldades**: demorar a pegar no sono, acordar durante a noite, acordar cedo demais — os
+  três padrões de insônia que a psiquiatria pergunta (o PHQ-9 também tem um item de sono).
+
+**Trajetória → Sono:** noites informadas, mediana de horas, variação entre noites, barras
+noite a noite (com linha de 6 h), distribuição da qualidade e contagem das dificuldades (cada
+noite conta uma vez), e duas comparações descritivas do índice de humor: após noites < 6 h ×
+≥ 7 h e após noites ruins × boas (≥ 3 datas em cada grupo). CSV próprio ("Sono"), uma linha
+por noite; seção "Sono" do PDF atualizada.
+
+Testes: `tests/care.test.ts` (migração 2 → 3, noites repetidas unificadas, `setSleep` sem
+duplicar e removendo quando vazio, vários registros no dia não multiplicam a noite, qualidade
+e comparações); `e2e/care.mjs` ("Como foi a noite?" com as descrições, três registros de humor
+no mesmo dia editando a mesma noite, Trajetória → Sono).
