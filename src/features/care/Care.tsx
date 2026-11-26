@@ -10,7 +10,7 @@
  * Nada aqui envia avisos ou cobra frequência.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronRight, ClipboardList, FileText, Phone, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { ChevronRight, ClipboardList, FileText, Phone, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData, useStoreState } from '../../app/store';
 import { useSystemDark } from '../../app/theme';
@@ -35,6 +35,7 @@ import { dayKey } from '../../domain/util';
 import { deliverFile } from '../../platform/native';
 import { CONSULT_SECTIONS } from '../../report/sections';
 import { AppointmentsSection } from './Appointments';
+import { AgendaItemRow } from './AgendaItemRow';
 import { MedicationsSection } from './Medications';
 import { resolveTokens } from '../../theme/resolve';
 import { AutoText, Field, fmtDate, Page, Section, Segmented, useConfirm } from '../../ui/components';
@@ -54,13 +55,33 @@ export function CareTab() {
       <p className="small muted" style={{ marginTop: 0 }}>
         Para levar às consultas o que você observou — e para cuidar de si quando o dia pesar. Tudo opcional; lembretes só quando você pedir, por consulta.
       </p>
+      <nav className="chips jump" aria-label="Ir para">
+        {(
+          [
+            ['c-consultas', 'Consultas'],
+            ['c-pauta', 'Pauta'],
+            ['c-remedios', 'Medicamentos'],
+            ['c-questionarios', 'Questionários'],
+            ['c-plano', 'Plano de segurança'],
+            ['c-pdf', 'Resumo em PDF'],
+          ] as const
+        ).map(([id, l]) => (
+          <button key={id} className="chip" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+            {l}
+          </button>
+        ))}
+      </nav>
 
+      <div id="c-consultas" className="anchor" />
       <AppointmentsSection />
 
+      <div id="c-pauta" className="anchor" />
       <AgendaSection />
 
+      <div id="c-remedios" className="anchor" />
       <MedicationsSection />
 
+      <div id="c-questionarios" className="anchor" />
       <Section title="Questionários" kicker="Medidas padronizadas, para comparar ao longo do tempo">
         <div className="list">
           {INSTRUMENTS.map((id) => {
@@ -90,6 +111,7 @@ export function CareTab() {
         </p>
       </Section>
 
+      <div id="c-plano" className="anchor" />
       <Section title="Plano de segurança" kicker="Para momentos de crise">
         <button className="card row" onClick={() => navigate('/guia/plano')}>
           <ShieldCheck size={22} />
@@ -101,6 +123,7 @@ export function CareTab() {
         </button>
       </Section>
 
+      <div id="c-pdf" className="anchor" />
       <ConsultReport />
     </div>
   );
@@ -164,41 +187,7 @@ function AgendaSection() {
   );
 }
 
-function AgendaRow({ a }: { a: AgendaItem }) {
-  const edit = a.doneAt === dayKey(new Date());
-  return (
-    <div className="list-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 6 }}>
-      <div className="row" style={{ width: '100%', alignItems: 'flex-start' }}>
-        <button
-          className="icon-btn"
-          aria-label={a.doneAt ? 'Marcar como não conversado' : 'Marcar como conversado'}
-          aria-pressed={!!a.doneAt}
-          onClick={() => {
-            store.patch('agenda', a.id, { doneAt: a.doneAt ? null : dayKey(new Date()) });
-          }}
-          style={{ border: '1.5px solid var(--line)', width: 28, height: 28, minWidth: 28, borderRadius: 8, background: a.doneAt ? 'var(--primary-ink)' : 'transparent', color: 'var(--bg)' }}
-        >
-          {a.doneAt && <Check size={16} />}
-        </button>
-        <div className="grow">
-          <div style={{ textDecoration: a.doneAt ? 'line-through' : undefined, color: a.doneAt ? 'var(--ink-soft)' : undefined }}>{a.text}</div>
-          <div className="xs faint">
-            {FOR_WHOM[a.forWhom]} · anotado em {fmtDate(a.createdAt, { short: true })}
-            {a.doneAt ? ` · conversado em ${fmtDate(a.doneAt, { short: true })}` : ''}
-          </div>
-        </div>
-        <button className="icon-btn" aria-label="Excluir assunto" onClick={() => removeWithUndo('agenda', a.id, 'Assunto excluído.')}>
-          <Trash2 size={16} />
-        </button>
-      </div>
-      {a.doneAt && (edit || a.outcome) && (
-        <div style={{ width: '100%', paddingLeft: 40 }}>
-          <AutoText value={a.outcome} onChange={(outcome) => store.patch('agenda', a.id, { outcome })} placeholder="O que ficou combinado ou o que você quer lembrar da conversa…" minRows={1} />
-        </div>
-      )}
-    </div>
-  );
-}
+const AgendaRow = AgendaItemRow;
 
 /* ------------------------------------------------------------------------ */
 /* Resumo em PDF para a consulta                                             */

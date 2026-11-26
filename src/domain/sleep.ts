@@ -13,7 +13,7 @@
  * A duração e, sobretudo, a REGULARIDADE acompanham o humor em estudos com diários
  * (ex.: Kaufmann et al., 2016). Tudo aqui é descritivo: associação, nunca causa.
  */
-import type { MoodEntry, SleepLog, SleepTrouble } from './schema';
+import { SLEEP_FACTORS, type MoodEntry, type SleepFactor, type SleepLog, type SleepTrouble } from './schema';
 import { valenceIndex } from './valence';
 
 export const SLEEP_MIN_NIGHTS = 5;
@@ -52,6 +52,8 @@ export interface SleepSummary {
   good: Idx;
   qualityComparable: boolean;
   troubles: Record<SleepTrouble, number>;
+  /** Fatores marcados, do mais frequente ao menos; com a proporção de noites ruins com e sem o fator. */
+  factors: Array<{ factor: SleepFactor; nights: number; badWith: number | null; badWithout: number | null }>;
 }
 
 export function sleepSummary(logs: SleepLog[], entries: MoodEntry[]): SleepSummary {
@@ -66,7 +68,7 @@ export function sleepSummary(logs: SleepLog[], entries: MoodEntry[]): SleepSumma
   logs.forEach((s) => s.quality != null && quality[s.quality - 1]++);
   const bad = onDays(new Set(logs.filter((s) => s.quality != null && s.quality <= 2).map((s) => s.date)));
   const good = onDays(new Set(logs.filter((s) => s.quality != null && s.quality >= 4).map((s) => s.date)));
-  const troubles: Record<SleepTrouble, number> = { onset: 0, awakenings: 0, early: 0 };
+  const troubles: Record<SleepTrouble, number> = { onset: 0, awakenings: 0, early: 0, nightmares: 0 };
   logs.forEach((s) => s.troubles.forEach((t) => troubles[t]++));
   return {
     logged: logs.length,
@@ -82,7 +84,29 @@ export function sleepSummary(logs: SleepLog[], entries: MoodEntry[]): SleepSumma
     good,
     qualityComparable: bad.dates >= SLEEP_GROUP_MIN_DATES && good.dates >= SLEEP_GROUP_MIN_DATES,
     troubles,
+    factors: factorStats(logs),
   };
+}
+
+export const FACTOR_MIN_NIGHTS = 3;
+
+/**
+ * Para cada fator: em quantas noites apareceu e a proporção de noites ruins (qualidade
+ * 1–2) com e sem ele — só entre noites com qualidade informada e com amostra mínima
+ * dos dois lados. Associação, não causa.
+ */
+export function factorStats(logs: SleepLog[]) {
+  const rated = logs.filter((s) => s.quality != null);
+  const bad = (l: SleepLog[]) => (l.length ? l.filter((s) => (s.quality as number) <= 2).length / l.length : null);
+  return SLEEP_FACTORS.map((factor) => {
+    const nights = logs.filter((s) => (s.factors ?? []).includes(factor)).length;
+    const w = rated.filter((s) => (s.factors ?? []).includes(factor));
+    const wo = rated.filter((s) => !(s.factors ?? []).includes(factor));
+    const ok = w.length >= FACTOR_MIN_NIGHTS && wo.length >= FACTOR_MIN_NIGHTS;
+    return { factor, nights, badWith: ok ? bad(w) : null, badWithout: ok ? bad(wo) : null };
+  })
+    .filter((f) => f.nights > 0)
+    .sort((a, b) => b.nights - a.nights);
 }
 
 export const fmtHours = (h: number | null) => (h === null ? '—' : `${h.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} h`);

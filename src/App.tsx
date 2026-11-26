@@ -8,6 +8,7 @@ import { dismissToast, useToast } from './app/toast';
 import { AssessmentPage, SafetyPlanPage } from './features/care/Care';
 import { AppointmentPage } from './features/care/Appointments';
 import { MedicationPage } from './features/care/Medications';
+import { EmotionProfilePage, EmotionsListPage } from './features/guide/EmotionGuide';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
 import { setPrivacyScreen } from './platform/native';
 import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
@@ -64,6 +65,8 @@ function Screen() {
       if (b === 'plano') return <SafetyPlanPage />;
       if (b === 'consulta') return <AppointmentPage />;
       if (b === 'remedio') return <MedicationPage />;
+      if (b === 'emocoes') return <EmotionsListPage />;
+      if (b === 'emocao') return <EmotionProfilePage />;
       return <GuideHome />;
     case 'busca':
       return <SearchPage />;

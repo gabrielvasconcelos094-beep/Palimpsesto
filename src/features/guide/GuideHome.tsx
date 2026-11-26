@@ -1,4 +1,4 @@
-import { LifeBuoy, Plus } from 'lucide-react';
+import { ChevronRight, Heart, LifeBuoy, Plus } from 'lucide-react';
 import { navigate, setQuery, useRoute } from '../../app/router';
 import { Page, Segmented } from '../../ui/components';
 import { openHardDay } from '../today/Today';
@@ -40,6 +40,16 @@ export function GuideHome() {
           { value: 'acompanhamento', label: 'Consultas' },
         ]}
       />
+      {tab === 'repertorio' && (
+        <button className="card row" style={{ marginTop: 16 }} onClick={() => navigate('/guia/emocoes')}>
+          <Heart size={20} />
+          <div className="grow">
+            <div className="h3">Minhas emoções</div>
+            <div className="small muted">Como cada uma aparece em você, o que vem junto e o que ajuda a lidar com ela.</div>
+          </div>
+          <ChevronRight className="chev" size={18} />
+        </button>
+      )}
       {tab === 'repertorio' && <RepertoireTab />}
       {tab === 'situacoes' && <SituationsTab />}
       {tab === 'cartas' && <LettersTab />}

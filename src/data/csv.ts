@@ -2,7 +2,7 @@
  * Exportação CSV (separador ";" e BOM UTF-8, compatível com planilhas em pt-BR).
  */
 import type { AppData } from '../domain/schema';
-import { INDICATORS, energyLabel, valenceLabel, OUTCOME_LABELS, SLEEP_QUALITY } from '../domain/scales';
+import { INDICATORS, energyLabel, valenceLabel, OUTCOME_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY } from '../domain/scales';
 import { INDICATOR_KEYS } from '../domain/schema';
 
 const SEP = ';';
@@ -141,7 +141,7 @@ export function eventsCsv(data: AppData): string {
 
 /** Uma linha por noite (pela manhã em que terminou). */
 export function sleepCsv(data: AppData, from?: string): string {
-  const header = ['data_manha', 'noite_de', 'horas', 'qualidade_1a5', 'qualidade_rotulo', 'demorou_a_dormir', 'acordou_durante_a_noite', 'acordou_cedo_demais', 'observacoes'];
+  const header = ['data_manha', 'noite_de', 'horas', 'qualidade_1a5', 'qualidade_rotulo', 'demorou_a_dormir', 'acordou_durante_a_noite', 'acordou_cedo_demais', 'pesadelos', 'o_que_atrapalhou', 'observacoes'];
   const prev = (d: string) => {
     const x = new Date(d + 'T12:00:00');
     x.setDate(x.getDate() - 1);
@@ -159,6 +159,8 @@ export function sleepCsv(data: AppData, from?: string): string {
       s.troubles.includes('onset') ? 'sim' : '',
       s.troubles.includes('awakenings') ? 'sim' : '',
       s.troubles.includes('early') ? 'sim' : '',
+      s.troubles.includes('nightmares') ? 'sim' : '',
+      (s.factors ?? []).map((f) => SLEEP_FACTOR_LABELS[f]).join(', '),
       s.note,
     ]);
   return toCsv([header, ...rows]);

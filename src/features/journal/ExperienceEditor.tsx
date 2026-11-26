@@ -11,6 +11,10 @@ import { composeAt } from '../../domain/util';
 import { RecordMeta } from './MoodSheet';
 import { EmotionPicker, TagInput, ValencePicker } from '../../ui/pickers';
 import { useAutosave } from '../../ui/useAutosave';
+import { PercentSlider } from '../../ui/PercentSlider';
+import { DISTORTION_LABELS } from '../../domain/scales';
+import { DISTORTIONS } from '../../domain/schema';
+import { ChevronDown } from 'lucide-react';
 
 type Draft = Omit<Experience, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -43,12 +47,21 @@ export function ExperienceEditor() {
           learned: '',
           tags: [],
           situationId: route.query.get('situacao'),
+          intensityBefore: null,
+          thoughts: '',
+          beliefBefore: null,
+          distortions: [],
+          evidenceFor: '',
+          evidenceAgainst: '',
+          alternativeThought: '',
+          beliefAfter: null,
+          intensityAfter: null,
         },
   );
   const [linkOpen, setLinkOpen] = useState(false);
   const { ask, node } = useConfirm();
   const meaningful = (d: Draft) =>
-    !!(d.title.trim() || d.whatHappened.trim() || d.learned.trim() || d.whatHelped.trim() || d.whatIDid.trim() || d.feelingBefore !== null || d.emotionIds.length);
+    !!(d.title.trim() || d.whatHappened.trim() || d.learned.trim() || d.whatHelped.trim() || d.whatIDid.trim() || d.thoughts.trim() || d.feelingBefore !== null || d.emotionIds.length);
   const auto = useAutosave('experiences', draft, {
     initialId: existing?.id ?? null,
     meaningful,
@@ -128,7 +141,11 @@ export function ExperienceEditor() {
         </Field>
         <Field label="Emoções que apareceram" optional>
           <EmotionPicker value={draft.emotionIds} onChange={(emotionIds) => set({ emotionIds })} />
+          <div style={{ marginTop: 10 }}>
+            <PercentSlider label="Intensidade da emoção mais forte" low="fraca" high="a mais forte possível" value={draft.intensityBefore} onChange={(intensityBefore) => set({ intensityBefore })} />
+          </div>
         </Field>
+        <ThoughtRecord draft={draft} set={set} />
         {fields.map(([k, label, ph]) => (
           <Field key={k} label={label} optional>
             <AutoText value={draft[k] as string} onChange={(v) => set({ [k]: v } as any)} placeholder={ph} minRows={2} />
@@ -175,6 +192,11 @@ export function ExperienceEditor() {
 
         <Field label="Como você se sentiu depois?" optional>
           <ValencePicker value={draft.feelingAfter} onChange={(feelingAfter) => set({ feelingAfter: draft.feelingAfter === feelingAfter ? null : feelingAfter })} />
+          {draft.intensityBefore != null && (
+            <div style={{ margin: '10px 0' }}>
+              <PercentSlider label="Intensidade daquela emoção agora" low="fraca" high="a mais forte possível" value={draft.intensityAfter} onChange={(intensityAfter) => set({ intensityAfter })} />
+            </div>
+          )}
           <AutoText value={draft.howIFeltAfter} onChange={(howIFeltAfter) => set({ howIFeltAfter })} placeholder="Em palavras, se quiser" minRows={2} />
         </Field>
         <Field label="O que você aprendeu com essa experiência?" optional>
@@ -262,5 +284,73 @@ export function LinkSheet(props: { open: boolean; onClose: () => void; onPick: (
         </div>
       </div>
     </Sheet>
+  );
+}
+
+/**
+ * Registro de Pensamentos, adaptado do RPD (Registro de Pensamentos Disfuncionais,
+ * Beck): o que passou pela cabeça, quanto você acreditou, armadilhas de pensamento
+ * e — se quiser — examinar o pensamento e construir um mais equilibrado.
+ * Tudo opcional; não substitui o trabalho feito com a(o) psicóloga(o).
+ */
+function ThoughtRecord({ draft, set }: { draft: Draft; set: (p: Partial<Draft>) => void }) {
+  const examined = !!(draft.evidenceFor || draft.evidenceAgainst || draft.alternativeThought || draft.beliefAfter != null);
+  const [open, setOpen] = useState(examined);
+  const [showTraps, setShowTraps] = useState(draft.distortions.length > 0);
+  return (
+    <div className="card stack lg" style={{ borderLeft: '3px solid var(--comp1-ink)' }}>
+      <div>
+        <p className="kicker" style={{ margin: 0 }}>
+          Registro de pensamentos
+        </p>
+        <p className="xs muted" style={{ margin: '2px 0 0' }}>
+          Adaptado do RPD, usado na terapia cognitivo-comportamental. Opcional.
+        </p>
+      </div>
+      <Field label="O que passou pela sua cabeça?" optional help="Pensamentos ou imagens que vieram no momento, do jeito que vieram. Ex.: “vão achar que sou incompetente”.">
+        <AutoText value={draft.thoughts} onChange={(thoughts) => set({ thoughts })} placeholder="Pensei que…" minRows={2} />
+      </Field>
+      {draft.thoughts.trim() && (
+        <>
+          <PercentSlider label="Quanto você acreditou nesse pensamento?" value={draft.beliefBefore} onChange={(beliefBefore) => set({ beliefBefore })} />
+          <div className="stack" style={{ gap: 6 }}>
+            <button className="btn ghost sm" style={{ alignSelf: 'flex-start', paddingLeft: 0 }} onClick={() => setShowTraps(!showTraps)} aria-expanded={showTraps}>
+              <ChevronDown size={14} style={{ transform: showTraps ? 'rotate(180deg)' : undefined }} /> Reconhece alguma armadilha de pensamento?
+              {draft.distortions.length ? ` (${draft.distortions.length})` : ''}
+            </button>
+            {showTraps && (
+              <div className="trap-list" role="group" aria-label="Armadilhas de pensamento">
+                {DISTORTIONS.map((d) => {
+                  const on = draft.distortions.includes(d);
+                  return (
+                    <button key={d} aria-pressed={on} onClick={() => set({ distortions: on ? draft.distortions.filter((x) => x !== d) : [...draft.distortions, d] })}>
+                      <strong>{DISTORTION_LABELS[d].label}</strong>
+                      <span>{DISTORTION_LABELS[d].hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <button className="btn secondary sm" style={{ alignSelf: 'flex-start' }} onClick={() => setOpen(!open)} aria-expanded={open}>
+            <ChevronDown size={14} style={{ transform: open ? 'rotate(180deg)' : undefined }} /> Examinar o pensamento
+          </button>
+          {open && (
+            <div className="stack lg">
+              <Field label="O que apoia esse pensamento?" optional help="Fatos, não impressões.">
+                <AutoText value={draft.evidenceFor} onChange={(evidenceFor) => set({ evidenceFor })} minRows={2} />
+              </Field>
+              <Field label="O que não combina com ele?" optional help="Outros fatos, outras vezes em que foi diferente, o que você diria a um amigo.">
+                <AutoText value={draft.evidenceAgainst} onChange={(evidenceAgainst) => set({ evidenceAgainst })} minRows={2} />
+              </Field>
+              <Field label="Um pensamento mais equilibrado" optional help="Não precisa ser positivo — só mais justo com os fatos.">
+                <AutoText value={draft.alternativeThought} onChange={(alternativeThought) => set({ alternativeThought })} minRows={2} />
+              </Field>
+              <PercentSlider label="Agora, quanto acredita no pensamento original?" value={draft.beliefAfter} onChange={(beliefAfter) => set({ beliefAfter })} />
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

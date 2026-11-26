@@ -23,6 +23,9 @@ import { fmtIndex } from '../../domain/valence';
 import { deliverFile } from '../../platform/native';
 import { cancelReminder, notificationPermission, syncReminder } from '../../platform/reminders';
 import { CONSULT_SECTIONS } from '../../report/sections';
+import { useTrajPeriod } from '../../app/filters';
+import { AgendaItemRow } from './AgendaItemRow';
+import { Trash2 } from 'lucide-react';
 import { resolveTokens } from '../../theme/resolve';
 import { AutoText, Field, fmtDate, Page, Section, Segmented, Toggle, useConfirm } from '../../ui/components';
 
@@ -215,10 +218,15 @@ function AppointmentDetail({ a }: { a: Appointment }) {
   const [nextAt, setNextAt] = useState<Date | null>(null);
   const patch = (p: Partial<Appointment>) => store.patch('appointments', a.id, p);
   const prev = lastDone(data.appointments, a.date, a.forWhom);
-  const from = prev?.date ?? dayKey(periodPreset('30d').from);
+  const defaultFrom = prev?.date ?? dayKey(periodPreset('30d').from);
+  const [fromSel, setFromSel] = useState<string | null>(null);
+  const from = fromSel ?? defaultFrom;
   const to = a.status === 'done' ? a.date : today < a.date ? today : a.date;
   const sum = useMemo(() => sinceSummary(data, from, to), [data, from, to]);
-  const pauta = agendaFor(data.agenda, a);
+  const [, setTrajPeriod] = useTrajPeriod();
+  // Pauta desta consulta: os em aberto do mesmo tipo + os já conversados NESTA consulta (riscados).
+  const open = agendaFor(data.agenda, a);
+  const pauta = [...open, ...data.agenda.filter((x) => x.appointmentId === a.id && x.doneAt && !open.includes(x))];
   const [newTopic, setNewTopic] = useState('');
 
   // O lembrete acompanha data, horário, antecedência, status e o texto.
@@ -242,7 +250,7 @@ function AppointmentDetail({ a }: { a: Appointment }) {
   const markDone = async () => {
     patch({ status: 'done' });
     setTab('depois');
-    if (pauta.length) toast(`Marque na pauta o que foi conversado (${pauta.length} assunto(s)).`, 4000);
+    if (open.length) toast(`Marque na pauta o que foi conversado (${open.length} assunto(s)).`, 4000);
   };
 
   const report = async () => {
@@ -268,6 +276,21 @@ function AppointmentDetail({ a }: { a: Appointment }) {
       title={`${PROFESSION_LABELS[a.forWhom]}${a.professional ? ` · ${a.professional}` : ''}`}
       subtitle={`${apptLabel(a)}${a.place ? ` · ${a.place}` : ''}`}
       ghost="consulta"
+      actions={
+        <button
+          className="icon-btn"
+          aria-label="Excluir consulta"
+          onClick={async () => {
+            if (await ask({ title: 'Excluir esta consulta?', body: 'As anotações dela também serão excluídas (dá para desfazer logo em seguida). Os assuntos da pauta continuam.', confirm: 'Excluir', danger: true })) {
+              await cancelReminder(a.id);
+              removeWithUndo('appointments', a.id, 'Consulta excluída.');
+              goBack('/guia?t=acompanhamento');
+            }
+          }}
+        >
+          <Trash2 size={19} />
+        </button>
+      }
     >
       <div className="stack lg">
         {/* Status */}
@@ -337,9 +360,27 @@ function AppointmentDetail({ a }: { a: Appointment }) {
 
         {tab === 'antes' ? (
           <>
-            <div className="card tight soft small">
+            {prev && (prev.agreements.trim() || prev.observations.trim()) && (
+              <div className="card tight small" style={{ borderLeft: '3px solid var(--comp1-ink)' }}>
+                <strong>Da última consulta ({fmtDate(prev.date, { short: true })})</strong>
+                {prev.agreements.trim() && <p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>Combinados: {prev.agreements}</p>}
+                {prev.observations.trim() && <p className="muted" style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>Observado: {prev.observations}</p>}
+              </div>
+            )}
+            <div className="card tight soft small stack" style={{ gap: 8 }}>
+              <div className="row wrap" style={{ gap: 6 }}>
+                <span>Período:</span>
+                <input type="date" className="input" style={{ width: 160, minHeight: 32, padding: '2px 8px' }} aria-label="Início do período" value={from} max={to} onChange={(e) => e.target.value && setFromSel(e.target.value)} />
+                <span>a {fmtDate(to, { short: true })}</span>
+                {fromSel && fromSel !== defaultFrom && (
+                  <button className="btn ghost sm" onClick={() => setFromSel(null)}>
+                    {prev ? 'desde a última consulta' : 'últimos 30 dias'}
+                  </button>
+                )}
+              </div>
+              <div>
               <strong>
-                {prev ? `Desde a última consulta (${fmtDate(prev.date, { short: true })})` : 'Nos últimos 30 dias'}
+                {fromSel ? 'No período escolhido' : prev ? `Desde a última consulta (${fmtDate(prev.date, { short: true })})` : 'Nos últimos 30 dias'}
                 {to < a.date ? ' até hoje' : ''}:
               </strong>{' '}
               {sum.records ? `${sum.records} registro(s) de humor em ${sum.dates} data(s), índice ${fmtIndex(sum.index)}` : 'nenhum registro de humor'}
@@ -348,18 +389,30 @@ function AppointmentDetail({ a }: { a: Appointment }) {
               {sum.gad7 ? ` · GAD-7 ${sum.gad7.score}` : ''}
               {sum.medChanges ? ` · ${sum.medChanges} mudança(s) de medicação` : ''}
               {sum.events ? ` · ${sum.events} acontecimento(s)` : ''}.
+              </div>
+              <button
+                className="btn ghost sm"
+                style={{ alignSelf: 'flex-start', paddingLeft: 0 }}
+                onClick={() => {
+                  setTrajPeriod({ kind: 'custom', from, to, compare: false });
+                  navigate('/trajetoria');
+                }}
+              >
+                Ver este período na Trajetória
+              </button>
             </div>
             <Field label="Como estive desde a última consulta" optional help="Em poucas linhas, nas suas palavras. Os números acima ajudam a lembrar.">
               <AutoText value={a.sinceLast} onChange={(sinceLast) => patch({ sinceLast })} placeholder="Ex.: semana boa até quinta; depois voltou a insônia…" minRows={3} />
             </Field>
             <Field label="Assuntos que quero levar" optional help={`Da pauta geral, os que valem para ${PROFESSION_LABELS[a.forWhom].toLowerCase()}.`}>
               <div className="stack" style={{ gap: 6 }}>
-                {pauta.map((x) => (
-                  <label key={x.id} className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-                    <input type="checkbox" checked={false} onChange={() => store.patch('agenda', x.id, { doneAt: today })} aria-label={`Conversado: ${x.text}`} style={{ marginTop: 4 }} />
-                    <span>{x.text}</span>
-                  </label>
-                ))}
+                {pauta.length > 0 && (
+                  <div className="list">
+                    {pauta.map((x) => (
+                      <AgendaItemRow key={x.id} a={x} appointment={a} />
+                    ))}
+                  </div>
+                )}
                 {!pauta.length && <span className="small faint">Nenhum assunto em aberto.</span>}
                 <div className="row" style={{ gap: 6 }}>
                   <input className="input grow" value={newTopic} placeholder="Novo assunto…" onChange={(e) => setNewTopic(e.target.value)} />
@@ -411,13 +464,10 @@ function AppointmentDetail({ a }: { a: Appointment }) {
               <AutoText value={a.agreements} onChange={(agreements) => patch({ agreements })} placeholder="Ex.: registrar os pensamentos antes de dormir; caminhar 3x na semana" minRows={3} />
             </Field>
             {pauta.length > 0 && (
-              <Field label="Da pauta, o que foi conversado?" optional>
-                <div className="stack" style={{ gap: 6 }}>
+              <Field label="Da pauta, o que foi conversado?" optional help="Marcados ficam riscados, com o que ficou acertado.">
+                <div className="list">
                   {pauta.map((x) => (
-                    <label key={x.id} className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-                      <input type="checkbox" checked={false} onChange={() => store.patch('agenda', x.id, { doneAt: a.date <= today ? a.date : today })} aria-label={`Conversado: ${x.text}`} style={{ marginTop: 4 }} />
-                      <span>{x.text}</span>
-                    </label>
+                    <AgendaItemRow key={x.id} a={x} appointment={a} />
                   ))}
                 </div>
               </Field>

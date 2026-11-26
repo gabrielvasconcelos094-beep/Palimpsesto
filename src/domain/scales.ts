@@ -119,8 +119,48 @@ export const SLEEP_QUALITY = [
   { label: 'Muito boa', hint: 'Sono profundo e reparador; acordei descansado(a).' },
 ] as const;
 
-export const SLEEP_TROUBLE_LABELS: Record<'onset' | 'awakenings' | 'early', string> = {
+export const SLEEP_TROUBLE_LABELS: Record<'onset' | 'awakenings' | 'early' | 'nightmares', string> = {
   onset: 'Demorei a pegar no sono',
   awakenings: 'Acordei durante a noite',
   early: 'Acordei cedo demais',
+  nightmares: 'Tive pesadelos',
+};
+
+/**
+ * O que pode ter atrapalhado o sono — fatores comuns na avaliação de insônia
+ * (higiene do sono e TCC-I). Servem para cruzar com a qualidade depois.
+ */
+export const SLEEP_FACTOR_LABELS: Record<'worry' | 'anxiety' | 'sadness' | 'pain' | 'environment' | 'screens' | 'caffeine' | 'alcohol' | 'late' | 'nap' | 'obligation' | 'care' | 'medication', string> = {
+  worry: 'Pensamentos acelerados / preocupação',
+  anxiety: 'Ansiedade',
+  sadness: 'Tristeza',
+  pain: 'Dor ou desconforto',
+  environment: 'Barulho, luz ou temperatura',
+  screens: 'Telas até tarde',
+  caffeine: 'Cafeína à tarde/noite',
+  alcohol: 'Álcool',
+  late: 'Dormi mais tarde que o costume',
+  nap: 'Cochilo durante o dia',
+  obligation: 'Precisei acordar cedo',
+  care: 'Cuidar de alguém (filho, pet…)',
+  medication: 'Efeito de remédio',
+};
+
+/** Armadilhas de pensamento (distorções cognitivas, Beck e Burns), em linguagem simples. */
+export const DISTORTION_LABELS: Record<
+  'catastrofizacao' | 'tudo_ou_nada' | 'leitura_mental' | 'adivinhacao' | 'generalizacao' | 'filtro_negativo' | 'desqualificar_positivo' | 'raciocinio_emocional' | 'deverias' | 'rotulacao' | 'personalizacao' | 'comparacao',
+  { label: string; hint: string }
+> = {
+  catastrofizacao: { label: 'Catastrofização', hint: 'Imaginar o pior desfecho como o mais provável.' },
+  tudo_ou_nada: { label: 'Tudo ou nada', hint: 'Ver em extremos: perfeito ou fracasso, sem meio-termo.' },
+  leitura_mental: { label: 'Leitura mental', hint: 'Ter certeza do que os outros estão pensando.' },
+  adivinhacao: { label: 'Adivinhar o futuro', hint: 'Prever que vai dar errado, como se fosse fato.' },
+  generalizacao: { label: 'Generalização', hint: '“Sempre”, “nunca”, “todo mundo” a partir de um caso.' },
+  filtro_negativo: { label: 'Filtro negativo', hint: 'Enxergar só o que deu errado.' },
+  desqualificar_positivo: { label: 'Desqualificar o positivo', hint: '“Não conta”, “foi sorte”.' },
+  raciocinio_emocional: { label: 'Raciocínio emocional', hint: '“Sinto, logo é verdade.”' },
+  deverias: { label: '“Deveria” / “tenho que”', hint: 'Regras rígidas sobre si ou os outros.' },
+  rotulacao: { label: 'Rotulação', hint: '“Sou um fracasso” em vez de “errei nisso”.' },
+  personalizacao: { label: 'Personalização', hint: 'Tomar para si a culpa pelo que não depende de você.' },
+  comparacao: { label: 'Comparação', hint: 'Medir-se pelos outros, sempre em desvantagem.' },
 };

@@ -82,7 +82,7 @@ export function searchAll(data: AppData, query: string, opts: SearchOptions = {}
     );
   }
   for (const x of data.experiences) {
-    const body = [x.whatHappened, x.whatIDid, x.whatHelped, x.whatWorsened, x.howIFeltAfter, x.learned].filter(Boolean).join(' — ');
+    const body = [x.whatHappened, x.thoughts, x.alternativeThought, x.whatIDid, x.whatHelped, x.whatWorsened, x.howIFeltAfter, x.learned].filter(Boolean).join(' — ');
     consider('experience', { id: x.id, title: x.title || 'Experiência', snippet: snippet(body, words), day: x.at.slice(0, 10), route: `/diario/experiencia/${x.id}` }, [
       x.title,
       body,
@@ -127,7 +127,7 @@ export function searchAll(data: AppData, query: string, opts: SearchOptions = {}
     consider('situation', { id: s.id, title: s.title, snippet: snippet(s.description, words), day: s.date, route: `/guia/situacao/${s.id}` }, [s.title, s.description, ...s.tags, ...s.checklist.map((c) => c.text)]);
   for (const e of data.emotions) {
     const n = data.moodEntries.filter((m) => m.emotionIds.includes(e.id)).length;
-    consider('emotion', { id: e.id, title: e.label, snippet: `${n} registro(s) de humor com esta emoção`, day: null, route: `/diario?emocao=${e.id}` }, [e.label]);
+    consider('emotion', { id: e.id, title: e.label, snippet: `${n} registro(s) de humor com esta emoção`, day: null, route: `/guia/emocao/${e.id}` }, [e.label, e.signals, e.helps, e.worsens]);
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, opts.limit ?? 200);
 }

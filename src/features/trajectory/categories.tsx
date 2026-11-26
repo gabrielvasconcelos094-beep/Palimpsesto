@@ -3,9 +3,14 @@
  * qual unidade de análise usou e quantos registros sustentam o resultado.
  */
 import { useMemo, useState, type ReactNode } from 'react';
-import { Activity, BatteryLow, CalendarDays, ChartLine, Clock, Flag, GitCompareArrows, Heart, Layers3, Moon, Repeat2 } from 'lucide-react';
-import { fmtHours, sleepSummary, nights as sleepNights, SLEEP_GROUP_MIN_DATES, SLEEP_MIN_NIGHTS } from '../../domain/sleep';
-import { SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../../domain/scales';
+import { Activity, BatteryLow, Brain, CalendarDays, ChartLine, Clock, Flag, GitCompareArrows, Heart, Layers3, Moon, Repeat2 } from 'lucide-react';
+import { FACTOR_MIN_NIGHTS, fmtHours, sleepSummary, nights as sleepNights, SLEEP_GROUP_MIN_DATES, SLEEP_MIN_NIGHTS } from '../../domain/sleep';
+import { DISTORTION_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../../domain/scales';
+import { dayResults, seasonsAll, seasonsRows, SEASON_LABELS, weeksOfYear, yearsRows } from '../../domain/calendar';
+import type { Distortion } from '../../domain/schema';
+import { store } from '../../app/store';
+import { medChanges, PROFESSION_LABELS } from '../../domain/care';
+import { ValenceMark } from '../../ui/pickers';
 import { OscillationPanel } from './Oscillations';
 import { navigate, useRoute } from '../../app/router';
 import { setSharedFilters, NO_FILTERS } from '../../app/filters';
@@ -59,10 +64,11 @@ export const CATEGORIES = [
   { id: 'energia', title: 'Energia e disposição', question: 'Como sua energia varia e o que a acompanha?', icon: BatteryLow },
   { id: 'sono', title: 'Sono', question: 'Quanto e com que regularidade você dormiu — e o que acompanhou isso?', icon: Moon },
   { id: 'atividades', title: 'Atividades e estratégias', question: 'O que você fez e como avaliou o que tentou?', icon: Activity },
+  { id: 'pensamentos', title: 'Pensamentos', question: 'O que passa pela cabeça nas experiências — e como você tem examinado isso?', icon: Brain },
   { id: 'evolucao', title: 'Evolução e comparação', question: 'Como as coisas mudaram ao longo do tempo?', icon: GitCompareArrows },
   { id: 'linha', title: 'Linha do tempo', question: 'O que estava acontecendo em cada período?', icon: Flag },
   { id: 'contextos', title: 'Padrões por contexto', question: 'Que marcadores aparecem associados a quê?', icon: Layers3 },
-  { id: 'calendario', title: 'Calendário emocional', question: 'Um mês de cada vez.', icon: CalendarDays },
+  { id: 'calendario', title: 'Calendário emocional', question: 'Mês a mês, o ano dia a dia, semanas, estações e anos.', icon: CalendarDays },
   { id: 'regularidade', title: 'Regularidade dos registros', question: 'Quando você costuma registrar (só descritivo).', icon: Repeat2 },
 ] as const;
 
@@ -124,8 +130,8 @@ export function TrajectoryCategory() {
   const Body = BODIES[cat.id];
   return (
     <Page back="/trajetoria" noNav kicker="Trajetória" title={cat.title} subtitle={cat.question} ghost={cat.title.split(' ')[0].toLowerCase()}>
-      <PeriodBar />
-      <div style={{ marginTop: 8 }}>{t.entries.length === 0 && cat.id !== 'linha' && cat.id !== 'atividades' ? <Empty title="Sem registros neste recorte">Escolha outro período ou ajuste os filtros.</Empty> : <Body />}</div>
+      {cat.id !== 'calendario' && <PeriodBar />}
+      <div style={{ marginTop: 8 }}>{t.entries.length === 0 && cat.id !== 'linha' && cat.id !== 'atividades' && cat.id !== 'calendario' && cat.id !== 'pensamentos' ? <Empty title="Sem registros neste recorte">Escolha outro período ou ajuste os filtros.</Empty> : <Body />}</div>
     </Page>
   );
 }
@@ -314,6 +320,14 @@ function EmotionsBody() {
         <div className="card">
           <Bars rows={counts.slice(0, 10).map((c) => ({ label: emo.get(c.id) ?? '?', value: c.count, note: `${c.count} · ${pct(c.share)}` }))} />
           <Note>Em quantos dos {t.entries.length} registros cada emoção apareceu ({withEmo} registros têm ao menos uma emoção).</Note>
+          <div className="chips" style={{ marginTop: 10 }}>
+            {counts.slice(0, 8).map((c) => (
+              <button key={c.id} className="chip" onClick={() => navigate(`/guia/emocao/${c.id}`)}>
+                {emo.get(c.id)} →
+              </button>
+            ))}
+          </div>
+          <Note>Toque numa emoção para ver como ela aparece em você e o que ajuda a lidar com ela.</Note>
         </div>
       </Section>
       <Section title="Menos frequentes">
@@ -879,11 +893,33 @@ function TimelineBody() {
   const t = useTrajectory();
   const labels = t.data.preferences.valenceLabels;
   const events = [...t.events].sort((a, b) => b.date.localeCompare(a.date));
+  const meds = medChanges(t.data.medications, t.range.from, t.range.to).reverse();
+  const visits = t.data.appointments.filter((a) => a.status === 'done' && a.date >= t.range.from && a.date <= t.range.to).sort((a, b) => b.date.localeCompare(a.date));
   return (
     <>
       <p className="small muted">
         Acontecimentos do período, com os registros de humor feitos enquanto eles aconteciam. Estar no mesmo período não significa que um causou o outro.
       </p>
+      {(meds.length > 0 || visits.length > 0) && (
+        <Section title="Consultas e medicação no período">
+          <div className="list">
+            {[...meds.map((c) => ({ date: c.date, key: `m${c.date}${c.med.id}${c.kind}`, title: `${c.med.name}: ${c.kind === 'start' ? 'início' : c.kind === 'dose' ? 'nova dose' : 'suspenso'}`, meta: c.text, to: `/guia/remedio/${c.med.id}` })),
+              ...visits.map((v) => ({ date: v.date, key: v.id, title: `Consulta · ${PROFESSION_LABELS[v.forWhom]}${v.professional ? ` · ${v.professional}` : ''}`, meta: v.agreements ? `Combinados: ${v.agreements}` : '', to: `/guia/consulta/${v.id}` }))]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map((r) => (
+                <button key={r.key} className="list-row" onClick={() => navigate(r.to)}>
+                  <div className="grow">
+                    <div className="title">{r.title}</div>
+                    <div className="meta">
+                      {fmtDate(r.date, { withYear: true })}
+                      {r.meta ? ` · ${r.meta.slice(0, 120)}` : ''}
+                    </div>
+                  </div>
+                </button>
+              ))}
+          </div>
+        </Section>
+      )}
       {events.length === 0 ? (
         <Empty
           title="Nenhum acontecimento neste período"
@@ -969,9 +1005,317 @@ function ContextsBody() {
   );
 }
 
+/**
+ * Calendário emocional: não usa o período nem os filtros da Trajetória (eles não
+ * fazem sentido num calendário que se navega mês a mês). Em vez disso, cinco visões.
+ */
 function CalendarBody() {
   const t = useTrajectory();
-  return <CalendarView entries={t.entries} events={t.events} experiences={t.experiences} onOpen={(id) => navigate(`/diario?registro=${id}`)} />;
+  const data = t.data;
+  const all = data.moodEntries;
+  const [view, setView] = useState<'mes' | 'ano' | 'semanas' | 'estacoes' | 'anos'>('mes');
+  const [year, setYear] = useState(new Date().getFullYear());
+  const firstYear = all.length ? Number([...all].sort((a, b) => a.at.localeCompare(b.at))[0].at.slice(0, 4)) : year;
+  const thisYear = new Date().getFullYear();
+  const yearNav = (
+    <div className="row between" style={{ marginBottom: 10 }}>
+      <button className="icon-btn" aria-label="Ano anterior" disabled={year <= firstYear} onClick={() => setYear(year - 1)}>
+        ‹
+      </button>
+      <div className="h3">{year}</div>
+      <button className="icon-btn" aria-label="Próximo ano" disabled={year >= thisYear} onClick={() => setYear(year + 1)}>
+        ›
+      </button>
+    </div>
+  );
+  return (
+    <>
+      <div className="chips" role="group" aria-label="Visão do calendário">
+        {(
+          [
+            ['mes', 'Mês'],
+            ['ano', 'Ano dia a dia'],
+            ['semanas', 'Semanas'],
+            ['estacoes', 'Estações'],
+            ['anos', 'Anos'],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} className="chip" aria-pressed={view === k} onClick={() => setView(k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {all.length === 0 ? (
+        <div style={{ marginTop: 16 }}>
+          <Empty title="Nenhum registro de humor ainda">O calendário se preenche com os seus registros — inclusive os de dias anteriores.</Empty>
+        </div>
+      ) : view === 'mes' ? (
+        <CalendarView entries={all} events={data.events} experiences={data.experiences} onOpen={(id) => navigate(`/diario?registro=${id}`)} />
+      ) : view === 'ano' ? (
+        <Section title="O ano dia a dia">
+          {yearNav}
+          <YearPixels entries={all} year={year} />
+        </Section>
+      ) : view === 'semanas' ? (
+        <Section title="Semana a semana">
+          {yearNav}
+          <WeeksList entries={all} year={year} />
+        </Section>
+      ) : view === 'estacoes' ? (
+        <SeasonsView entries={all} />
+      ) : (
+        <YearsView entries={all} />
+      )}
+    </>
+  );
+}
+
+function YearPixels({ entries, year }: { entries: MoodEntry[]; year: number }) {
+  const labels = useTrajectory().data.preferences.valenceLabels;
+  const res = useMemo(() => dayResults(entries.filter((m) => m.at.startsWith(String(year)))), [entries, year]);
+  const today = dayKeyOf(new Date());
+  const n = res.size;
+  return (
+    <div className="card stack">
+      <div className="pixels" role="grid" aria-label={`Humor de cada dia em ${year}`}>
+        <div className="px-row" aria-hidden>
+          <span className="px-m" />
+          {Array.from({ length: 31 }, (_, d) => (
+            <span key={d} className="px-h">
+              {(d + 1) % 5 === 0 || d === 0 ? d + 1 : ''}
+            </span>
+          ))}
+        </div>
+        {MONTHS_SHORT.map((mName, m) => {
+          const days = new Date(year, m + 1, 0).getDate();
+          return (
+            <div key={m} className="px-row" role="row">
+              <span className="px-m">{mName}</span>
+              {Array.from({ length: 31 }, (_, d) => {
+                if (d >= days) return <span key={d} className="px none" aria-hidden />;
+                const k = `${year}-${String(m + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
+                const r = res.get(k);
+                return r ? (
+                  <button
+                    key={d}
+                    role="gridcell"
+                    className="px"
+                    style={{ background: `var(--mood-${r.result + 3})` }}
+                    aria-label={`${d + 1} de ${mName}: ${valenceLabel(r.result, labels)}${r.n > 1 ? ` (${r.n} registros)` : ''}`}
+                    onClick={() => navigate(`/diario?de=${k}&ate=${k}`)}
+                  />
+                ) : (
+                  <span key={d} role="gridcell" className={`px empty${k > today ? ' future' : ''}`} aria-label={`${d + 1} de ${mName}: sem registro`} />
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      <div className="chart-legend">
+        {[-2, -1, 0, 1, 2].map((v) => (
+          <span key={v}>
+            <span className="dot xs" style={{ background: `var(--mood-${v + 3})` }} />
+            {valenceLabel(v, labels)}
+          </span>
+        ))}
+      </div>
+      <Note>
+        {n} dia(s) com registro em {year}. Cada quadrado é o resultado do dia (a média dos registros arredondada ao nível mais próximo). Dias vazios ficam vazios — não contam como neutros. Toque
+        num dia para ver os registros.
+      </Note>
+    </div>
+  );
+}
+
+function WeeksList({ entries, year }: { entries: MoodEntry[]; year: number }) {
+  const ws = useTrajectory().data.preferences.weekStartsOn;
+  const labels = useTrajectory().data.preferences.valenceLabels;
+  const rows = useMemo(() => weeksOfYear(entries, year, ws).reverse(), [entries, year, ws]);
+  if (!rows.length) return <p className="small muted">Nenhuma semana neste ano até hoje.</p>;
+  return (
+    <div className="card stack" style={{ gap: 0 }}>
+      {rows.map((w) => (
+        <button key={w.key} className="week-row" disabled={!w.records} onClick={() => navigate(`/diario?de=${w.from}&ate=${w.to}`)} aria-label={`Semana de ${fmtDate(w.from, { short: true })}: ${w.result === null ? 'sem registros' : `${valenceLabel(w.result, labels)}, índice ${fmtIndex(w.index)}`}`}>
+          <span className="small" style={{ width: 120 }}>
+            {fmtDate(w.from, { short: true })} – {fmtDate(w.to, { short: true })}
+          </span>
+          <span style={{ width: 28, display: 'inline-grid', placeItems: 'center' }}>{w.result !== null ? <ValenceMark v={w.result} size={22} /> : <span className="faint">·</span>}</span>
+          <span className="stackbar grow" style={{ height: 8, opacity: w.records ? 1 : 0.25 }}>
+            {w.shares.map((x, i) => (x ? <div key={i} style={{ width: `${x * 100}%`, background: MOOD_COLORS[i] }} /> : null))}
+          </span>
+          <span className="xs muted" style={{ width: 92, textAlign: 'right' }}>
+            {w.records ? `${fmtIndex(w.index)} · ${w.dates} d` : '—'}
+          </span>
+        </button>
+      ))}
+      <Note>Símbolo e índice da semana: média das datas (cada data pesa igual), arredondada. A barra mostra os cinco níveis. “d” = datas com registro.</Note>
+    </div>
+  );
+}
+
+function SeasonsView({ entries }: { entries: MoodEntry[] }) {
+  const data = useTrajectory().data;
+  const hemi = data.preferences.hemisphere;
+  const labels = data.preferences.valenceLabels;
+  const rows = useMemo(() => seasonsRows(entries, hemi), [entries, hemi]);
+  const allS = useMemo(() => seasonsAll(entries, hemi), [entries, hemi]);
+  const years = new Set(entries.map((m) => m.at.slice(0, 4))).size;
+  return (
+    <>
+      <Section title="As estações">
+        <div className="card stack lg">
+          <Segmented
+            ariaLabel="Hemisfério"
+            value={hemi}
+            onChange={(hemisphere) => store.setPreferences({ hemisphere })}
+            options={[
+              { value: 'south', label: 'Hemisfério Sul' },
+              { value: 'north', label: 'Hemisfério Norte' },
+            ]}
+          />
+          <IndexBars
+            rows={allS.map((s) => ({
+              label: SEASON_LABELS[s.season],
+              index: s.index,
+              note: `${s.dates} data(s) · ${s.years} ano(s)`,
+              dim: s.dates < 10,
+            }))}
+          />
+          <Note>
+            Todos os anos somados (cada data pesa igual). Estações pelas datas astronômicas aproximadas do hemisfério escolhido — sem usar sua localização. Com menos de 10 datas, a estação
+            aparece esmaecida.
+          </Note>
+        </div>
+      </Section>
+      <Section title="Estação a estação">
+        <div className="card stack" style={{ gap: 0 }}>
+          {rows.map((r) => (
+            <button key={r.key} className="week-row" onClick={() => navigate(`/diario?de=${r.from}&ate=${r.to}`)} aria-label={`${r.label}: ${r.result === null ? 'sem registros' : valenceLabel(r.result, labels)}`}>
+              <span className="small" style={{ width: 120 }}>
+                {r.label}
+              </span>
+              <span style={{ width: 28, display: 'inline-grid', placeItems: 'center' }}>{r.result !== null && <ValenceMark v={r.result} size={22} />}</span>
+              <span className="stackbar grow" style={{ height: 8 }}>
+                {r.shares.map((x, i) => (x ? <div key={i} style={{ width: `${x * 100}%`, background: MOOD_COLORS[i] }} /> : null))}
+              </span>
+              <span className="xs muted" style={{ width: 92, textAlign: 'right' }}>
+                {fmtIndex(r.index)} · {r.dates} d
+              </span>
+            </button>
+          ))}
+        </div>
+      </Section>
+      <div className="notice calm small">
+        <strong>Sobre padrões sazonais:</strong> a depressão com padrão sazonal só é considerada quando o mesmo padrão se repete por pelo menos dois anos seguidos — e é uma avaliação
+        clínica. {years < 2 ? 'Seus registros ainda cobrem menos de dois anos. ' : ''}Perto do equador, as estações mudam pouco a luz do dia. Use isto para observar e levar à consulta, não
+        para concluir.
+      </div>
+    </>
+  );
+}
+
+function YearsView({ entries }: { entries: MoodEntry[] }) {
+  const rows = useMemo(() => yearsRows(entries), [entries]);
+  return (
+    <Section title="Ano a ano">
+      <div className="card stack lg">
+        <IndexBars rows={rows.map((r) => ({ label: r.label, index: r.index, note: `${r.records} reg. · ${r.dates} data(s)`, dim: r.dates < 10 }))} />
+        {rows.map((r) => (
+          <div key={r.key} className="stack" style={{ gap: 4 }}>
+            <span className="xs muted">{r.label}</span>
+            <div className="stackbar" style={{ height: 10 }}>
+              {r.shares.map((x, i) => (x ? <div key={i} style={{ width: `${x * 100}%`, background: MOOD_COLORS[i] }} /> : null))}
+            </div>
+          </div>
+        ))}
+        <Note>Índice de −2 a +2 e distribuição dos cinco níveis de cada ano, com peso igual por data. Anos com poucas datas aparecem esmaecidos — compare com cautela.</Note>
+      </div>
+    </Section>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Pensamentos (registro de pensamentos das experiências)                    */
+/* ------------------------------------------------------------------------ */
+function ThoughtsBody() {
+  const t = useTrajectory();
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  const withT = t.experiences.filter((x) => x.thoughts.trim()).sort((a, b) => b.at.localeCompare(a.at));
+  if (!withT.length)
+    return (
+      <Empty title="Nenhum pensamento registrado neste recorte" action={<button className="btn" onClick={() => navigate('/diario/experiencia/nova')}>Registrar uma experiência</button>}>
+        Ao registrar uma experiência, há um espaço para “o que passou pela sua cabeça”, adaptado do Registro de Pensamentos usado na terapia cognitivo-comportamental.
+      </Empty>
+    );
+  const traps = new Map<string, number>();
+  withT.forEach((x) => x.distortions.forEach((d) => traps.set(d, (traps.get(d) ?? 0) + 1)));
+  const trapRows = [...traps.entries()].sort((a, b) => b[1] - a[1]);
+  const med = (v: number[]) => {
+    const s = [...v].sort((a, b) => a - b);
+    return s[Math.floor((s.length - 1) / 2)];
+  };
+  const belief = withT.filter((x) => x.beliefBefore != null && x.beliefAfter != null);
+  const inten = t.experiences.filter((x) => x.intensityBefore != null && x.intensityAfter != null);
+  const emoCount = new Map<string, number>();
+  withT.forEach((x) => x.emotionIds.forEach((id) => emoCount.set(id, (emoCount.get(id) ?? 0) + 1)));
+  const alt = withT.filter((x) => x.alternativeThought.trim()).slice(0, 6);
+  return (
+    <>
+      <div className="grid-3">
+        <div className="card tight stat">
+          <span className="n">{withT.length}</span>
+          <span className="l">experiências com pensamentos</span>
+        </div>
+        <div className="card tight stat">
+          <span className="n">{belief.length ? `${med(belief.map((x) => (x.beliefBefore as number) - (x.beliefAfter as number)))}` : '—'}</span>
+          <span className="l">queda na crença (pontos, mediana)</span>
+        </div>
+        <div className="card tight stat">
+          <span className="n">{inten.length ? `${med(inten.map((x) => (x.intensityBefore as number) - (x.intensityAfter as number)))}` : '—'}</span>
+          <span className="l">queda na intensidade (mediana)</span>
+        </div>
+      </div>
+      {trapRows.length > 0 && (
+        <Section title="Armadilhas de pensamento mais frequentes">
+          <div className="card">
+            <Bars rows={trapRows.map(([d, n]) => ({ label: DISTORTION_LABELS[d as Distortion].label, value: n, note: String(n) }))} />
+            <Note>Quantas vezes você reconheceu cada uma. Reconhecer já é parte do trabalho — não é um julgamento.</Note>
+          </div>
+        </Section>
+      )}
+      {emoCount.size > 0 && (
+        <Section title="Emoções que vieram com esses pensamentos">
+          <div className="chips">
+            {[...emoCount.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 8)
+              .map(([id, n]) => (
+                <button key={id} className="chip" onClick={() => navigate(`/guia/emocao/${id}`)}>
+                  {emo.get(id)} ({n})
+                </button>
+              ))}
+          </div>
+        </Section>
+      )}
+      {alt.length > 0 && (
+        <Section title="Pensamentos mais equilibrados que você construiu" kicker="Para reler quando precisar">
+          <div className="stack">
+            {alt.map((x) => (
+              <button key={x.id} className="card tight" style={{ textAlign: 'left' }} onClick={() => navigate(`/diario/experiencia/${x.id}`)}>
+                <p className="small muted" style={{ margin: 0 }}>“{x.thoughts}”</p>
+                <p style={{ margin: '6px 0 0' }}>{x.alternativeThought}</p>
+                <p className="xs faint" style={{ margin: '4px 0 0' }}>
+                  {fmtDate(x.at, { withYear: true })}
+                  {x.beliefBefore != null && x.beliefAfter != null ? ` · crença ${x.beliefBefore}% → ${x.beliefAfter}%` : ''}
+                </p>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+    </>
+  );
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1086,15 +1430,34 @@ function SleepBody() {
         <Section title="Qualidade e dificuldades">
           <div className="card stack lg">
             <Distribution labels={SLEEP_QUALITY.map((q) => q.label)} colors={MOOD_COLORS} counts={s.quality} />
-            {(s.troubles.onset || s.troubles.awakenings || s.troubles.early) > 0 && (
+            {(s.troubles.onset || s.troubles.awakenings || s.troubles.early || s.troubles.nightmares) > 0 && (
               <p className="small" style={{ margin: 0 }}>
-                {(['onset', 'awakenings', 'early'] as const)
+                {(['onset', 'awakenings', 'early', 'nightmares'] as const)
                   .filter((k) => s.troubles[k])
                   .map((k) => `${SLEEP_TROUBLE_LABELS[k]}: ${s.troubles[k]} noite(s)`)
                   .join(' · ')}
               </p>
             )}
             <Note>Contagem por noite: cada noite conta uma vez, mesmo com vários registros de humor no dia.</Note>
+          </div>
+        </Section>
+      )}
+      {s.factors.length > 0 && (
+        <Section title="O que pode ter atrapalhado">
+          <div className="card stack">
+            {s.factors.map((f) => (
+              <div key={f.factor} className="row between small" style={{ gap: 10 }}>
+                <span>{SLEEP_FACTOR_LABELS[f.factor]}</span>
+                <span className="muted" style={{ textAlign: 'right' }}>
+                  {f.nights} noite(s)
+                  {f.badWith != null ? ` · ${pct(f.badWith)} ruins (sem ele: ${pct(f.badWithout!)})` : ''}
+                </span>
+              </div>
+            ))}
+            <Note>
+              “Ruins” = qualidade ruim ou muito ruim, entre as noites com qualidade informada. A comparação aparece quando há pelo menos {FACTOR_MIN_NIGHTS} noites com e sem o fator.
+              Associação, não causa — mas é uma boa pista para levar à consulta.
+            </Note>
           </div>
         </Section>
       )}
@@ -1142,6 +1505,7 @@ const BODIES: Record<(typeof CATEGORIES)[number]['id'], () => ReactNode> = {
   sono: SleepBody,
   atividades: ActivitiesBody,
   evolucao: EvolutionBody,
+  pensamentos: ThoughtsBody,
   linha: TimelineBody,
   contextos: ContextsBody,
   calendario: CalendarBody,

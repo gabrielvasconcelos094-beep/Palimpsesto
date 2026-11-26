@@ -232,10 +232,10 @@ export class Store {
    * Sono da noite que terminou em `date`: cria ou atualiza A noite daquela data
    * (nunca uma segunda). Sem nenhuma informação, a noite é removida.
    */
-  setSleep(date: string, patch: { hours?: number | null; quality?: number | null; troubles?: string[]; note?: string }) {
+  setSleep(date: string, patch: { hours?: number | null; quality?: number | null; troubles?: string[]; factors?: string[]; note?: string }) {
     const cur = this.list('sleepLogs').find((s) => s.date === date);
-    const next = { hours: null, quality: null, troubles: [], note: '', ...(cur ?? {}), ...patch, date } as any;
-    const empty = next.hours == null && next.quality == null && !next.troubles.length && !next.note.trim();
+    const next = { hours: null, quality: null, troubles: [], factors: [], note: '', ...(cur ?? {}), ...patch, date } as any;
+    const empty = next.hours == null && next.quality == null && !next.troubles.length && !next.factors.length && !next.note.trim();
     if (empty) {
       if (cur) this.remove('sleepLogs', cur.id);
       return undefined;

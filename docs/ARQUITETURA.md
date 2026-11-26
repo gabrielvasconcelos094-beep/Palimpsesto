@@ -604,3 +604,60 @@ realizada cancelando o lembrete, anotações e pauta conversada, agendar a próx
 medicamentos (novo, mudança de dose, observação, anterior com motivo).
 Não testado em aparelho: a notificação tocando de fato (o emulador deste ambiente não roda
 o WebView do app).
+
+## 15. Versão 1.9 — avaliação das sugestões e o que entrou
+
+Cada sugestão foi avaliada antes de entrar:
+
+- **Calendário emocional sem filtros — aceito.** O período e os filtros da Trajetória não
+  faziam sentido num calendário navegado mês a mês (e, pior, escondiam meses fora do período).
+  A categoria agora não tem a barra e oferece cinco visões, todas com o "resultado do dia" e o
+  índice com peso igual por data: **Mês**; **Ano dia a dia** (12 linhas × 31 dias, cada dia na
+  cor do seu resultado); **Semanas**; **Estações** e **Anos** (`src/domain/calendar.ts`).
+- **Estações "com base na localização" — adaptado.** Em vez de pedir localização (o app não
+  usa nada do tipo), o usuário escolhe o hemisfério (padrão: Sul); as estações seguem as datas
+  astronômicas aproximadas. A tela avisa que o padrão sazonal só é considerado quando se repete
+  por **dois anos seguidos** (critério do DSM-5) e que, perto do equador, a luz do dia varia
+  pouco — para observar e levar à consulta, não para concluir.
+- **Assunto marcado não some — aceito.** Fica riscado, com "o que ficou acertado", na aba e
+  na consulta. **Excluir** e **vincular dias** (tocar no dia abre os registros dele, útil na
+  sessão para explicar o que houve) em cada assunto; ao marcar dentro de uma consulta, o assunto
+  fica ligado a ela (`appointmentId`). Componente único: `AgendaItemRow`.
+- **Intervalo entre sessões como período padrão — aceito no contexto certo.** No preparo da
+  consulta, o resumo usa por padrão "desde a última consulta" e o início é editável; um botão
+  leva esse período para a Trajetória. Na Trajetória há o atalho "Desde a última consulta",
+  mas o padrão geral continua 30 dias (a Trajetória serve a outros usos).
+- **Excluir consultas — corrigido.** Já existia, mas escondido em "Editar"; agora há um botão
+  de excluir no topo da consulta (com "Desfazer"); os assuntos da pauta são mantidos.
+- **Por que o sono foi ruim — aceito.** Além das dificuldades (agora com "pesadelos"), "o que
+  pode ter atrapalhado": 13 fatores comuns na avaliação da insônia (preocupação, ansiedade,
+  tristeza, dor, ambiente, telas, cafeína, álcool, horário, cochilo, obrigação, cuidar de
+  alguém, remédio). A Trajetória → Sono mostra, por fator, em quantas noites apareceu e a
+  proporção de noites ruins com e sem ele (≥ 3 noites de cada lado) — associação, não causa.
+- **RPD nas experiências — aceito, integrado.** A experiência segue agora a lógica do Registro
+  de Pensamentos (Beck): situação → emoções e intensidade (0–100) → **o que passou pela cabeça**
+  e quanto acreditou → armadilhas de pensamento (12, em linguagem simples) → examinar
+  (evidências a favor e contra, pensamento mais equilibrado, crença depois) → o que fez →
+  intensidade depois. Tudo opcional; os campos de ação continuam. Nova categoria
+  **Trajetória → Pensamentos**: armadilhas mais frequentes, queda mediana da crença e da
+  intensidade, emoções associadas e os pensamentos equilibrados para reler.
+- **Como lido com cada emoção — não existia; criado.** "Minhas emoções" (Guia → Repertório):
+  para cada emoção, quando aparece (dias, períodos, níveis), o que vem junto (emoções,
+  contextos, atividades), o que passou pela cabeça, o que você fez e como foi (estratégias e
+  intensidade antes/depois) e um **guia pessoal** (o que ela sinaliza, o que ajuda, o que piora).
+  Uma frase sobre a função de cada emoção nativa serve de ponto de partida (ideia comum à TCD
+  e às terapias focadas em emoção). Ligado à Trajetória → Emoções, à categoria Pensamentos e à
+  busca.
+
+Incongruências e conexões corrigidas: aviso "sem lembretes" desatualizado; o tipo de
+acontecimento "Medicação" agora aponta para o módulo de medicamentos; a linha do tempo da
+Trajetória mostra mudanças de medicação e consultas realizadas; a situação "Dia difícil" liga
+ao plano de segurança e às emoções; o PDF inclui o registro de pensamentos das experiências e
+os dias vinculados aos assuntos; a busca encontra pensamentos e o guia das emoções; índice
+rápido na aba Consultas.
+
+Testes: `tests/v19.test.ts` (estações nos dois hemisférios e virada do ano, ano/semanas/anos,
+fatores do sono com amostra mínima, esquema com padrões e limites) e `e2e/v19.mjs` (todas as
+visões do calendário, pauta riscada com dia vinculado, consulta com período editável e exclusão,
+atalho de período, fatores do sono, registro de pensamentos, categoria Pensamentos, perfil da
+emoção com guia).

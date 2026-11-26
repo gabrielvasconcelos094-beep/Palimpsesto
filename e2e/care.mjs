@@ -30,7 +30,7 @@ await page.evaluate(async () => {
 
 step('aba Acompanhamento no Guia');
 await go('/guia?t=acompanhamento');
-await page.getByText('Pauta', { exact: true }).waitFor();
+await page.getByRole('heading', { name: 'Pauta' }).waitFor();
 await page.getByText('Ainda não respondido').first().waitFor();
 
 step('pauta: adicionar, marcar como conversado, anotar o combinado e desfazer exclusão');
@@ -41,7 +41,7 @@ await page.getByText('Falar sobre a insônia desde a mudança de dose').waitFor(
 assert.equal((await data()).agenda[0].forWhom, 'psiquiatria');
 await shot('care-tab');
 await page.getByRole('button', { name: 'Marcar como conversado' }).click();
-await page.getByPlaceholder(/O que ficou combinado/).fill('Manter a dose por mais 2 semanas');
+await page.getByPlaceholder(/O que ficou acertado/).fill('Manter a dose por mais 2 semanas');
 await page.waitForTimeout(300);
 let ag = (await data()).agenda[0];
 assert.ok(ag.doneAt, 'marcado como conversado');

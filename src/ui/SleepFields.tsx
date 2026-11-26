@@ -7,13 +7,14 @@ import { useState } from 'react';
 import { Sheet, fmtDate } from './components';
 import { store, useData } from '../app/store';
 import { toast } from '../app/toast';
-import { SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
-import { SLEEP_TROUBLES, type SleepLog, type SleepTrouble } from '../domain/schema';
+import { SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
+import { SLEEP_FACTORS, SLEEP_TROUBLES, type SleepLog, type SleepTrouble } from '../domain/schema';
 import { nightBefore } from '../domain/sleep';
 
-export type SleepValue = Pick<SleepLog, 'hours' | 'quality' | 'troubles'>;
-export const EMPTY_SLEEP: SleepValue = { hours: null, quality: null, troubles: [] };
-export const sleepOf = (log?: SleepLog): SleepValue => (log ? { hours: log.hours, quality: log.quality, troubles: [...log.troubles] } : { ...EMPTY_SLEEP, troubles: [] });
+export type SleepValue = Pick<SleepLog, 'hours' | 'quality' | 'troubles' | 'factors'>;
+export const EMPTY_SLEEP: SleepValue = { hours: null, quality: null, troubles: [], factors: [] };
+export const sleepOf = (log?: SleepLog): SleepValue =>
+  log ? { hours: log.hours, quality: log.quality, troubles: [...log.troubles], factors: [...(log.factors ?? [])] } : { ...EMPTY_SLEEP, troubles: [], factors: [] };
 
 export function nightLabel(date: string) {
   return `Noite de ${fmtDate(nightBefore(date), { short: true })} para ${fmtDate(date, { short: true })}`;
@@ -89,6 +90,23 @@ export function SleepFields({ value, onChange }: { value: SleepValue; onChange: 
             );
           })}
         </div>
+      </div>
+
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="small" style={{ fontWeight: 600 }}>
+          O que pode ter atrapalhado? <span className="faint" style={{ fontWeight: 400 }}>· opcional</span>
+        </span>
+        <div className="chips" role="group" aria-label="O que pode ter atrapalhado o sono">
+          {SLEEP_FACTORS.map((f) => {
+            const on = value.factors.includes(f);
+            return (
+              <button key={f} className="chip" aria-pressed={on} onClick={() => set({ factors: on ? value.factors.filter((x) => x !== f) : [...value.factors, f] })}>
+                {SLEEP_FACTOR_LABELS[f]}
+              </button>
+            );
+          })}
+        </div>
+        <span className="xs faint">Com o tempo, a Trajetória mostra quais desses aparecem mais nas noites ruins — pistas para conversar na consulta.</span>
       </div>
     </div>
   );

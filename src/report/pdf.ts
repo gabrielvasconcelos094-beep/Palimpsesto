@@ -22,7 +22,7 @@ import type { Tokens } from '../theme/tokens';
 import { fmtIndex, instability, stability, valenceIndex, weekdayIndex } from '../domain/valence';
 import { band, history, INSTRUMENT_DEFS, item9Positive, score } from '../domain/assessments';
 import { fmtHours, sleepSummary } from '../domain/sleep';
-import { SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
+import { DISTORTION_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
 import { INSTRUMENTS, type Appointment } from '../domain/schema';
 import { activeMeds, agendaFor, currentDose, medChanges, PROFESSION_LABELS, REQUEST_LABELS } from '../domain/care';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
@@ -175,7 +175,7 @@ export function buildReport(
     if (open.length) {
       heading('Assuntos para a consulta');
       const who = { psiquiatria: 'psiquiatria', psicologia: 'psicologia', ambos: 'psiquiatria e psicologia', outro: 'outro profissional' } as const;
-      for (const a of open) text(`- ${a.text} (${who[a.forWhom]})`, { size: 10, gap: 1 });
+      for (const a of open) text(`- ${a.text} (${who[a.forWhom]})${a.dates.length ? ` - dias: ${a.dates.map((d) => fmt(d)).join(', ')}` : ''}`, { size: 10, gap: 1 });
     }
   }
 
@@ -408,7 +408,9 @@ export function buildReport(
       text(`Noites informadas: ${s.logged}. Com horas: ${s.nights}; mediana ${fmtHours(s.median)}.${s.sd !== null ? ` Variação entre as noites (desvio-padrão): ${fmtHours(s.sd)}.` : ''}${s.shortShare !== null ? ` Noites com menos de 6 h: ${Math.round(s.shortShare * 100)}%.` : ''}`, { size: 10 });
       const qT = s.quality.reduce((a, b) => a + b, 0);
       if (qT) text(`Qualidade: ${SLEEP_QUALITY.map((q, i) => (s.quality[i] ? `${q.label.toLowerCase()} ${s.quality[i]}` : '')).filter(Boolean).join(', ')}.`, { size: 9.5 });
-      const tr = (['onset', 'awakenings', 'early'] as const).filter((k) => s.troubles[k]).map((k) => `${SLEEP_TROUBLE_LABELS[k].toLowerCase()}: ${s.troubles[k]}`);
+      const fx = s.factors.slice(0, 6).map((f) => `${SLEEP_FACTOR_LABELS[f.factor].toLowerCase()}: ${f.nights}${f.badWith != null ? ` (${Math.round(f.badWith * 100)}% ruins; sem: ${Math.round(f.badWithout! * 100)}%)` : ''}`);
+      if (fx.length) text(`O que pode ter atrapalhado (noites): ${fx.join('; ')}.`, { size: 9.5 });
+      const tr = (['onset', 'awakenings', 'early', 'nightmares'] as const).filter((k) => s.troubles[k]).map((k) => `${SLEEP_TROUBLE_LABELS[k].toLowerCase()}: ${s.troubles[k]}`);
       if (tr.length) text(`Dificuldades: ${tr.join('; ')} noite(s).`, { size: 9.5 });
       if (s.comparable) text(`Índice de humor após noites < 6 h: ${fmtIndex(s.short.index)} (${s.short.dates} datas); após 7 h ou mais: ${fmtIndex(s.enough.index)} (${s.enough.dates} datas).`, { size: 9 });
       if (s.qualityComparable) text(`Índice de humor após noites ruins: ${fmtIndex(s.bad.index)} (${s.bad.dates} datas); após noites boas: ${fmtIndex(s.good.index)} (${s.good.dates} datas).`, { size: 9 });
@@ -477,6 +479,10 @@ export function buildReport(
       const fb = x.feelingBefore !== null ? valenceLabel(x.feelingBefore, prefs.valenceLabels) : null;
       const fa = x.feelingAfter !== null ? valenceLabel(x.feelingAfter, prefs.valenceLabels) : null;
       if (fb || fa) text(`Antes: ${fb ?? '-'} · Depois: ${fa ?? '-'}`, { size: 9, color: soft, gap: 0.8 });
+      if (x.thoughts) text(`Pensamento: "${x.thoughts.slice(0, 400)}"${x.beliefBefore != null ? ` (crença ${x.beliefBefore}%${x.beliefAfter != null ? ` -> ${x.beliefAfter}%` : ''})` : ''}`, { size: 9.5, gap: 0.8 });
+      if (x.distortions.length) text(`Armadilhas reconhecidas: ${x.distortions.map((d) => DISTORTION_LABELS[d].label).join(', ')}.`, { size: 9, color: soft, gap: 0.8 });
+      if (x.alternativeThought) text(`Pensamento mais equilibrado: ${x.alternativeThought.slice(0, 400)}`, { size: 9.5, gap: 0.8 });
+      if (x.intensityBefore != null) text(`Intensidade da emoção: ${x.intensityBefore}%${x.intensityAfter != null ? ` -> ${x.intensityAfter}%` : ''}.`, { size: 9, color: soft, gap: 0.8 });
       if (x.whatHelped) text(`Ajudou: ${x.whatHelped.slice(0, 400)}`, { size: 9.5, gap: 0.8 });
       if (x.whatWorsened) text(`Piorou: ${x.whatWorsened.slice(0, 400)}`, { size: 9.5, gap: 0.8 });
       if (x.learned) text(`Aprendizado: ${x.learned.slice(0, 600)}`, { size: 9.5, font: 'times', style: 'italic', gap: 0.8 });

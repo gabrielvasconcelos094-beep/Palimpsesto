@@ -1,1 +1,1 @@
-1fc0b4dd3c4ed82d4c56ad988131e846d895b7fe34d3d21b5257e2d7fbc7bb80  release/Palimpsesto-1.8.0.apk
+03bad49a4e7478baedecfde76bc71aecf55c7076c8dffc617469a4134a50aa57  release/Palimpsesto-1.9.0.apk

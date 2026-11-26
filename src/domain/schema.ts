@@ -87,8 +87,29 @@ export const EmotionSchema = z.looseObject({
   label: z.string().min(1).max(60),
   builtIn: z.boolean().default(false),
   hidden: z.boolean().default(false),
+  /** Seu guia para esta emoção (opcional): o que costuma sinalizar, o que ajuda, o que piora. */
+  signals: text(4000).default(''),
+  helps: text(4000).default(''),
+  worsens: text(4000).default(''),
 });
 export type Emotion = Known<z.infer<typeof EmotionSchema>>;
+
+export const DISTORTIONS = [
+  'catastrofizacao',
+  'tudo_ou_nada',
+  'leitura_mental',
+  'adivinhacao',
+  'generalizacao',
+  'filtro_negativo',
+  'desqualificar_positivo',
+  'raciocinio_emocional',
+  'deverias',
+  'rotulacao',
+  'personalizacao',
+  'comparacao',
+] as const;
+export type Distortion = (typeof DISTORTIONS)[number];
+const Percent = z.number().int().min(0).max(100);
 
 export const ExperienceSchema = z.looseObject({
   ...base,
@@ -98,6 +119,21 @@ export const ExperienceSchema = z.looseObject({
   whatHappened: text().default(''),
   feelingBefore: Valence.nullable().default(null),
   emotionIds: z.array(id).max(60).default([]),
+  /** Registro de Pensamentos (adaptado do RPD de Beck): intensidade da emoção 0–100. */
+  intensityBefore: Percent.nullable().default(null),
+  /** Pensamentos automáticos: o que passou pela cabeça. */
+  thoughts: text().default(''),
+  /** Quanto acreditou no pensamento (0–100), no momento. */
+  beliefBefore: Percent.nullable().default(null),
+  /** Armadilhas de pensamento reconhecidas (opcional). */
+  distortions: z.array(z.enum(DISTORTIONS)).max(20).default([]),
+  evidenceFor: text().default(''),
+  evidenceAgainst: text().default(''),
+  /** Um pensamento alternativo, mais equilibrado. */
+  alternativeThought: text().default(''),
+  /** Depois de examinar: quanto ainda acredita no pensamento original e intensidade da emoção. */
+  beliefAfter: Percent.nullable().default(null),
+  intensityAfter: Percent.nullable().default(null),
   whatIDid: text().default(''),
   whatHelped: text().default(''),
   whatWorsened: text().default(''),
@@ -307,7 +343,9 @@ export type Letter = Known<z.infer<typeof LetterSchema>>;
 /* Sono: uma noite por data                                            */
 /* ------------------------------------------------------------------ */
 
-export const SLEEP_TROUBLES = ['onset', 'awakenings', 'early'] as const;
+export const SLEEP_TROUBLES = ['onset', 'awakenings', 'early', 'nightmares'] as const;
+export const SLEEP_FACTORS = ['worry', 'anxiety', 'sadness', 'pain', 'environment', 'screens', 'caffeine', 'alcohol', 'late', 'nap', 'obligation', 'care', 'medication'] as const;
+export type SleepFactor = (typeof SLEEP_FACTORS)[number];
 export type SleepTrouble = (typeof SLEEP_TROUBLES)[number];
 
 /**
@@ -323,7 +361,9 @@ export const SleepLogSchema = z.looseObject({
   /** Qualidade percebida, 1 (muito ruim) … 5 (muito boa) — como no Diário de Sono Consensual. */
   quality: Level5.nullable().default(null),
   /** Dificuldades: pegar no sono, acordar durante a noite, acordar cedo demais. */
-  troubles: z.array(z.enum(SLEEP_TROUBLES)).max(3).default([]),
+  troubles: z.array(z.enum(SLEEP_TROUBLES)).max(4).default([]),
+  /** O que pode ter atrapalhado (opcional) — para cruzar com a qualidade depois. */
+  factors: z.array(z.enum(SLEEP_FACTORS)).max(13).default([]),
   note: text(2000).default(''),
 });
 export type SleepLog = Known<z.infer<typeof SleepLogSchema>>;
@@ -359,6 +399,10 @@ export const AgendaItemSchema = z.looseObject({
   doneAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
   /** O que ficou combinado/anotado depois da consulta. */
   outcome: text(4000).default(''),
+  /** Consulta em que foi (ou será) conversado. */
+  appointmentId: id.nullable().default(null),
+  /** Dias relacionados ("quando aconteceu"), para abrir os registros na consulta. */
+  dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(60).default([]),
 });
 export type AgendaItem = Known<z.infer<typeof AgendaItemSchema>>;
 
@@ -479,6 +523,8 @@ export const PreferencesSchema = z.looseObject({
   symbolSet: z.enum(['nature', 'faces', 'fine', 'moon', 'weather', 'emoji']).default('nature'),
   /** Categorias da Trajetória que o usuário escolheu ocultar. */
   trajectoryHidden: z.array(z.string().max(40)).max(40).default([]),
+  /** Hemisfério, para as estações do ano no calendário (sem usar localização). */
+  hemisphere: z.enum(['south', 'north']).default('south'),
   /** Acompanhar o sono (horas, qualidade e dificuldades), uma vez por noite. */
   trackSleep: z.boolean().default(false),
   /** Mostrar "O que seus registros mostram". */

@@ -128,8 +128,8 @@ function EventEditor() {
         </Field>
         {draft.category === 'medicacao' && (
           <p className="xs muted" style={{ margin: '-8px 0 0' }}>
-            Registre início, mudança de dose, troca ou suspensão — com o nome, a dose e quem orientou, se quiser. Efeitos que você notar podem ir na descrição. Essas datas aparecem na
-            Trajetória e no resumo para a consulta, ajudando a ver o humor antes e depois. Nunca mude a medicação por conta própria.
+            Para acompanhar remédios com dose, frequência e histórico, use <button className="link-btn" style={{ textDecoration: 'underline' }} onClick={() => navigate('/guia/remedio/novo')}>Guia → Consultas → Medicamentos</button>
+            — as mudanças de lá já aparecem na Trajetória e no resumo para a consulta. Aqui, registre só um marco que queira ver na linha do tempo. Nunca mude a medicação por conta própria.
           </p>
         )}
         <DatePicker label="Quando começou" value={draft.date} onChange={(d) => d && set({ date: d, endDate: draft.endDate && draft.endDate < d ? null : draft.endDate })} />

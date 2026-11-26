@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, EyeOff, FileText, Lightbulb, Settings2, SlidersHorizontal } from 'lucide-react';
 import { navigate } from '../../app/router';
+import { dayKey } from '../../domain/util';
 import { store } from '../../app/store';
 import { toast } from '../../app/toast';
 import { valenceCounts } from '../../domain/analytics';
@@ -24,6 +25,8 @@ export function PeriodBar() {
   const [open, setOpen] = useState(false);
   const labels = t.data.preferences.valenceLabels;
   const p = t.period;
+  const today = dayKey(new Date());
+  const lastVisit = t.data.appointments.filter((x) => x.status === 'done' && x.date <= today).sort((x, y) => y.date.localeCompare(x.date))[0];
   return (
     <>
       <div className="row" style={{ alignItems: 'flex-start' }}>
@@ -33,6 +36,16 @@ export function PeriodBar() {
               {PERIOD_LABELS[k]}
             </button>
           ))}
+          {lastVisit && (
+            <button
+              className="chip"
+              aria-pressed={p.kind === 'custom' && p.from === lastVisit.date && p.to === today}
+              onClick={() => t.setPeriod({ ...p, kind: 'custom', from: lastVisit.date, to: today })}
+              title="Do dia da última consulta até hoje"
+            >
+              Desde a última consulta
+            </button>
+          )}
         </div>
         <button className="icon-btn" aria-label={`Filtrar registros${activeCount(t.filters, false) ? ' (ativos)' : ''}`} onClick={() => setOpen(true)} style={activeCount(t.filters, false) ? { color: 'var(--primary-ink)' } : undefined}>
           <SlidersHorizontal size={20} strokeWidth={1.6} />

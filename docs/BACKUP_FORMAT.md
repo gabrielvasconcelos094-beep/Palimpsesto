@@ -78,8 +78,8 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 | Coleção | Conteúdo | Relações |
 |---|---|---|
 | `moodEntries` | Registros de humor: `at`, `timePrecision`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags` (contexto), `itemIds` (atividades), `note` | `emotionIds → emotions`, `itemIds → repertoire` |
-| `emotions` | Emoções nativas (`builtIn`, ids `emo.*`) e personalizadas; `hidden` | — |
-| `experiences` | Experiências (`at`, `timePrecision`): o que aconteceu, `feelingBefore`/`feelingAfter` (−2…+2), o que fez/ajudou/piorou, aprendizado, `tags` | `situationId → situations` |
+| `emotions` | Emoções nativas (`builtIn`, ids `emo.*`) e personalizadas; `hidden`; guia pessoal (1.9): `signals`, `helps`, `worsens` | — |
+| `experiences` | Experiências (`at`, `timePrecision`): o que aconteceu, `feelingBefore`/`feelingAfter` (−2…+2), o que fez/ajudou/piorou, aprendizado, `tags`; registro de pensamentos (1.9): `intensityBefore`/`intensityAfter` e `beliefBefore`/`beliefAfter` (0–100 ou `null`), `thoughts`, `distortions`, `evidenceFor`, `evidenceAgainst`, `alternativeThought` | `situationId → situations` |
 | `repertoire` | Itens do repertório: `kind` = `resource` (faz bem), `strategy`, `activity` (atividade), `drain` (desgasta); categoria, circunstâncias, efeito, frequência percebida (1…4) | — |
 | `uses` | Cada uso de um item (`at`, `timePrecision`), com `outcome` (`worked`, `partial`, `didnt`, `worse`, `unknown`) e `tags` de contexto | `itemId → repertoire`, `experienceId → experiences` |
 | `sections` | Fichas do Mapa (nativas `sec.*` e criadas) | — |
@@ -90,13 +90,13 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 | `situations` | Situações especiais: datas opcionais, `tags`, `checklist`, itens fixados | `itemIds`, `discoveryIds`, `questionIds`, `noteIds`, `letterIds` |
 | `letters` | Cartas: `openAt`, `sealed`, `openedAt` | `situationId → situations` |
 | `events` | Acontecimentos da linha do tempo: `title`, `description`, `date`, `endDate` (opcional), `category` (`viagem`, `trabalho`, `relacoes`, `conflito`, `conquista`, `projeto`, `rotina`, `inicio`, `encerramento`, `saude`, `medicacao` (desde a 1.6), `outro`), `tags` | — |
-| `sleepLogs` | Sono (esquema 3): **no máximo uma noite por data**. `date` = manhã em que a noite terminou; `hours` (0–24 ou `null`), `quality` (1–5 ou `null`), `troubles` (`onset`, `awakenings`, `early`), `note` | — |
+| `sleepLogs` | Sono (esquema 3): **no máximo uma noite por data**. `date` = manhã em que a noite terminou; `hours` (0–24 ou `null`), `quality` (1–5 ou `null`), `troubles` (`onset`, `awakenings`, `early`, `nightmares`), `factors` (o que pode ter atrapalhado, 1.9), `note` | — |
 | `appointments` | Consultas (1.8): `date`, `time`, `forWhom` (`psiquiatria`, `psicologia`, `outro`), `professional`, `place`, `status` (`scheduled`, `done`, `canceled`), `reminderMinutes` (ou `null`), `reminderShowsType`, antes: `sinceLast`, `questions`, `requests` (`receita`, `atestado`, `exames`, `relatorio`, `outro`); depois: `observations`, `agreements` | — |
 | `medications` | Medicamentos (1.8): `name`, `purpose`, `prescriber`, `startDate`, `endDate` (`null` = em uso), `stopReason` (`efeitos`, `sem_efeito`, `melhora`, `troca`, `custo`, `outro`), `doses` (histórico: `date`, `dose`, `schedule`, `note`; a última é a atual), `notes` (observações datadas) | — |
 | `assessments` | Questionários respondidos (1.6): `instrument` (`phq9`, `gad7`), `date` (AAAA-MM-DD), `answers` (0–3 por item; 9 no PHQ-9, 7 no GAD-7), `difficulty` (0–3 ou `null`), `note` | — |
-| `agenda` | Assuntos para a consulta (1.6): `text`, `forWhom` (`psiquiatria`, `psicologia`, `ambos`, `outro`), `doneAt` (data em que foi conversado ou `null`), `outcome` | — |
+| `agenda` | Assuntos para a consulta (1.6): `text`, `forWhom` (`psiquiatria`, `psicologia`, `ambos`, `outro`), `doneAt` (data em que foi conversado ou `null`), `outcome`, `appointmentId` (consulta em que foi conversado), `dates` (dias relacionados) | — |
 | `safetyPlans` | Plano de segurança (1.6; no máximo um): listas de texto `warningSigns`, `copingAlone`, `distractions`, `helpers`, `professionals`, `safeEnvironment`, `reasons` | — |
-| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights`, `trackSleep` | — |
+| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights`, `trackSleep`, `hemisphere` (`south`/`north`, para as estações) | — |
 
 **Escalas:** os valores numéricos são fixos. Os nomes personalizados ficam apenas em
 `preferences.valenceLabels`; trocá-los nunca altera registros.

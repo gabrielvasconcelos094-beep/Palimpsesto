@@ -29,7 +29,7 @@ export function syncBuiltIns(data: AppData, now = new Date().toISOString()): App
 
   for (const [id, label] of BUILTIN_EMOTIONS) {
     if (!emoIds.has(id)) {
-      emotions.push({ id, label, builtIn: true, hidden: false, createdAt: now, updatedAt: now });
+      emotions.push({ id, label, builtIn: true, hidden: false, signals: '', helps: '', worsens: '', createdAt: now, updatedAt: now });
       changed = true;
     }
   }

@@ -331,6 +331,14 @@ function SituationView({ s }: { s: Situation }) {
         <div className="notice calm small" style={{ marginTop: 10 }}>
           Se o sofrimento estiver intenso ou você pensar em se machucar, procure apoio agora: no Brasil, o CVV atende 24h pelo telefone 188 (ligação gratuita) e em cvv.org.br. Em
           emergências, ligue 192 (SAMU).
+          <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
+            <button className="btn sm" onClick={() => navigate('/guia/plano')}>
+              {data.safetyPlans.length ? 'Abrir meu plano de segurança' : 'Montar meu plano de segurança'}
+            </button>
+            <button className="btn ghost sm" onClick={() => navigate('/guia/emocoes')}>
+              Minhas emoções
+            </button>
+          </div>
         </div>
       )}
 
