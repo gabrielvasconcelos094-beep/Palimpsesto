@@ -5,6 +5,7 @@ import { canGoBack, goBack, navigate, useRoute } from './app/router';
 import { store, useStoreState } from './app/store';
 import { useApplyTheme } from './app/theme';
 import { dismissToast, useToast } from './app/toast';
+import { AssessmentPage, SafetyPlanPage } from './features/care/Care';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
 import { setPrivacyScreen } from './platform/native';
 import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
@@ -56,6 +57,8 @@ function Screen() {
       if (b === 'item') return <ItemPage />;
       if (b === 'situacao') return <SituationPage />;
       if (b === 'carta') return <LetterPage />;
+      if (b === 'questionario') return <AssessmentPage />;
+      if (b === 'plano') return <SafetyPlanPage />;
       return <GuideHome />;
     case 'busca':
       return <SearchPage />;

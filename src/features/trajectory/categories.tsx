@@ -3,7 +3,8 @@
  * qual unidade de análise usou e quantos registros sustentam o resultado.
  */
 import { useMemo, useState, type ReactNode } from 'react';
-import { Activity, BatteryLow, CalendarDays, ChartLine, Clock, Flag, GitCompareArrows, Heart, Layers3, Repeat2 } from 'lucide-react';
+import { Activity, BatteryLow, CalendarDays, ChartLine, Clock, Flag, GitCompareArrows, Heart, Layers3, Moon, Repeat2 } from 'lucide-react';
+import { fmtHours, sleepSummary, nights as sleepNights, SLEEP_GROUP_MIN_DATES, SLEEP_MIN_NIGHTS } from '../../domain/sleep';
 import { OscillationPanel } from './Oscillations';
 import { navigate, useRoute } from '../../app/router';
 import { setSharedFilters, NO_FILTERS } from '../../app/filters';
@@ -42,7 +43,7 @@ import { EventIcon, eventRange } from '../journal/EventEditor';
 import { CalendarView } from '../journal/Journal';
 import { OutcomeBar, OutcomeLegend } from '../guide/Repertoire';
 import { Bars, Distribution, Evolution, HeatTable, IndexBars, StackRows } from './charts';
-import { COMPARE_MIN_DATES, COMPARE_MIN_RECORDS, compareIndex, fmtIndex, MIN_RELEVANT_CHANGE, monthRange, stability, STABILITY_MIN_DATES, STABILITY_MIN_RECORDS, weekdayIndex, weekRange, WEEKDAY_INDEX_MIN_DATES } from '../../domain/valence';
+import { COMPARE_MIN_DATES, COMPARE_MIN_RECORDS, compareIndex, fmtIndex, instability, MIN_RELEVANT_CHANGE, monthRange, stability, STABILITY_MIN_DATES, STABILITY_MIN_RECORDS, weekdayIndex, weekRange, WEEKDAY_INDEX_MIN_DATES } from '../../domain/valence';
 import { dayKey as dayKeyOf } from '../../domain/util';
 import { ENERGY_COLORS, MOOD_COLORS, PeriodBar } from './Trajectory';
 import { useTrajectory } from './useTrajectory';
@@ -55,6 +56,7 @@ export const CATEGORIES = [
   { id: 'dias', title: 'Dias e horários', question: 'Há dias da semana ou horários diferentes dos outros?', icon: Clock },
   { id: 'emocoes', title: 'Emoções', question: 'Quais emoções aparecem, juntas ou separadas?', icon: Heart },
   { id: 'energia', title: 'Energia e disposição', question: 'Como sua energia varia e o que a acompanha?', icon: BatteryLow },
+  { id: 'sono', title: 'Sono', question: 'Quanto e com que regularidade você dormiu — e o que acompanhou isso?', icon: Moon },
   { id: 'atividades', title: 'Atividades e estratégias', question: 'O que você fez e como avaliou o que tentou?', icon: Activity },
   { id: 'evolucao', title: 'Evolução e comparação', question: 'Como as coisas mudaram ao longo do tempo?', icon: GitCompareArrows },
   { id: 'linha', title: 'Linha do tempo', question: 'O que estava acontecendo em cada período?', icon: Flag },
@@ -682,6 +684,7 @@ function EvolutionBody() {
   const ea = extra(A);
   const eb = extra(B);
   const stab = stability(t.entries);
+  const inst = instability(t.entries);
   const byMonth = new Map<string, MoodEntry[]>();
   t.entries.forEach((m) => byMonth.set(m.at.slice(0, 7), [...(byMonth.get(m.at.slice(0, 7)) ?? []), m]));
   const monthStab = [...byMonth.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([month, l]) => ({ month, ...stability(l) }));
@@ -797,6 +800,17 @@ function EvolutionBody() {
             <p className="xs muted" style={{ margin: 0 }}>
               {rangeText(t.range)} · {stab.records} registros em {stab.dates} datas · desvio-padrão {stab.sd!.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
             </p>
+          )}
+          {inst.rmssd !== null && (
+            <div className="card tight soft small">
+              <strong>De um registro para o seguinte:</strong> variação de {inst.rmssd.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} nível(is) (RMSSD, em {inst.pairs} pares
+              de registros); em {pct(inst.bigJumps ?? 0)} deles a avaliação mudou 2 níveis ou mais.
+              <span className="faint">
+                {' '}
+                A estabilidade acima olha o conjunto; esta medida olha a ordem — oscilações rápidas, de um registro para o próximo, pesam mais que uma mudança lenta. Pares separados por mais de 3
+                dias não entram.
+              </span>
+            </div>
           )}
           {monthStab.length > 1 && (
             <div className="stack" style={{ gap: 4 }}>
@@ -1014,11 +1028,87 @@ function RegularityBody() {
   );
 }
 
+/* ------------------------------------------------------------------------ */
+/* Sono                                                                      */
+/* ------------------------------------------------------------------------ */
+function SleepBody() {
+  const t = useTrajectory();
+  const s = sleepSummary(t.entries);
+  const n = sleepNights(t.entries);
+  if (s.nights === 0)
+    return (
+      <Empty title="Nenhuma noite informada neste recorte" action={<button className="btn" onClick={() => navigate('/ajustes/indicadores')}>Ativar “Horas de sono”</button>}>
+        As horas de sono são opcionais: ative em Ajustes → Indicadores e elas aparecem no registro de humor, em “Contexto, anotação e mais”.
+      </Empty>
+    );
+  const max = Math.max(10, ...n.map((x) => x.hours));
+  return (
+    <>
+      <div className="grid-3">
+        <div className="card tight stat">
+          <span className="n">{s.nights}</span>
+          <span className="l">noites informadas</span>
+        </div>
+        <div className="card tight stat">
+          <span className="n">{fmtHours(s.median)}</span>
+          <span className="l">mediana</span>
+        </div>
+        <div className="card tight stat">
+          <span className="n">{s.sd === null ? '—' : fmtHours(s.sd)}</span>
+          <span className="l">variação entre noites</span>
+        </div>
+      </div>
+      <Section title="Noite a noite">
+        <div className="card">
+          <div className="sleep-bars" style={{ position: 'relative' }} role="img" aria-label={n.map((x) => `${fmtDate(x.day, { short: true })}: ${fmtHours(x.hours)}`).join('; ')}>
+            {n.slice(-60).map((x) => (
+              <div key={x.day} className="sleep-bar" title={`${fmtDate(x.day, { short: true })}: ${fmtHours(x.hours)}`}>
+                <span style={{ height: `${(x.hours / max) * 100}%`, background: x.hours < 6 ? 'var(--accent-ink)' : 'var(--comp1-ink)', opacity: x.hours < 6 ? 1 : 0.75 }} />
+              </div>
+            ))}
+            <span className="sleep-guide" style={{ bottom: `${(6 / max) * 100}%` }} aria-hidden>
+              6 h
+            </span>
+          </div>
+          <div className="row between xs faint" style={{ marginTop: 6 }}>
+            <span>{fmtDate(n[Math.max(0, n.length - 60)].day, { short: true })}</span>
+            <span>{fmtDate(n[n.length - 1].day, { short: true })}</span>
+          </div>
+          <Note>Noites com menos de 6 h aparecem em outro tom; a linha tracejada marca 6 h. Datas sem informação não aparecem (não contam como “zero”).</Note>
+        </div>
+      </Section>
+      <Section title="Sono e humor no mesmo dia">
+        <div className="card stack">
+          {s.comparable ? (
+            <>
+              <p style={{ margin: 0 }}>
+                Nas datas após noites com <strong>menos de 6 h</strong>, o índice de humor foi <strong>{fmtIndex(s.short.index)}</strong> ({s.short.dates} datas); após noites de{' '}
+                <strong>7 h ou mais</strong>, <strong>{fmtIndex(s.enough.index)}</strong> ({s.enough.dates} datas).
+              </p>
+              <Note>Associação descritiva nos seus registros, não causa: o humor também pode afetar o sono, e outras coisas podem afetar os dois.</Note>
+            </>
+          ) : (
+            <p className="small muted" style={{ margin: 0 }}>
+              Para comparar, é preciso ter pelo menos {SLEEP_GROUP_MIN_DATES} datas com noites de menos de 6 h e {SLEEP_GROUP_MIN_DATES} com 7 h ou mais (há {s.short.dates} e {s.enough.dates}).
+            </p>
+          )}
+          {s.sd === null && <p className="xs faint" style={{ margin: 0 }}>A variação entre noites aparece a partir de {SLEEP_MIN_NIGHTS} noites informadas.</p>}
+          <Note>
+            Por que olhar a regularidade: em estudos com diários, a variação da duração do sono de uma noite para outra acompanhou os sintomas de humor mais do que a média de horas
+            (ex.: Kaufmann et al., 2016). Mudanças de sono também costumam estar entre os sinais de alerta pessoais.
+          </Note>
+        </div>
+      </Section>
+    </>
+  );
+}
+
 const BODIES: Record<(typeof CATEGORIES)[number]['id'], () => ReactNode> = {
   oscilacoes: () => <OscillationPanel />,
   dias: DaysBody,
   emocoes: EmotionsBody,
   energia: EnergyBody,
+  sono: SleepBody,
   atividades: ActivitiesBody,
   evolucao: EvolutionBody,
   linha: TimelineBody,

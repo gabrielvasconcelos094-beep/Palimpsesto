@@ -183,3 +183,39 @@ export function fmtIndex(x: number | null): string {
   const s = Math.abs(r).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return r > 0 ? `+${s}` : r < 0 ? `−${s}` : s;
 }
+
+/* ------------------------------------------------------------------------ */
+/* Instabilidade entre registros consecutivos (RMSSD)                        */
+/* ------------------------------------------------------------------------ */
+export const INSTABILITY_MIN_PAIRS = 5;
+export const INSTABILITY_MAX_GAP_DAYS = 3;
+
+export interface Instability {
+  /** Raiz da média dos quadrados das diferenças sucessivas (0 = nenhuma mudança entre registros seguidos). */
+  rmssd: number | null;
+  pairs: number;
+  /** Proporção de pares em que a avaliação mudou 2 níveis ou mais de um registro para o seguinte. */
+  bigJumps: number | null;
+}
+
+/**
+ * Quanto a avaliação muda de um registro para o SEGUINTE (Trull et al.; Ebner-Priemer
+ * et al.). Diferente do desvio-padrão, depende da ordem: oscilações rápidas pesam mais
+ * que uma mudança lenta. Pares separados por mais de 3 dias não entram (a lacuna não
+ * é um "salto").
+ */
+export function instability(entries: Pick<MoodEntry, 'at' | 'valence'>[]): Instability {
+  const list = [...entries].sort((a, b) => a.at.localeCompare(b.at));
+  const diffs: number[] = [];
+  for (let i = 1; i < list.length; i++) {
+    const gap = (new Date(list[i].at.slice(0, 10) + 'T12:00:00').getTime() - new Date(list[i - 1].at.slice(0, 10) + 'T12:00:00').getTime()) / 86400000;
+    if (gap > INSTABILITY_MAX_GAP_DAYS) continue;
+    diffs.push(list[i].valence - list[i - 1].valence);
+  }
+  if (diffs.length < INSTABILITY_MIN_PAIRS) return { rmssd: null, pairs: diffs.length, bigJumps: null };
+  return {
+    rmssd: Math.sqrt(mean(diffs.map((d) => d * d))),
+    pairs: diffs.length,
+    bigJumps: diffs.filter((d) => Math.abs(d) >= 2).length / diffs.length,
+  };
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, Flag, Heart, Plane, Repeat, Sparkles, Stethoscope, Swords, Trash2, Trophy, Play, Square, Circle } from 'lucide-react';
+import { Briefcase, Flag, Heart, Plane, Repeat, Sparkles, Pill, Stethoscope, Swords, Trash2, Trophy, Play, Square, Circle } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { useData } from '../../app/store';
 import { removeWithUndo } from '../../app/undo';
@@ -22,6 +22,7 @@ export const EVENT_LABELS: Record<EventCategory, string> = {
   inicio: 'Começo',
   encerramento: 'Encerramento',
   saude: 'Saúde',
+  medicacao: 'Medicação',
   outro: 'Outro',
 };
 const ICONS: Record<EventCategory, typeof Plane> = {
@@ -35,6 +36,7 @@ const ICONS: Record<EventCategory, typeof Plane> = {
   inicio: Play,
   encerramento: Square,
   saude: Stethoscope,
+  medicacao: Pill,
   outro: Circle,
 };
 export function EventIcon({ c, size = 16 }: { c: EventCategory; size?: number }) {
@@ -124,6 +126,12 @@ function EventEditor() {
             ))}
           </div>
         </Field>
+        {draft.category === 'medicacao' && (
+          <p className="xs muted" style={{ margin: '-8px 0 0' }}>
+            Registre início, mudança de dose, troca ou suspensão — com o nome, a dose e quem orientou, se quiser. Efeitos que você notar podem ir na descrição. Essas datas aparecem na
+            Trajetória e no resumo para a consulta, ajudando a ver o humor antes e depois. Nunca mude a medicação por conta própria.
+          </p>
+        )}
         <DatePicker label="Quando começou" value={draft.date} onChange={(d) => d && set({ date: d, endDate: draft.endDate && draft.endDate < d ? null : draft.endDate })} />
         <DatePicker label="Até quando" optional value={draft.endDate} min={draft.date} onChange={(endDate) => set({ endDate: endDate && endDate < draft.date ? draft.date : endDate })} />
         <Field label="Descrição" optional>

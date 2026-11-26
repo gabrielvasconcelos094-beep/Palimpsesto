@@ -12,7 +12,7 @@ acompanhamento psicológico ou psiquiátrico.
 
 ## Instalar
 
-O APK pronto está em [`release/Palimpsesto-1.5.0.apk`](release/). No Android:
+O APK pronto está em [`release/Palimpsesto-1.6.0.apk`](release/). No Android:
 copie o arquivo para o aparelho, abra-o e permita "instalar apps desconhecidos" para o
 gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 
@@ -28,7 +28,8 @@ gerenciador de arquivos quando pedido. Requer Android 7.0 ou superior.
 | **Diário** | Humor (valência −2…+2 com nomes e símbolos personalizáveis, várias emoções, energia, atividades, indicadores opcionais, contexto, anotação), experiências e acontecimentos da linha do tempo — **inclusive retroativos** (agora, hoje, ontem ou outra data; horário exato, período do dia ou sem horário). Linha do tempo, calendário com "registrar neste dia", filtros combináveis e edição completa de registros antigos. |
 | **Mapa** | 10 fichas (identidade, preferências, necessidades, valores, limites, emoções, relações, hábitos, enfrentamento, desejos) com 80 perguntas reflexivas e anotações livres; respostas com histórico em camadas; perguntas e fichas próprias; favoritas. **Descobertas** com grau de confiança (hipótese → recorrente → consolidada), histórico de mudanças e experiências que as sustentam. |
 | **Guia** | **Repertório** (o que faz bem, estratégias, o que desgasta) com avaliações por circunstância; **Situações** (viagem, festa, dia difícil…) que reúnem o que *você* já registrou, com lista de cuidados e registro de como foi; **Cartas** para si, lacradas até uma data. |
-| **Trajetória** | Visão geral (distribuição por registro ou por data — toque num nível para ver os registros, **gráfico em linha de humor e energia**, comparação com o período anterior, "O que seus registros mostram") e categorias: dias e horários (com índice médio por dia da semana), evolução com comparação de quaisquer duas semanas, meses ou intervalos e estabilidade das avaliações, calendário com um símbolo por data, emoções, energia, atividades e estratégias, linha do tempo, padrões por contexto e regularidade. Mesmos filtros do Diário. Relatório em PDF. |
+| **Consultas** (no Guia) | Pauta "Para a próxima consulta"; questionários PHQ-9 e GAD-7 com histórico e mudança relevante; plano de segurança; resumo em PDF para levar à psiquiatria ou à psicologia. Base científica em [docs/PESQUISA.md](docs/PESQUISA.md). |
+| **Trajetória** | Visão geral (distribuição por registro ou por data — toque num nível para ver os registros, **gráfico em linha de humor e energia**, comparação com o período anterior, "O que seus registros mostram") e categorias: dias e horários (com índice médio por dia da semana), evolução com comparação de quaisquer duas semanas, meses ou intervalos e estabilidade e instabilidade das avaliações, sono, calendário com um símbolo por data, emoções, energia, atividades e estratégias, linha do tempo, padrões por contexto e regularidade. Mesmos filtros do Diário. Relatório em PDF. |
 | **Ajustes** | Dois estilos visuais (Editorial minimalista e Editorial orgânico), seis famílias de símbolos da escala, 10 paletas (cada uma clara e escura), editor de temas com prévia e verificação de contraste, tipografia e tamanho do texto, nomes da escala, emoções, indicadores, backup/importação/CSV/PDF, PIN + biometria, tela privada, apagar tudo. |
 
 ## Widgets da tela inicial (Android)

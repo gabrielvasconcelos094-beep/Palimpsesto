@@ -5,10 +5,11 @@ import { openHardDay } from '../today/Today';
 import { LettersTab } from './Letters';
 import { RepertoireTab } from './Repertoire';
 import { SituationsTab } from './Situations';
+import { CareTab } from '../care/Care';
 
 export function GuideHome() {
   const route = useRoute();
-  const tab = (route.query.get('t') as 'repertorio' | 'situacoes' | 'cartas') || 'repertorio';
+  const tab = (route.query.get('t') as 'repertorio' | 'situacoes' | 'cartas' | 'acompanhamento') || 'repertorio';
   const addTarget = tab === 'cartas' ? '/guia/carta/nova' : tab === 'repertorio' ? `/guia/item/novo?tipo=${route.query.get('k') || 'resource'}` : null;
   return (
     <Page
@@ -36,11 +37,13 @@ export function GuideHome() {
           { value: 'repertorio', label: 'Repertório' },
           { value: 'situacoes', label: 'Situações' },
           { value: 'cartas', label: 'Cartas' },
+          { value: 'acompanhamento', label: 'Consultas' },
         ]}
       />
       {tab === 'repertorio' && <RepertoireTab />}
       {tab === 'situacoes' && <SituationsTab />}
       {tab === 'cartas' && <LettersTab />}
+      {tab === 'acompanhamento' && <CareTab />}
     </Page>
   );
 }

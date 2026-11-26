@@ -29,6 +29,7 @@ const E = (day: string, valence: number, extra: Partial<MoodEntry> = {}): MoodEn
   tags: [],
   itemIds: [],
   note: '',
+  sleepHours: null,
   ...extra,
 });
 

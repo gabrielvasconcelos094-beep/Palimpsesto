@@ -144,4 +144,7 @@ export const COLLECTION_LABELS: Record<CollectionName, string> = {
   situations: 'Situações',
   letters: 'Cartas',
   events: 'Acontecimentos da linha do tempo',
+  assessments: 'Questionários respondidos',
+  agenda: 'Assuntos para a consulta',
+  safetyPlans: 'Plano de segurança',
 };

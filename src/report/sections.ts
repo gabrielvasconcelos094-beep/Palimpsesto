@@ -12,8 +12,13 @@ export const REPORT_SECTIONS = {
   map: 'Respostas do Mapa',
   weekdays: 'Dias da semana e horários',
   activities: 'Atividades nos registros',
-  events: 'Acontecimentos da linha do tempo',
+  events: 'Acontecimentos da linha do tempo (inclui medicação)',
+  assessments: 'Questionários (PHQ-9 e GAD-7)',
+  sleep: 'Sono',
+  agenda: 'Assuntos para a consulta',
 } as const;
 export type ReportSection = keyof typeof REPORT_SECTIONS;
 export const DEFAULT_SECTIONS: ReportSection[] = ['summary', 'valence', 'oscillations', 'energy', 'emotions', 'events', 'experiences', 'strategies', 'discoveries'];
+/** Resumo enxuto para levar à consulta (psiquiatria/psicologia). */
+export const CONSULT_SECTIONS: ReportSection[] = ['summary', 'agenda', 'assessments', 'oscillations', 'valence', 'sleep', 'energy', 'emotions', 'events'];
 

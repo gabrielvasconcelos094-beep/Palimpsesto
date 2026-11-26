@@ -18,6 +18,7 @@ const entry = (i: number, valence: number, tags: string[], extra: Partial<MoodEn
   indicators: {},
   tags,
   note: '',
+  sleepHours: null,
   ...extra,
 });
 

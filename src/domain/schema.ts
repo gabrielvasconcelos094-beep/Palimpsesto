@@ -77,6 +77,8 @@ export const MoodEntrySchema = z.looseObject({
   tags,
   /** Atividades (itens do repertório) feitas ou vividas nesse momento. */
   itemIds: z.array(id).max(60).default([]),
+  /** Horas de sono da noite anterior (opcional; 0–24, em meias horas). */
+  sleepHours: z.number().min(0).max(24).nullable().default(null),
   note: text().default(''),
 });
 export type MoodEntry = Known<z.infer<typeof MoodEntrySchema>>;
@@ -244,7 +246,7 @@ export type Discovery = Known<z.infer<typeof DiscoverySchema>>;
 /* Linha do tempo: acontecimentos significativos                       */
 /* ------------------------------------------------------------------ */
 
-export const EVENT_CATEGORIES = ['viagem', 'trabalho', 'relacoes', 'conflito', 'conquista', 'projeto', 'rotina', 'inicio', 'encerramento', 'saude', 'outro'] as const;
+export const EVENT_CATEGORIES = ['viagem', 'trabalho', 'relacoes', 'conflito', 'conquista', 'projeto', 'rotina', 'inicio', 'encerramento', 'saude', 'medicacao', 'outro'] as const;
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
 export const LifeEventSchema = z.looseObject({
@@ -303,6 +305,54 @@ export const LetterSchema = z.looseObject({
 export type Letter = Known<z.infer<typeof LetterSchema>>;
 
 /* ------------------------------------------------------------------ */
+/* Acompanhamento: questionários, pauta da consulta, plano de segurança */
+/* ------------------------------------------------------------------ */
+
+export const INSTRUMENTS = ['phq9', 'gad7'] as const;
+export type Instrument = (typeof INSTRUMENTS)[number];
+
+/** Uma aplicação de um questionário padronizado (PHQ-9, GAD-7). */
+export const AssessmentSchema = z.looseObject({
+  ...base,
+  instrument: z.enum(INSTRUMENTS),
+  /** Data em que foi respondido (calendário local); a janela é "as últimas 2 semanas". */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Respostas item a item (0–3). */
+  answers: z.array(z.number().int().min(0).max(3)).min(7).max(9),
+  /** Pergunta final de dificuldade funcional (0–3), opcional. */
+  difficulty: z.number().int().min(0).max(3).nullable().default(null),
+  note: text(4000).default(''),
+});
+export type Assessment = Known<z.infer<typeof AssessmentSchema>>;
+
+/** Assuntos para levar à próxima consulta. */
+export const AgendaItemSchema = z.looseObject({
+  ...base,
+  text: z.string().min(1).max(2000),
+  /** Para quem: psiquiatra, psicóloga(o), ambos ou outro profissional. */
+  forWhom: z.enum(['psiquiatria', 'psicologia', 'ambos', 'outro']).default('ambos'),
+  /** Já conversado; com a data. */
+  doneAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  /** O que ficou combinado/anotado depois da consulta. */
+  outcome: text(4000).default(''),
+});
+export type AgendaItem = Known<z.infer<typeof AgendaItemSchema>>;
+
+const lines = z.array(z.string().max(500)).max(30).default([]);
+/** Plano de segurança (modelo Stanley-Brown). Há no máximo um. */
+export const SafetyPlanSchema = z.looseObject({
+  ...base,
+  warningSigns: lines,
+  copingAlone: lines,
+  distractions: lines,
+  helpers: lines,
+  professionals: lines,
+  safeEnvironment: lines,
+  reasons: lines,
+});
+export type SafetyPlan = Known<z.infer<typeof SafetyPlanSchema>>;
+
+/* ------------------------------------------------------------------ */
 /* Preferências (exportáveis)                                          */
 /* ------------------------------------------------------------------ */
 
@@ -347,6 +397,8 @@ export const PreferencesSchema = z.looseObject({
   symbolSet: z.enum(['nature', 'faces', 'fine', 'moon', 'weather', 'emoji']).default('nature'),
   /** Categorias da Trajetória que o usuário escolheu ocultar. */
   trajectoryHidden: z.array(z.string().max(40)).max(40).default([]),
+  /** Perguntar as horas de sono da noite anterior no registro de humor. */
+  trackSleepHours: z.boolean().default(false),
   /** Mostrar "O que seus registros mostram". */
   showInsights: z.boolean().default(true),
   /** Observações sugeridas que o usuário ocultou (por id). */
@@ -372,6 +424,9 @@ export const COLLECTIONS = [
   'situations',
   'letters',
   'events',
+  'assessments',
+  'agenda',
+  'safetyPlans',
 ] as const;
 export type CollectionName = (typeof COLLECTIONS)[number];
 
@@ -389,6 +444,9 @@ export const CollectionSchemas = {
   situations: SituationSchema,
   letters: LetterSchema,
   events: LifeEventSchema,
+  assessments: AssessmentSchema,
+  agenda: AgendaItemSchema,
+  safetyPlans: SafetyPlanSchema,
 } as const;
 
 export type EntityOf<C extends CollectionName> = Known<z.infer<(typeof CollectionSchemas)[C]>>;
@@ -408,6 +466,9 @@ export const AppDataSchema = z.looseObject({
   situations: z.array(SituationSchema).default([]),
   letters: z.array(LetterSchema).default([]),
   events: z.array(LifeEventSchema).default([]),
+  assessments: z.array(AssessmentSchema).default([]),
+  agenda: z.array(AgendaItemSchema).default([]),
+  safetyPlans: z.array(SafetyPlanSchema).max(1).default([]),
   preferences: PreferencesSchema.default(PreferencesSchema.parse({})),
 });
 export type AppData = Known<z.infer<typeof AppDataSchema>>;

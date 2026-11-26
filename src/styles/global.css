@@ -1207,3 +1207,35 @@ button.list-row:active {
   bottom: 0;
   border-radius: 99px;
 }
+.sleep-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 110px;
+}
+.sleep-bar {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 2px;
+}
+.sleep-bar span {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+}
+.sleep-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1.5px dashed var(--ink-faint);
+  font-size: 9.5px;
+  color: var(--ink-faint);
+  text-align: right;
+  line-height: 1;
+  padding-top: 2px;
+  pointer-events: none;
+}
+a.btn {
+  text-decoration: none;
+}

@@ -77,7 +77,7 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 
 | Coleção | Conteúdo | Relações |
 |---|---|---|
-| `moodEntries` | Registros de humor: `at`, `timePrecision`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`sleep`, `anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags` (contexto), `itemIds` (atividades), `note` | `emotionIds → emotions`, `itemIds → repertoire` |
+| `moodEntries` | Registros de humor: `at`, `timePrecision`, `valence` (−2…+2), `energy` (1…5 ou `null`), `emotionIds`, `indicators` (`sleep`, `anxiety`, `irritability`, `overload`, `loneliness`: 1…5), `tags` (contexto), `itemIds` (atividades), `sleepHours` (horas de sono da noite anterior, 0–24 ou `null`; desde a 1.6), `note` | `emotionIds → emotions`, `itemIds → repertoire` |
 | `emotions` | Emoções nativas (`builtIn`, ids `emo.*`) e personalizadas; `hidden` | — |
 | `experiences` | Experiências (`at`, `timePrecision`): o que aconteceu, `feelingBefore`/`feelingAfter` (−2…+2), o que fez/ajudou/piorou, aprendizado, `tags` | `situationId → situations` |
 | `repertoire` | Itens do repertório: `kind` = `resource` (faz bem), `strategy`, `activity` (atividade), `drain` (desgasta); categoria, circunstâncias, efeito, frequência percebida (1…4) | — |
@@ -89,8 +89,11 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 | `discoveries` | Descobertas: `confidence` (`hypothesis`, `recurring`, `consolidated`), `status` (`active`, `superseded`), `revisions` (estados anteriores, com `note` explicando a mudança), `origin` | `sectionId`, `experienceIds`, `moodEntryIds`, `eventIds` |
 | `situations` | Situações especiais: datas opcionais, `tags`, `checklist`, itens fixados | `itemIds`, `discoveryIds`, `questionIds`, `noteIds`, `letterIds` |
 | `letters` | Cartas: `openAt`, `sealed`, `openedAt` | `situationId → situations` |
-| `events` | Acontecimentos da linha do tempo: `title`, `description`, `date`, `endDate` (opcional), `category` (`viagem`, `trabalho`, `relacoes`, `conflito`, `conquista`, `projeto`, `rotina`, `inicio`, `encerramento`, `saude`, `outro`), `tags` | — |
-| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights` | — |
+| `events` | Acontecimentos da linha do tempo: `title`, `description`, `date`, `endDate` (opcional), `category` (`viagem`, `trabalho`, `relacoes`, `conflito`, `conquista`, `projeto`, `rotina`, `inicio`, `encerramento`, `saude`, `medicacao` (desde a 1.6), `outro`), `tags` | — |
+| `assessments` | Questionários respondidos (1.6): `instrument` (`phq9`, `gad7`), `date` (AAAA-MM-DD), `answers` (0–3 por item; 9 no PHQ-9, 7 no GAD-7), `difficulty` (0–3 ou `null`), `note` | — |
+| `agenda` | Assuntos para a consulta (1.6): `text`, `forWhom` (`psiquiatria`, `psicologia`, `ambos`, `outro`), `doneAt` (data em que foi conversado ou `null`), `outcome` | — |
+| `safetyPlans` | Plano de segurança (1.6; no máximo um): listas de texto `warningSigns`, `copingAlone`, `distractions`, `helpers`, `professionals`, `safeEnvironment`, `reasons` | — |
+| `preferences` | `valenceLabels`/`energyLabels` (5 posições; `null` = nome original), indicadores ativos, tema ativo (`themeId`), aparência, `customThemes`, tipografia, `visualStyle` (`minimal`/`organic`), `symbolSet` (`nature`, `faces`, `fine`, `moon`, `weather`, `emoji`), `trajectoryHidden`, `showInsights`, `dismissedInsights`, `trackSleepHours` | — |
 
 **Escalas:** os valores numéricos são fixos. Os nomes personalizados ficam apenas em
 `preferences.valenceLabels`; trocá-los nunca altera registros.
@@ -133,6 +136,12 @@ atômica: se falhar, os dados anteriores permanecem.
 - Ao abrir dados antigos, o app guarda o arquivo original intacto (`pre-migration-v1.json`)
   e uma cópia de segurança restaurável ("Antes da atualização do formato dos dados").
 - Backups do esquema 1 continuam importáveis: passam pela mesma migração.
+
+### Acréscimos da 1.6 (mesmo esquema 2)
+
+As coleções `assessments`, `agenda` e `safetyPlans`, o campo `sleepHours` e a categoria
+`medicacao` são opcionais e têm valor padrão (`[]`/`null`). Backups anteriores importam sem
+migração; um backup da 1.6 aberto numa versão anterior preserva os campos desconhecidos.
 
 
 - Campos desconhecidos são **preservados** (os esquemas são "abertos"), então um arquivo

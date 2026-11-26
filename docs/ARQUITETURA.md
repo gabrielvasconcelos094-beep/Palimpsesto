@@ -487,3 +487,40 @@ negativa = 100, máxima = 0, intermediária, amostra pequena) e formatação.
 `e2e/stats.mjs`: estado vazio, calendário com um símbolo e contagem, registros do dia com
 horário, atualização ao editar e ao excluir, distribuição clicável, índice por dia da semana,
 comparação de meses e semanas (com período vazio), estabilidade e Sobre.
+
+## 12. Versão 1.6 — acompanhamento clínico baseado em evidências
+
+Fundamentação e fontes em [PESQUISA.md](PESQUISA.md). Princípios mantidos: local, sem
+lembretes, sem diagnóstico, sem causalidade.
+
+- **Questionários** (`src/domain/assessments.ts`, `src/features/care/Care.tsx`): PHQ-9 e GAD-7,
+  coleção `assessments`. Só salva completo; pontuação, faixa, mudança relevante (PHQ-9 ≥ 5,
+  GAD-7 ≥ 4), histórico com gráfico e faixas. Item 9 do PHQ-9 > 0 → `SafetyNotice` (CVV 188,
+  SAMU 192, plano de segurança).
+- **Plano de segurança** (Stanley & Brown): coleção `safetyPlans` (no máximo um), 6 passos +
+  razões para viver; números de emergência fixos; atalho também em Ajustes → Sobre.
+- **Pauta da consulta**: coleção `agenda` (assunto, para quem, conversado em, o que foi
+  combinado). Itens marcados hoje continuam à vista para anotar o combinado.
+- **Resumo para a consulta**: `buildReport` com `CONSULT_SECTIONS` e título próprio; período
+  "desde a última consulta" (último `doneAt` da pauta), 30 ou 90 dias. Novas seções do PDF:
+  `agenda`, `assessments` (logo após o resumo) e `sleep`; RMSSD na seção de valência.
+- **Sono**: `MoodEntry.sleepHours` (opcional; preferência `trackSleepHours`), categoria "Sono"
+  na Trajetória (`src/domain/sleep.ts`): uma noite por data (o valor mais recente), mediana,
+  desvio-padrão entre noites (≥ 5 noites), noites < 6 h, índice de humor após < 6 h × ≥ 7 h
+  (≥ 3 datas em cada grupo). Coluna `horas_de_sono` no CSV.
+- **Instabilidade (RMSSD)** (`instability` em `valence.ts`): raiz da média dos quadrados das
+  diferenças entre registros consecutivos; pares com mais de 3 dias de distância não entram;
+  mínimo de 5 pares; mostrada junto à estabilidade, que continua sendo a do desvio-padrão.
+- **Medicação**: categoria `medicacao` nos acontecimentos, com orientação no formulário.
+- **Esquema**: tudo opcional e com padrão — o esquema continua 2, sem migração (ver
+  BACKUP_FORMAT.md). Coleções novas entram automaticamente em backup, mesclagem, validação,
+  "Desfazer" e contagens.
+
+### Testes
+`tests/care.test.ts` (14): itens e faixas, limites das faixas, completude, item 9, mudança
+relevante, histórico, esquema (respostas fora de 0–3 recusadas; dados antigos válidos), sono
+(uma noite por data, mediana, variação, comparação, amostra pequena), RMSSD (0, máximo,
+ordem importa, lacunas). `e2e/care.mjs`: pauta (adicionar, conversado, combinado, desfazer),
+GAD-7, PHQ-9 com aviso de segurança, histórico e mudança, plano de segurança, horas de sono
+(ajuste, registro, Trajetória), medicação, RMSSD na Evolução e o PDF da consulta (download e
+cabeçalho `%PDF`).

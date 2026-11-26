@@ -22,6 +22,7 @@ const blank = (valence: number | null, day?: string | null): Draft => ({
   tags: [],
   itemIds: [],
   note: '',
+  sleepHours: null,
 });
 
 /** "Registrado em 25 nov, às 10:12 · alterado em …" — distingue quando aconteceu de quando foi escrito. */
@@ -57,7 +58,7 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
     const ex = props.entryId ? store.get('moodEntries', props.entryId) : undefined;
     setDraft(ex ? { ...ex } : blank(props.initialValence ?? null, props.initialDay));
     setPicked(!!ex || props.initialValence != null);
-    setMore(!!ex && (!!ex.note || ex.tags.length > 0 || Object.keys(ex.indicators).length > 0));
+    setMore(!!ex && (!!ex.note || ex.tags.length > 0 || Object.keys(ex.indicators).length > 0 || ex.sleepHours != null));
     setPickerKey((k) => k + 1);
   }, [props.open, props.entryId, props.initialValence, props.initialDay]);
 
@@ -113,6 +114,40 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
 
             {more && (
               <div className="stack lg">
+                {(prefs.trackSleepHours || draft.sleepHours != null) && (
+                  <Field label="Horas de sono na noite anterior" optional help="Uma estimativa basta. Se fizer mais de um registro no dia, informe só em um.">
+                    <div className="row" style={{ gap: 8 }}>
+                      <button className="icon-btn" aria-label="Menos meia hora" onClick={() => set({ sleepHours: Math.max(0, (draft.sleepHours ?? 7.5) - 0.5) })}>
+                        −
+                      </button>
+                      <input
+                        className="input"
+                        style={{ width: 90, textAlign: 'center' }}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={24}
+                        step={0.5}
+                        aria-label="Horas de sono"
+                        placeholder="—"
+                        value={draft.sleepHours ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value === '' ? null : Math.max(0, Math.min(24, Math.round(Number(e.target.value.replace(',', '.')) * 2) / 2));
+                          set({ sleepHours: v === null || Number.isNaN(v) ? null : v });
+                        }}
+                      />
+                      <button className="icon-btn" aria-label="Mais meia hora" onClick={() => set({ sleepHours: Math.min(24, (draft.sleepHours ?? 6.5) + 0.5) })}>
+                        +
+                      </button>
+                      <span className="small muted">horas</span>
+                      {draft.sleepHours != null && (
+                        <button className="btn ghost sm" onClick={() => set({ sleepHours: null })}>
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                  </Field>
+                )}
                 {prefs.enabledIndicators.map((k: IndicatorKey) => (
                   <Field key={k} label={INDICATORS[k].label} optional>
                     <LevelPicker

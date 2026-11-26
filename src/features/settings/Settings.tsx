@@ -281,6 +281,12 @@ export function IndicatorsPage() {
           {INDICATOR_KEYS.map((k) => (
             <Toggle key={k} label={INDICATORS[k].label} help={`De “${INDICATORS[k].low}” a “${INDICATORS[k].high}”`} checked={prefs.enabledIndicators.includes(k)} onChange={(on) => toggle(k, on)} />
           ))}
+          <Toggle
+            label="Horas de sono"
+            help="Quantas horas você dormiu na noite anterior. A duração e a regularidade do sono costumam acompanhar o humor — e são úteis de levar à consulta."
+            checked={prefs.trackSleepHours}
+            onChange={(trackSleepHours) => store.setPreferences({ trackSleepHours })}
+          />
         </div>
       </Section>
       <Section kicker="Calendário e tela inicial">
@@ -315,7 +321,10 @@ export function AboutPage() {
         </div>
         <div className="card small">
           <strong>Precisa de apoio agora?</strong> No Brasil, o CVV (Centro de Valorização da Vida) atende 24 horas pelo telefone <strong>188</strong>, gratuitamente, e em cvv.org.br. Em
-          emergências, ligue <strong>192</strong> (SAMU).
+          emergências, ligue <strong>192</strong> (SAMU).{' '}
+          <button className="btn ghost sm" style={{ paddingLeft: 0 }} onClick={() => navigate('/guia/plano')}>
+            Meu plano de segurança
+          </button>
         </div>
         <Section kicker="Privacidade">
           <ul className="small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.7 }}>
@@ -337,6 +346,10 @@ export function AboutPage() {
         <Section kicker="Feito com">
           <p className="small muted" style={{ margin: 0 }}>
             React, Capacitor, Zod, jsPDF, Lucide (ícones) e as fontes Fraunces, Cormorant Garamond, Lora e Inter — todos de código aberto. Versão {APP_VERSION}.
+          </p>
+          <p className="small muted" style={{ margin: '8px 0 0' }}>
+            Questionários: PHQ-9 e GAD-7, de R. L. Spitzer, K. Kroenke, J. B. W. Williams e colaboradores, desenvolvidos com apoio da Pfizer Inc. — uso livre, sem necessidade de
+            permissão. São instrumentos de rastreio e acompanhamento, não de diagnóstico.
           </p>
         </Section>
       </div>

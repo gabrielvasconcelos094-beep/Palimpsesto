@@ -16,6 +16,7 @@ const E = (at: string, valence: number, energy: number | null = null, extra: Par
   tags: [],
   itemIds: [],
   note: '',
+  sleepHours: null,
   ...extra,
 });
 

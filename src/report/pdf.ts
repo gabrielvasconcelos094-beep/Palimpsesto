@@ -19,7 +19,10 @@ import {
 } from '../domain/analytics';
 import { CONFIDENCE_LABELS, energyLabel, INDICATORS, OUTCOME_LABELS, OUTCOME_ORDER, valenceLabel } from '../domain/scales';
 import type { Tokens } from '../theme/tokens';
-import { fmtIndex, stability, valenceIndex, weekdayIndex } from '../domain/valence';
+import { fmtIndex, instability, stability, valenceIndex, weekdayIndex } from '../domain/valence';
+import { band, history, INSTRUMENT_DEFS, item9Positive, score } from '../domain/assessments';
+import { fmtHours, sleepSummary } from '../domain/sleep';
+import { INSTRUMENTS } from '../domain/schema';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
 import { dayKey as dayStr } from '../domain/util';
 import { changes, recordSeries, segments, timeTicks } from '../domain/series';
@@ -50,7 +53,7 @@ export function buildReport(
   period: Period,
   sections: ReportSection[],
   tokens: Tokens,
-  opts: { entryFilter?: (m: AppData['moodEntries'][number]) => boolean; filterLabel?: string } = {},
+  opts: { entryFilter?: (m: AppData['moodEntries'][number]) => boolean; filterLabel?: string; title?: string } = {},
 ): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
@@ -127,12 +130,12 @@ export function buildReport(
   doc.setTextColor(...ink);
   doc.text('Palimpsesto', M, y + 10);
   y += 16;
-  text('Relatório pessoal', { size: 13, font: 'times', style: 'italic', color: soft, gap: 4 });
+  text(opts.title ?? 'Relatório pessoal', { size: 13, font: 'times', style: 'italic', color: soft, gap: 4 });
   text(`Período: ${fmt(period.from.toISOString())} a ${fmt(period.to.toISOString())}`, { size: 10 });
   text(`Gerado em ${fmt(new Date().toISOString())}, no próprio aparelho.`, { size: 9, color: soft, gap: opts.filterLabel ? 1 : 4 });
   if (opts.filterLabel) text(`Registros de humor filtrados: ${opts.filterLabel}.`, { size: 9, color: soft, gap: 4 });
   text(
-    'Este relatório reúne registros pessoais de auto-observação. Não é um documento clínico nem um diagnóstico. As escalas são ordinais: os números indicam contagens e proporções, não médias. Associações não indicam causa.',
+    'Este relatório reúne registros pessoais de auto-observação. Não é um documento clínico nem um diagnóstico. A escala de humor é ordinal: os índices são médias aproximadas (com peso igual por data), apenas descritivas. Questionários padronizados são instrumentos de rastreio, não de diagnóstico. Associações não indicam causa.',
     { size: 8.5, color: soft, gap: 6 },
   );
 
@@ -150,6 +153,37 @@ export function buildReport(
     if (custom) text(`Nomes personalizados da escala: ${vLabels.join(' / ')} (valores fixos de -2 a +2).`, { size: 9, color: soft });
   }
 
+  if (sections.includes('agenda')) {
+    const open = data.agenda.filter((a) => !a.doneAt).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    if (open.length) {
+      heading('Assuntos para a consulta');
+      const who = { psiquiatria: 'psiquiatria', psicologia: 'psicologia', ambos: 'psiquiatria e psicologia', outro: 'outro profissional' } as const;
+      for (const a of open) text(`- ${a.text} (${who[a.forWhom]})`, { size: 10, gap: 1 });
+    }
+  }
+
+  if (sections.includes('assessments')) {
+    const any = data.assessments.length > 0;
+    if (any) {
+      heading('Questionários padronizados');
+      text('Autorrelato sobre as 2 semanas anteriores a cada data. Instrumentos de rastreio e acompanhamento, não de diagnóstico. Pontuação maior = mais sintomas.', { size: 8.5, color: soft });
+      for (const ins of INSTRUMENTS) {
+        const h = history(data.assessments, ins);
+        if (!h.length) continue;
+        const def = INSTRUMENT_DEFS[ins];
+        sub(`${def.name} - ${def.short.toLowerCase()} (0 a ${def.max})`);
+        for (const a of h.slice(-10)) {
+          const t = score(a);
+          text(`${fmt(a.date)}: ${t} - sintomas ${band(ins, t).label}${item9Positive(a) ? ' - item 9 respondido acima de "nenhuma vez"' : ''}`, { size: 9.5, gap: 0.5 });
+        }
+        if (h.length >= 2) {
+          const d = score(h[h.length - 1]) - score(h[h.length - 2]);
+          text(`Última mudança: ${d > 0 ? '+' : ''}${d} ponto(s) (diferença considerada clinicamente relevante: ${def.minChange} ou mais).`, { size: 8.5, color: soft, gap: 2.5 });
+        } else y += 2;
+      }
+    }
+  }
+
   if (sections.includes('valence') && entries.length) {
     heading('Valência');
     sub('Distribuição');
@@ -161,6 +195,12 @@ export function buildReport(
         `Índice médio de valência: ${fmtIndex(vi.index)} (de −2 a +2; média de cada data, depois média das ${vi.dates} datas; ${vi.records} registros). Indicador descritivo de uma escala ordinal.`,
         { size: 9, gap: 0.8 },
       );
+      const ins = instability(entries);
+      if (ins.rmssd !== null)
+        text(
+          `Variação entre registros consecutivos (RMSSD): ${ins.rmssd.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} em ${ins.pairs} pares; ${Math.round((ins.bigJumps ?? 0) * 100)}% dos pares mudaram 2 níveis ou mais.`,
+          { size: 9, gap: 0.8 },
+        );
       text(
         st.score === null
           ? 'Estabilidade: poucos registros para calcular.'
@@ -296,7 +336,7 @@ export function buildReport(
     }
   }
 
-  if (sections.includes('emotions') && entries.length) {
+  if (sections.includes('emotions') && entries.length && (emotionFrequency(entries).length || tagFrequency(entries).length)) {
     heading('Emoções e contextos');
     const ef = emotionFrequency(entries).slice(0, 12);
     if (ef.length) {
@@ -308,6 +348,19 @@ export function buildReport(
     if (tf.length) {
       sub('Contextos mais marcados');
       text(tf.map((t) => `${t.tag} (${t.count})`).join(' · '), { size: 9.5 });
+    }
+  }
+
+  if (sections.includes('sleep')) {
+    const s = sleepSummary(entries);
+    if (s.nights > 0) {
+      heading('Sono');
+      text(`Noites informadas: ${s.nights}. Mediana: ${fmtHours(s.median)}.${s.sd !== null ? ` Variação entre as noites (desvio-padrão): ${fmtHours(s.sd)}.` : ''}${s.shortShare !== null ? ` Noites com menos de 6 h: ${Math.round(s.shortShare * 100)}%.` : ''}`, { size: 10 });
+      if (s.comparable)
+        text(
+          `Índice de humor nas datas após noites com menos de 6 h: ${fmtIndex(s.short.index)} (${s.short.dates} datas); após noites de 7 h ou mais: ${fmtIndex(s.enough.index)} (${s.enough.dates} datas). Associação descritiva, não causa.`,
+          { size: 9, gap: 2 },
+        );
     }
   }
 
