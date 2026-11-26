@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import type { Bucket, Counts5 } from '../../domain/analytics';
 import { shares, sum } from '../../domain/analytics';
+import { fmtIndex } from '../../domain/valence';
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
@@ -18,14 +19,23 @@ export function Distribution(props: {
   marks?: (i: number) => React.ReactNode;
   /** Mostra só as proporções (quando os números não são contagens). */
   hideCounts?: boolean;
+  /** Toque num nível (ex.: abrir os registros daquela categoria). */
+  onSelect?: (i: number) => void;
+  selectLabel?: (i: number) => string;
 }) {
   const s = shares(props.counts);
   const c = props.compare ? shares(props.compare) : null;
   const max = Math.max(...s, ...(c ?? []), 0.0001);
   return (
     <div className="stack" style={{ gap: 12 }}>
-      {props.labels.map((label, i) => (
-        <div key={i}>
+      {props.labels.map((label, i) => {
+        const Row = props.onSelect ? 'button' : 'div';
+        return (
+        <Row
+          key={i}
+          className={props.onSelect ? 'dist-row' : undefined}
+          {...(props.onSelect ? { type: 'button' as const, onClick: () => props.onSelect!(i), 'aria-label': props.selectLabel?.(i) } : {})}
+        >
           <div className="row between small" style={{ marginBottom: 4 }}>
             <span className="row" style={{ gap: 8 }}>
               {props.marks?.(i)}
@@ -45,8 +55,9 @@ export function Distribution(props: {
               <div className="bar-fill" style={{ width: `${(c[i] / max) * 100}%`, background: `repeating-linear-gradient(135deg, ${props.colors[i]} 0 3px, transparent 3px 6px)` }} />
             </div>
           )}
-        </div>
-      ))}
+        </Row>
+        );
+      })}
       {c && (
         <div className="chart-legend">
           <span>
@@ -245,3 +256,52 @@ export function HeatTable(props: { rowLabels: string[]; colLabels: string[]; val
     </div>
   );
 }
+
+/**
+ * Barras divergentes do índice de valência (−2…+2), a partir do zero (neutro).
+ * O índice é descritivo: média por data, depois média entre as datas.
+ */
+export function IndexBars({
+  rows,
+}: {
+  rows: Array<{ label: string; index: number | null; note: string; dim?: boolean; tag?: string; mark?: React.ReactNode }>;
+}) {
+  return (
+    <div className="stack" style={{ gap: 10 }} role="list">
+      {rows.map((r) => {
+        const v = r.index;
+        const lvl = v === null ? null : Math.max(1, Math.min(5, Math.sign(v) * Math.round(Math.abs(v) + 1e-9) + 3));
+        const w = v === null ? 0 : (Math.abs(v) / 2) * 50;
+        return (
+          <div key={r.label} role="listitem" style={{ opacity: r.dim ? 0.5 : 1 }} aria-label={`${r.label}: índice ${fmtIndex(v)}; ${r.note}${r.tag ? `; ${r.tag}` : ''}`}>
+            <div className="row between small" style={{ marginBottom: 4 }}>
+              <span className="row" style={{ gap: 8 }}>
+                {r.mark}
+                {r.label}
+                {r.tag && <span className="chip static xs" style={{ padding: '1px 8px', minHeight: 0 }}>{r.tag}</span>}
+              </span>
+              <span className="xs muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                <strong style={{ color: 'var(--ink)' }}>{fmtIndex(v)}</strong> · {r.note}
+              </span>
+            </div>
+            <div className="index-track" aria-hidden>
+              <span className="index-zero" />
+              {v !== null && (
+                <span
+                  className="index-fill"
+                  style={{ left: v >= 0 ? '50%' : `${50 - w}%`, width: `${Math.max(w, 0.8)}%`, background: `var(--mood-${lvl})` }}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <div className="row between xs faint" aria-hidden>
+        <span>−2</span>
+        <span>0</span>
+        <span>+2</span>
+      </div>
+    </div>
+  );
+}
+

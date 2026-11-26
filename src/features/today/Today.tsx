@@ -15,8 +15,8 @@ import { SITUATION_TEMPLATES } from '../../domain/seed';
 import { daySeries } from '../../domain/series';
 
 /**
- * Os últimos sete dias num relance: o símbolo de cada data é a mediana dos
- * registros dela (escala ordinal, sem médias). Dias vazios ficam vazios —
+ * Os últimos sete dias num relance: o símbolo de cada data é o resultado do
+ * dia (média dos registros arredondada; ver `dayResult`). Dias vazios ficam vazios —
  * não é sequência, nem meta: lacunas não são problema.
  */
 function WeekStrip({ now }: { now: Date }) {
@@ -45,7 +45,7 @@ function WeekStrip({ now }: { now: Date }) {
               role="listitem"
               className={`week-day${i === 6 ? ' today' : ''}`}
               disabled={!p}
-              aria-label={p ? `${name}: ${valenceLabel(v!, labels)}${p.records > 1 ? ` (mediana de ${p.records} registros)` : ''}` : `${name}: sem registro`}
+              aria-label={p ? `${name}: ${valenceLabel(v!, labels)}${p.records > 1 ? ` (resultado de ${p.records} registros)` : ''}` : `${name}: sem registro`}
               onClick={() => navigate(`/diario?de=${key}&ate=${key}`)}
             >
               <span className="wd">{i === 6 ? 'hoje' : WEEKDAYS[d.getDay()].slice(0, 3).toLowerCase()}</span>

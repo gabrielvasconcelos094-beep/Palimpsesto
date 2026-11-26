@@ -1149,3 +1149,61 @@ button.list-row:active {
   padding: 12px 18px calc(var(--safe-bottom) + 16px);
   background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 0%, transparent), var(--bg) 14px);
 }
+
+/* Calendário: um símbolo por data */
+.cal .cal-mark {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
+}
+.cal .cal-mark svg,
+.cal .cal-mark span[role='img'] {
+  width: min(26px, 100%) !important;
+  height: auto !important;
+}
+.cal .cal-n {
+  font-size: 9.5px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.dist-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  margin: -2px 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.dist-row:active {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+.index-track {
+  position: relative;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--surface-2);
+}
+.index-zero {
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1.5px;
+  background: var(--ink-faint);
+}
+.index-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 99px;
+}

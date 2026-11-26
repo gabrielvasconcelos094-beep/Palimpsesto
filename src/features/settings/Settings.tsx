@@ -325,6 +325,15 @@ export function AboutPage() {
             <li>Você pode exportar tudo, importar em outra instalação e apagar tudo definitivamente.</li>
           </ul>
         </Section>
+        <Section kicker="Criação">
+          <p className="small" style={{ margin: 0 }}>
+            Criado por <strong>Antonio Gabriel Pereira Vasconcelos</strong>
+            <br />
+            <a href="mailto:gabrielvasconcelos094@gmail.com" style={{ color: 'var(--primary-ink)' }}>
+              gabrielvasconcelos094@gmail.com
+            </a>
+          </p>
+        </Section>
         <Section kicker="Feito com">
           <p className="small muted" style={{ margin: 0 }}>
             React, Capacitor, Zod, jsPDF, Lucide (ícones) e as fontes Fraunces, Cormorant Garamond, Lora e Inter — todos de código aberto. Versão {APP_VERSION}.

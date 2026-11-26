@@ -19,6 +19,7 @@ import {
 } from '../domain/analytics';
 import { CONFIDENCE_LABELS, energyLabel, INDICATORS, OUTCOME_LABELS, OUTCOME_ORDER, valenceLabel } from '../domain/scales';
 import type { Tokens } from '../theme/tokens';
+import { fmtIndex, stability, valenceIndex, weekdayIndex } from '../domain/valence';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
 import { dayKey as dayStr } from '../domain/util';
 import { changes, recordSeries, segments, timeTicks } from '../domain/series';
@@ -153,6 +154,20 @@ export function buildReport(
     heading('Valência');
     sub('Distribuição');
     barRows(vLabels, valenceCounts(entries), mood);
+    {
+      const vi = valenceIndex(entries);
+      const st = stability(entries);
+      text(
+        `Índice médio de valência: ${fmtIndex(vi.index)} (de −2 a +2; média de cada data, depois média das ${vi.dates} datas; ${vi.records} registros). Indicador descritivo de uma escala ordinal.`,
+        { size: 9, gap: 0.8 },
+      );
+      text(
+        st.score === null
+          ? 'Estabilidade: poucos registros para calcular.'
+          : `Estabilidade das avaliações: ${st.score} de 100 (100 × (1 − desvio-padrão ÷ 2)). Mede quanto as avaliações variaram, não quão agradáveis foram.`,
+        { size: 9, gap: 2 },
+      );
+    }
     const b = buckets(entries, period, (e) => e.valence + 2, prefs.weekStartsOn);
     const items = b.items.slice(-26);
     sub(`Evolução (${b.unit === 'day' ? 'por dia' : b.unit === 'week' ? 'por semana' : 'por mês'})`);
@@ -318,11 +333,12 @@ export function buildReport(
   if (sections.includes('weekdays') && entries.length) {
     heading('Dias da semana e horários');
     const ws = weekdayStats(entries);
-    text('Proporção de avaliações agradáveis por dia da semana (cada data pesa o mesmo).', { size: 8.5, color: soft });
+    const wi = weekdayIndex(entries);
+    text('Índice médio (−2 a +2, peso igual por data) e proporção de avaliações agradáveis por dia da semana.', { size: 8.5, color: soft });
     for (const d of [1, 2, 3, 4, 5, 6, 0]) {
       const s = ws[d];
       text(
-        `${WEEKDAYS_FULL[d]}: ${s.records ? `${Math.round(shareBy(s.entries, (m) => m.valence >= 1, 'day') * 100)}% agradáveis` : 'sem registros'} (${s.records} registro(s), ${s.dates} data(s))${s.dates < 3 && s.records ? ' - poucos dados' : ''}`,
+        `${WEEKDAYS_FULL[d]}: ${s.records ? `índice ${fmtIndex(wi.days[d].index)} · ${Math.round(shareBy(s.entries, (m) => m.valence >= 1, 'day') * 100)}% agradáveis` : 'sem registros'} (${s.records} registro(s), ${s.dates} data(s))${s.dates < 3 && s.records ? ' - poucos dados' : ''}`,
         { size: 9.5, gap: 0.5 },
       );
     }

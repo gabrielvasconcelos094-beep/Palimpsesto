@@ -40,11 +40,12 @@ describe('séries do gráfico em linha', () => {
     expect(lowerMedian([1, 2, 5])).toBe(2);
     expect(lowerMedian([5, 1, 4, 2])).toBe(2);
     expect(lowerMedian([])).toBeNull();
-    // dois registros (−2 e +2) não viram "0": o resumo do dia é uma categoria real.
-    const d = daySeries([E('2026-11-01T08:00:00', -2, 1), E('2026-11-01T20:00:00', 2, 5)]);
+  });
+  it('resumo por data = resultado do dia (média arredondada, empate para longe do centro)', () => {
+    const d = daySeries([E('2026-11-01T08:00:00', -2, 1), E('2026-11-01T20:00:00', 1, 5)]);
     expect(d).toHaveLength(1);
-    expect(d[0].mood).toBe(1);
-    expect(d[0].energy).toBe(1);
+    expect(d[0].mood).toBe(2); // −0,5 → −1 → nível 2
+    expect(d[0].energy).toBe(3); // (1+5)/2 = 3
     expect(d[0].records).toBe(2);
     expect(d[0].ids).toHaveLength(2);
   });

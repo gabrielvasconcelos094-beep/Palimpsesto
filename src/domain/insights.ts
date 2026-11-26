@@ -371,21 +371,6 @@ export function weeklyUnpleasant(entries: MoodEntry[], weekStartsOn: 0 | 1 = 1, 
     .sort((a, b) => b.share - a.share || b.records - a.records);
 }
 
-/** Meses com distribuição mais concentrada (estável): proporção na categoria mais frequente. */
-export function monthlyStability(entries: MoodEntry[], min = 6) {
-  const byMonth = new Map<string, MoodEntry[]>();
-  entries.forEach((m) => byMonth.set(m.at.slice(0, 7), [...(byMonth.get(m.at.slice(0, 7)) ?? []), m]));
-  return [...byMonth.entries()]
-    .filter(([, l]) => l.length >= min)
-    .map(([month, l]) => {
-      const c = z5();
-      l.forEach((m) => c[m.valence + 2]++);
-      const mode = c.indexOf(Math.max(...c));
-      return { month, records: l.length, mode, modeShare: c[mode] / l.length, categories: c.filter(Boolean).length };
-    })
-    .sort((a, b) => b.modeShare - a.modeShare);
-}
-
 /* ------------------------------------------------------------------------ */
 /* Regularidade                                                              */
 /* ------------------------------------------------------------------------ */

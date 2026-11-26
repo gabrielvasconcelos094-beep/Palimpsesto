@@ -57,7 +57,7 @@ export function OscillationPanel({ compact }: { compact?: boolean }) {
           <div className="card tight small stack" style={{ gap: 6 }}>
             <div>
               <strong>{t.entries.length}</strong> registro(s) em <strong>{dates}</strong> data(s) neste recorte.
-              {mode === 'day' ? ' Cada ponto é a mediana da data (a categoria do meio), não uma média.' : ''}
+              {mode === 'day' ? ' Cada ponto é o resultado da data: a média dos registros, arredondada ao nível mais próximo (no empate, para longe do neutro).' : ''}
             </div>
             {moodOn && cm.total > 0 && (
               <div>

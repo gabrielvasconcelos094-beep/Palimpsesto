@@ -7,6 +7,7 @@ import { energyLabel, valenceLabel, VALENCE_VALUES } from '../../domain/scales';
 import type { Experience, LifeEvent, MoodEntry } from '../../domain/schema';
 import { activeCount, contextFor, describeFilters, isRetro, matchEvent, matchExperience, matchMood, NO_FILTERS, periodDays } from '../../domain/filters';
 import { addDays, dayKey, startOfWeek } from '../../domain/util';
+import { dayResult } from '../../domain/valence';
 import { Empty, fmtDate, fmtMonth, Page, relativeDay, Segmented, Sheet } from '../../ui/components';
 import { FilterSheet, FilterSummary } from '../../ui/FilterSheet';
 import { TagList, ValenceMark } from '../../ui/pickers';
@@ -98,13 +99,15 @@ export function Journal() {
   useEffect(() => {
     const de = route.query.get('de');
     const ate = route.query.get('ate');
-    if (de && ate) setF({ ...NO_FILTERS, period: 'custom', from: de, to: ate });
+    const valencia = route.query.get('valencia');
+    const vq = valencia !== null && /^-?[0-2]$/.test(valencia) ? [Number(valencia)] : [];
+    if (de && ate) setF({ ...NO_FILTERS, period: 'custom', from: de, to: ate, valences: vq, type: vq.length ? 'mood' : 'all' });
     const emocao = route.query.get('emocao');
     if (emocao) setF({ ...NO_FILTERS, emotions: [emocao] });
     const registro = route.query.get('registro');
     if (registro) setSheet({ open: true, id: registro, day: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route.query.get('registro'), route.query.get('emocao'), route.query.get('de'), route.query.get('ate')]);
+  }, [route.query.get('registro'), route.query.get('emocao'), route.query.get('de'), route.query.get('ate'), route.query.get('valencia')]);
 
   const active = activeCount(f);
   const items = useMemo(() => {
@@ -330,6 +333,8 @@ export function CalendarView({
         {cells.map((d) => {
           const k = dayKey(d);
           const vals = cal.get(k) ?? [];
+          // Um símbolo por data: o resultado do dia (média arredondada). Os registros não mudam.
+          const res = dayResult(vals);
           const out = d.getMonth() !== month.getMonth();
           const evs = eventOn(k);
           return (
@@ -338,14 +343,17 @@ export function CalendarView({
               className={`day${out ? ' out' : ''}${k === today ? ' today' : ''}`}
               style={{ ...(selected === k ? { borderColor: 'var(--ink)', background: 'var(--surface-2)' } : {}), ...(evs.length ? { boxShadow: 'inset 0 3px 0 var(--accent-ink)' } : {}) }}
               onClick={() => setSelected(k)}
-              aria-label={`${d.getDate()}: ${vals.length ? vals.map((v) => valenceLabel(v, labels)).join(', ') : 'sem registros de humor'}${evs.length ? `; ${evs.map((e) => e.title).join(', ')}` : ''}`}
+              aria-label={`${d.getDate()}: ${
+                vals.length
+                  ? `${valenceLabel(res!, labels)}${vals.length > 1 ? ` (resultado de ${vals.length} registros: ${vals.map((v) => valenceLabel(v, labels)).join(', ')})` : ''}`
+                  : 'sem registros de humor'
+              }${evs.length ? `; ${evs.map((e) => e.title).join(', ')}` : ''}`}
             >
-              <span>{d.getDate()}</span>
-              <span className="dots">
-                {vals.slice(0, 6).map((v, i) => (
-                  <span key={i} className="dot xs" style={{ background: `var(--mood-${v + 3})` }} />
-                ))}
+              <span className="row between" style={{ width: '100%' }}>
+                <span>{d.getDate()}</span>
+                {vals.length > 1 && <span className="cal-n" aria-hidden>{vals.length}</span>}
               </span>
+              <span className="cal-mark">{res !== null && <ValenceMark v={res} size={26} />}</span>
             </button>
           );
         })}
@@ -353,7 +361,7 @@ export function CalendarView({
       <div className="chart-legend">
         {VALENCE_VALUES.map((v) => (
           <span key={v}>
-            <span className="dot xs" style={{ background: `var(--mood-${v + 3})` }} />
+            <ValenceMark v={v} size={16} />
             {valenceLabel(v, labels)}
           </span>
         ))}
@@ -364,8 +372,9 @@ export function CalendarView({
         )}
       </div>
       <p className="small muted" style={{ marginTop: 12 }}>
-        {monthEntries.length} registro(s) de humor neste mês, em {new Set(monthEntries.map((e) => e.at.slice(0, 10))).size} dia(s). Dias sem registro ficam em branco — não contam como
-        neutros.
+        {monthEntries.length} registro(s) de humor neste mês, em {new Set(monthEntries.map((e) => e.at.slice(0, 10))).size} dia(s). Com mais de um registro, o símbolo é o resultado
+        do dia (a média arredondada ao nível mais próximo; no empate, para longe do neutro) e o número indica quantos registros há. Toque no dia para ver cada um. Dias sem registro
+        ficam em branco — não contam como neutros.
       </p>
       {selected && (
         <div style={{ marginTop: 14 }}>

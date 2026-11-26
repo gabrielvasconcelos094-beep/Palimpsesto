@@ -1,3 +1,4 @@
+import { NATURE_COLORS } from '../src/ui/symbols';
 import { describe, expect, it } from 'vitest';
 import { buildWidgetPayload, symbolSvg, widgetAppearanceKey, type Rasterizer } from '../src/platform/widgets';
 import { parseValence, routeForWidgetAction } from '../src/app/widgetActions';
@@ -128,8 +129,29 @@ describe('carga enviada ao nativo', () => {
         const p = await buildWidgetPayload(prefs({ themeId: th.id, visualStyle: style }), fake);
         for (const v of Object.values(p.variants)) {
           expect(new Set(v!.moodColors).size, `${th.id} ${style}`).toBeGreaterThanOrEqual(4);
-          for (const mc of v!.moodColors) {
+          // Família da natureza (padrão): o poço é tingido com a cor do nível, mas o desenho que
+          // precisa ser legível é o da planta (no +2, as folhas verdes, não as pétalas amarelas).
+          const ink = [NATURE_COLORS.wilted, NATURE_COLORS.weak, NATURE_COLORS.sprout, NATURE_COLORS.leaf, NATURE_COLORS.leafDeep];
+          v!.moodColors.forEach((mc, i) => {
             // Mesmas misturas do renderizador nativo: minimalista = 88% do fundo; orgânico = círculo da superfície.
+            const well = style === 'organic' ? v!.surface : mixHex(mc, v!.surface, 0.88);
+            expect(contrast(ink[i], well), `${th.id} ${style} ${ink[i]} sobre ${well}`).toBeGreaterThanOrEqual(2.4);
+          });
+        }
+      }
+  });
+  it('nas outras famílias, os poços usam as cores do tema e o símbolo continua legível', async () => {
+    const mixHex = (a: string, b: string, t: number) => {
+      const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+      const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+      return '#' + pa.map((x, i) => Math.round(x + (pb[i] - x) * t).toString(16).padStart(2, '0')).join('');
+    };
+    for (const th of PRESET_THEMES)
+      for (const style of ['minimal', 'organic']) {
+        const p = await buildWidgetPayload(prefs({ themeId: th.id, visualStyle: style, symbolSet: 'moon' }), fake);
+        for (const v of Object.values(p.variants)) {
+          expect(v!.moodColors).not.toContain(NATURE_COLORS.petal);
+          for (const mc of v!.moodColors) {
             const well = style === 'organic' ? v!.surface : mixHex(mc, v!.surface, 0.88);
             expect(contrast(mc, well), `${th.id} ${style} ${mc}`).toBeGreaterThanOrEqual(2.4);
           }

@@ -92,10 +92,10 @@ await page.getByRole('button', { name: 'Humor', exact: true }).click();
 assert.ok((await chart().locator('path[stroke-dasharray="6 4"]').count()) >= 1);
 await page.getByRole('button', { name: 'Humor', exact: true }).click();
 
-step('resumo por data usa a mediana (um ponto por data)');
+step('resumo por data usa o resultado do dia (um ponto por data)');
 const before = await chart().locator('circle').count();
 await page.getByRole('button', { name: 'Resumo por data' }).click();
-await page.getByText(/não por média|nao por media/i).first().waitFor();
+await page.getByText(/resultado da data/i).first().waitFor();
 const dates = await page.evaluate(() => new Set(window.__pal.store.getState().data.moodEntries.map((m) => m.at.slice(0, 10))).size);
 assert.ok((await chart().locator('circle').count()) <= before);
 await page.getByRole('button', { name: 'Humor', exact: true }).click();
@@ -126,7 +126,7 @@ await page.getByRole('button', { name: 'Ver em detalhe' }).click();
 await page.getByRole('heading', { name: 'Oscilações' }).waitFor();
 await go('/trajetoria');
 await page.getByRole('button', { name: 'Distribuição' }).click();
-await page.getByText(/Cada um dos .* registros conta uma vez/).waitFor();
+await page.getByText(/Cada registro conta uma vez/).waitFor();
 
 step('filtros compartilhados valem para o gráfico');
 await go('/trajetoria/oscilacoes');

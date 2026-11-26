@@ -137,12 +137,14 @@ export function Trajectory() {
               compare={dist.prev && dist.prev.some(Boolean) ? dist.prev : null}
               marks={(i) => <ValenceMark v={i - 2} size={16} />}
               hideCounts={unit === 'day'}
+              onSelect={(i) => navigate(`/diario?de=${t.range.from}&ate=${t.range.to}&valencia=${i - 2}`)}
+              selectLabel={(i) => `Ver os registros “${vLabels[i]}” deste período`}
             />
             <p className="xs muted" style={{ margin: 0 }}>
               {unit === 'record'
-                ? `Cada um dos ${t.entries.length} registros conta uma vez.`
+                ? `Total: ${t.entries.length} registros em ${daysWith} datas. Cada registro conta uma vez.`
                 : `Cada uma das ${daysWith} datas pesa o mesmo, mesmo que tenha vários registros.`}{' '}
-              Dias sem registro não entram na conta.
+              Dias sem registro não entram na conta. Toque num nível para ver os registros.
             </p>
             <Toggle
               label="Comparar com o período anterior"

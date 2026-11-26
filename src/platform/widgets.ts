@@ -16,7 +16,7 @@ import type { Preferences } from '../domain/schema';
 import { valenceLabel, VALENCE_VALUES } from '../domain/scales';
 import { resolveTokens } from '../theme/resolve';
 import type { Tokens } from '../theme/tokens';
-import { MoodSymbol, type SymbolSet } from '../ui/symbols';
+import { MoodSymbol, NATURE_LEVEL_COLORS, type SymbolSet } from '../ui/symbols';
 
 export const ICON_PX = 128;
 
@@ -106,7 +106,8 @@ async function variantFor(t: Tokens, set: SymbolSet, organic: boolean, raster: R
     inkSoft: t.inkSoft,
     line: t.line,
     radius: t.radius,
-    moodColors: [...mood],
+    // Com a família da natureza (cores próprias), os poços seguem as cores das plantas.
+    moodColors: set === 'nature' ? [...NATURE_LEVEL_COLORS] : [...mood],
     tints: [...t.tints],
     mood: await Promise.all(VALENCE_VALUES.map(mk)),
     actions: [await raster({ svg: await lucideSvg(Feather, t.primaryInk) }, ICON_PX), await raster({ svg: await lucideSvg(Flag, t.primaryInk) }, ICON_PX)],

@@ -18,6 +18,7 @@ import { gapCount, segments, timeTicks, type SeriesMode, type SeriesPoint } from
 import { fmtDate, MONTHS_SHORT } from '../../ui/components';
 import { EnergyBars, ValenceMark } from '../../ui/pickers';
 import { MoodSymbol } from '../../ui/symbols';
+import { timeLabel } from '../journal/Journal';
 
 const W = 360;
 const ML = 28;
@@ -222,7 +223,7 @@ export function LineChart(props: LineChartProps) {
                 <ValenceMark v={selected.mood - 3} size={20} />
                 <span>
                   {valenceLabel(selected.mood - 3, prefs.valenceLabels)}
-                  {selected.records > 1 ? ' (mediana do dia)' : ''}
+                  {selected.records > 1 ? ' (resultado do dia)' : ''}
                 </span>
               </div>
             )}
@@ -231,7 +232,7 @@ export function LineChart(props: LineChartProps) {
                 <EnergyBars e={selected.energy} size={16} />
                 <span>
                   {energyLabel(selected.energy, prefs.energyLabels)}
-                  {selected.records > 1 ? ' (mediana do dia)' : ''}
+                  {selected.records > 1 ? ' (resultado do dia)' : ''}
                 </span>
               </div>
             )}
@@ -241,6 +242,30 @@ export function LineChart(props: LineChartProps) {
                   .map((id) => data.emotions.find((e) => e.id === id)?.label)
                   .filter(Boolean)
                   .join(', ')}
+              </div>
+            )}
+            {selected.records > 1 && (
+              <div className="list" aria-label="Registros desta data">
+                {data.moodEntries
+                  .filter((m) => selected.ids.includes(m.id))
+                  .sort((x, y) => x.at.localeCompare(y.at))
+                  .map((m) => (
+                    <button key={m.id} className="list-row" style={{ minHeight: 44, padding: '6px 10px' }} onClick={() => navigate(`/diario?registro=${m.id}`)}>
+                      <ValenceMark v={m.valence} size={22} />
+                      <div className="grow">
+                        <div className="small">{valenceLabel(m.valence, prefs.valenceLabels)}</div>
+                        {m.emotionIds.length > 0 && (
+                          <div className="xs muted">
+                            {m.emotionIds
+                              .map((id) => data.emotions.find((e) => e.id === id)?.label)
+                              .filter(Boolean)
+                              .join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <span className="xs faint">{timeLabel(m.at, m.timePrecision)}</span>
+                    </button>
+                  ))}
               </div>
             )}
             <button
@@ -253,7 +278,7 @@ export function LineChart(props: LineChartProps) {
           </div>
         ) : (
           <p className="small muted" style={{ margin: 0 }}>
-            Toque no gráfico (ou use as setas do teclado) para ver um ponto. {props.mode === 'day' ? 'Cada ponto resume uma data pela mediana, não por média.' : 'Cada ponto é um registro.'}
+            Toque no gráfico (ou use as setas do teclado) para ver um ponto. {props.mode === 'day' ? 'Cada ponto é o resultado da data: a média dos registros arredondada ao nível mais próximo.' : 'Cada ponto é um registro.'}
           </p>
         )}
       </div>

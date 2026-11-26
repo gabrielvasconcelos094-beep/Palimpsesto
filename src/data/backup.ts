@@ -14,7 +14,7 @@ import { countData, parseAppData, type IntegrityReport } from './validate';
 
 export const BACKUP_FORMAT = 'palimpsesto-backup';
 export const BACKUP_FORMAT_VERSION = 1;
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.5.0';
 
 export interface BackupFile {
   format: typeof BACKUP_FORMAT;

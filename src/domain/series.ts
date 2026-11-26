@@ -2,13 +2,15 @@
  * Séries temporais de humor e energia para o gráfico em linha.
  *
  * Cuidados (escala ordinal, ver docs/ARQUITETURA.md §4):
- * - Nada de médias: o resumo por data usa a MEDIANA (a categoria do meio; em número par,
- *   a inferior), que existe como categoria real da escala.
+ * - Resumo por data: o mesmo "resultado do dia" do calendário (`dayResult`, em valence.ts):
+ *   média dos registros da data arredondada ao nível mais próximo (empate → longe do centro).
+ *   É só a forma de desenhar a data; os registros originais continuam consultáveis.
  * - Ausência de registro não é humor neutro: a linha é INTERROMPIDA quando há uma lacuna
  *   maior que `GAP_DAYS` (por padrão, mais de 3 dias sem registros).
  * - Humor e energia usam o mesmo eixo de 5 níveis (1…5): humor = valência + 3.
  */
 import type { MoodEntry } from './schema';
+import { dayResult } from './valence';
 
 export const GAP_DAYS = 3;
 const DAY_MS = 86400000;
@@ -61,7 +63,7 @@ export function recordSeries(entries: MoodEntry[]): SeriesPoint[] {
     }));
 }
 
-/** Um ponto por data (meio-dia): mediana do humor e da energia entre os registros da data. */
+/** Um ponto por data (meio-dia): resultado do dia para humor e energia (ver `dayResult`). */
 export function daySeries(entries: MoodEntry[]): SeriesPoint[] {
   const by = new Map<string, MoodEntry[]>();
   for (const m of entries) by.set(m.at.slice(0, 10), [...(by.get(m.at.slice(0, 10)) ?? []), m]);
@@ -72,8 +74,8 @@ export function daySeries(entries: MoodEntry[]): SeriesPoint[] {
       return {
         t: new Date(`${day}T12:00:00`).getTime(),
         day,
-        mood: lowerMedian(list.map((m) => m.valence + 3)),
-        energy: lowerMedian(list.filter((m) => m.energy).map((m) => m.energy as number)),
+        mood: dayResult(list.map((m) => m.valence + 3), 3),
+        energy: dayResult(list.filter((m) => m.energy).map((m) => m.energy as number), 3),
         records: list.length,
         ids: sorted.map((m) => m.id),
         precision: 'day' as const,

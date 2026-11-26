@@ -435,3 +435,55 @@ que ainda o traga é simplesmente ignorada. Os layouts não têm mais `TextView`
 `tests/widgets.test.ts` (carga sem título), `e2e/widgets.mjs` (carga sem título),
 `WidgetRenderTest` (sem texto em nenhum tamanho); regressão do estilo minimalista: só mudaram
 alturas e larguras de conteúdo (a faixa nova e os símbolos maiores).
+
+## 11. Versão 1.5 — auditoria das estatísticas, novos símbolos da natureza e índices
+
+### Diagnóstico (antes das mudanças)
+- **Mantido:** gráfico em linha (Oscilações) com 5 níveis, seleção de pontos, períodos 7 dias…tudo
+  e personalizado, símbolos no eixo e lacunas que não contam como neutro; distribuição dos níveis
+  por dia da semana com peso igual por data e amostra mínima; calendário com toque no dia
+  listando todos os registros; contagem de registros e de datas em todas as telas.
+- **Aprimorado:** símbolos "natureza" (novo desenho e cores próprias); calendário (de uma bolinha
+  por registro para **um símbolo por data**); resumo por data do gráfico e da faixa "Últimos 7
+  dias" (mesma regra do calendário); detalhe do gráfico (lista todos os registros de uma data);
+  distribuição (total e toque num nível → Diário filtrado); comparação de intervalos (índice,
+  diferença em pontos, veredito, atalhos de semana e mês); "Meses mais estáveis" (substituído
+  pelo indicador de estabilidade, para não haver duas noções de estabilidade).
+- **Implementado:** índice médio por dia da semana; indicador de estabilidade; autoria em Sobre.
+- **Não implementado, de propósito:** sequências ("dias seguidos"), conquistas e metas — o
+  Palimpsesto não tem obrigações nem gamificação.
+
+### Regras de cálculo (`src/domain/valence.ts`)
+- **Resultado do dia** (`dayResult`): média dos valores da data arredondada ao inteiro mais
+  próximo; no empate (x,5), para longe do zero. (−1,+1)→0; (−2,+1)→−1; (−2,−1)→−2; (+1,+2)→+2.
+  Usado no calendário, na faixa de 7 dias e no "resumo por data" do gráfico (energia: mesma regra
+  em torno de 3). Substitui a mediana inferior usada até a 1.4, para que a mesma data nunca
+  apareça com símbolos diferentes em telas diferentes. Os registros não são alterados.
+- **Índice de valência** (`valenceIndex`): média de cada data, depois média das datas (peso igual
+  por data). Sempre exibido com registros e datas. A escala é ordinal: o índice é descritivo e
+  aproximado, nunca uma medida clínica. Sem registros, o índice é vazio (não zero).
+- **Por dia da semana** (`weekdayIndex`): índice de cada dia da semana; um dia só entra no "mais
+  alto/mais baixo" com ≥ 3 datas; o destaque exige ≥ 3 dias elegíveis e diferença ≥ 0,25 ponto.
+- **Comparação** (`compareIndex`): B − A em pontos; "sem mudança relevante" abaixo de 0,25;
+  "insuficiente" se algum lado tiver < 5 registros ou < 3 datas. Semanas, meses ou datas livres,
+  quaisquer duas (não só atual × anterior).
+- **Estabilidade** (`stability`): 100 × (1 − desvio-padrão populacional ÷ 2), limitada a 0–100;
+  exige ≥ 5 registros em ≥ 3 datas. A interface diz explicitamente que **estabilidade não é
+  bem-estar** (só avaliações negativas = muito estável).
+
+### Símbolos "Elementos da natureza"
+Planta murcha (terracota) → debilitada (ocre) → broto (verde acinzentado) → planta com botão
+(verde) → planta florida com flor amarela e centro castanho. Como os emojis, a família tem cores
+próprias (`NATURE_COLORS`) e não usa as cores do tema; as outras famílias continuam iguais.
+Aparecem em todos os lugares que usam `MoodSymbol`/`ValenceMark` (registro, Hoje, Diário,
+calendário, gráficos, estatísticas) e nos widgets, que rasterizam o mesmo SVG. No widget, com essa família,
+os poços são tingidos com as cores das plantas (`NATURE_LEVEL_COLORS`), e não com as do tema.
+
+### Testes
+`tests/valence.test.ts` (18): exemplos do resultado do dia, empates, ponto flutuante, peso por
+data, dia da semana (elegibilidade, amostra pequena, dias próximos), comparação (alta, baixa, sem
+mudança, insuficiente, período vazio), semanas/meses, estabilidade (sem variação positiva e
+negativa = 100, máxima = 0, intermediária, amostra pequena) e formatação.
+`e2e/stats.mjs`: estado vazio, calendário com um símbolo e contagem, registros do dia com
+horário, atualização ao editar e ao excluir, distribuição clicável, índice por dia da semana,
+comparação de meses e semanas (com período vazio), estabilidade e Sobre.
