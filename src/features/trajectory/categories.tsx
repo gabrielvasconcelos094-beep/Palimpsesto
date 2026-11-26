@@ -9,7 +9,7 @@ import { DISTORTION_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LA
 import { dayResults, seasonsAll, seasonsRows, SEASON_LABELS, weeksOfYear, yearsRows } from '../../domain/calendar';
 import type { Distortion } from '../../domain/schema';
 import { store } from '../../app/store';
-import { medChanges, PROFESSION_LABELS } from '../../domain/care';
+import { apptTitle, medChanges } from '../../domain/care';
 import { ValenceMark } from '../../ui/pickers';
 import { OscillationPanel } from './Oscillations';
 import { navigate, useRoute } from '../../app/router';
@@ -904,7 +904,7 @@ function TimelineBody() {
         <Section title="Consultas e medicação no período">
           <div className="list">
             {[...meds.map((c) => ({ date: c.date, key: `m${c.date}${c.med.id}${c.kind}`, title: `${c.med.name}: ${c.kind === 'start' ? 'início' : c.kind === 'dose' ? 'nova dose' : 'suspenso'}`, meta: c.text, to: `/guia/remedio/${c.med.id}` })),
-              ...visits.map((v) => ({ date: v.date, key: v.id, title: `Consulta · ${PROFESSION_LABELS[v.forWhom]}${v.professional ? ` · ${v.professional}` : ''}`, meta: v.agreements ? `Combinados: ${v.agreements}` : '', to: `/guia/consulta/${v.id}` }))]
+              ...visits.map((v) => ({ date: v.date, key: v.id, title: `Consulta · ${apptTitle(v)}`, meta: v.agreements ? `Combinados: ${v.agreements}` : '', to: `/guia/consulta/${v.id}` }))]
               .sort((a, b) => b.date.localeCompare(a.date))
               .map((r) => (
                 <button key={r.key} className="list-row" onClick={() => navigate(r.to)}>

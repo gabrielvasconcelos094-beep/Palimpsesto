@@ -50,6 +50,7 @@ export function LineChart(props: LineChartProps) {
   const data = useData();
   const prefs = data.preferences;
   const uid = useId();
+  const gid = 'lc' + uid.replace(/[^a-zA-Z0-9_-]/g, '');
   const svgRef = useRef<SVGSVGElement>(null);
   const [sel, setSel] = useState<number | null>(null);
   const H = props.height ?? 220;
@@ -113,6 +114,24 @@ export function LineChart(props: LineChartProps) {
         style={{ touchAction: 'pan-y', display: 'block', outlineOffset: 2 }}
       >
         <title id={`${uid}-t`}>{desc}</title>
+        <defs>
+          {/* A cor da linha e da área acompanha o nível: cada altura tem a cor do seu nível. */}
+          <linearGradient id={`${gid}-lv`} gradientUnits="userSpaceOnUse" x1={0} x2={0} y1={y(5)} y2={y(1)}>
+            {[5, 4, 3, 2, 1].map((lv, i) => (
+              <stop key={lv} offset={`${i * 25}%`} stopColor={`var(--mood-${lv})`} />
+            ))}
+          </linearGradient>
+          <linearGradient id={`${gid}-area`} gradientUnits="userSpaceOnUse" x1={0} x2={0} y1={y(5)} y2={y(1)}>
+            {[5, 4, 3, 2, 1].map((lv, i) => (
+              <stop key={lv} offset={`${i * 25}%`} stopColor={`var(--mood-${lv})`} stopOpacity={0.16 - i * 0.02} />
+            ))}
+          </linearGradient>
+        </defs>
+        {/* faixas suaves de cada nível, para ler a altura de relance */}
+        {props.showMood &&
+          [1, 2, 3, 4, 5].map((lv) => (
+            <rect key={`band${lv}`} x={ML} width={W - ML - MR} y={y(lv) - (y(1) - y(2)) / 2} height={y(1) - y(2)} fill={`var(--mood-${lv})`} opacity={0.055} />
+          ))}
         {/* grade recessiva e eixo de níveis */}
         {[1, 2, 3, 4, 5].map((lv) => (
           <g key={lv}>
@@ -150,8 +169,18 @@ export function LineChart(props: LineChartProps) {
         {energySegs.map((s, i) => (
           <path key={`e${i}`} d={path(s)} fill="none" stroke="var(--comp1-ink)" strokeWidth={2} strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
         ))}
+        {moodSegs.map((s, i) =>
+          s.points.length > 1 ? (
+            <path
+              key={`a${i}`}
+              d={`${path(s)} L${x(s.points[s.points.length - 1].t).toFixed(1)} ${y(1).toFixed(1)} L${x(s.points[0].t).toFixed(1)} ${y(1).toFixed(1)} Z`}
+              fill={`url(#${gid}-area)`}
+              stroke="none"
+            />
+          ) : null,
+        )}
         {moodSegs.map((s, i) => (
-          <path key={`m${i}`} d={path(s)} fill="none" stroke="var(--ink-soft)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <path key={`m${i}`} className="mood-line" d={path(s)} fill="none" stroke={`url(#${gid}-lv)`} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
         ))}
 
         {energySegs.flatMap((s) =>
@@ -190,7 +219,14 @@ export function LineChart(props: LineChartProps) {
         {props.showMood && (
           <span>
             <svg width={26} height={10} aria-hidden>
-              <line x1={1} x2={25} y1={5} y2={5} stroke="var(--ink-soft)" strokeWidth={2} strokeLinecap="round" />
+              <defs>
+                <linearGradient id={`${gid}-lg`} gradientUnits="userSpaceOnUse" x1={1} x2={25} y1={0} y2={0}>
+                  {[1, 2, 3, 4, 5].map((lv, i) => (
+                    <stop key={lv} offset={`${i * 25}%`} stopColor={`var(--mood-${lv})`} />
+                  ))}
+                </linearGradient>
+              </defs>
+              <line x1={1} x2={25} y1={5} y2={5} stroke={`url(#${gid}-lg)`} strokeWidth={2.6} strokeLinecap="round" />
               <circle cx={13} cy={5} r={3.5} fill="var(--mood-4)" stroke="var(--surface)" strokeWidth={1.5} />
             </svg>
             Humor, à esquerda ({valenceLabel(-2, prefs.valenceLabels).toLowerCase()} → {valenceLabel(2, prefs.valenceLabels).toLowerCase()})
@@ -297,20 +333,42 @@ export function SeriesTable({ points, showMood, showEnergy, limit = 60 }: { poin
         {points.length > rows.length ? ` mais recentes de ${points.length}` : ''})
       </summary>
       <div style={{ overflowX: 'auto', marginTop: 8 }}>
-        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 12.5 }}>
+        <table className="data-table">
           <thead>
-            <tr style={{ textAlign: 'left' }}>
-              <th style={{ padding: '4px 6px' }}>Quando</th>
-              {showMood && <th style={{ padding: '4px 6px' }}>Humor</th>}
-              {showEnergy && <th style={{ padding: '4px 6px' }}>Energia</th>}
+            <tr>
+              <th>Quando</th>
+              {showMood && <th>Humor</th>}
+              {showEnergy && <th>Energia</th>}
             </tr>
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.ids.join('|')} style={{ borderTop: '1px solid var(--line)' }}>
-                <td style={{ padding: '4px 6px' }}>{pointTimeText(p)}</td>
-                {showMood && <td style={{ padding: '4px 6px' }}>{p.mood === null ? '—' : valenceLabel(p.mood - 3, prefs.valenceLabels)}</td>}
-                {showEnergy && <td style={{ padding: '4px 6px' }}>{p.energy === null ? '—' : energyLabel(p.energy, prefs.energyLabels)}</td>}
+              <tr key={p.ids.join('|')}>
+                <td>{pointTimeText(p)}</td>
+                {showMood && (
+                  <td>
+                    {p.mood === null ? (
+                      '—'
+                    ) : (
+                      <span className="cell-level">
+                        <span className="level-dot" style={{ background: `var(--mood-${p.mood})` }} />
+                        {valenceLabel(p.mood - 3, prefs.valenceLabels)}
+                      </span>
+                    )}
+                  </td>
+                )}
+                {showEnergy && (
+                  <td>
+                    {p.energy === null ? (
+                      '—'
+                    ) : (
+                      <span className="cell-level">
+                        <EnergyBars e={p.energy} size={11} />
+                        {energyLabel(p.energy, prefs.energyLabels)}
+                      </span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

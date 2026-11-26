@@ -35,7 +35,7 @@ await page.evaluate(async () => window.__pal.seed());
 await go('/trajetoria/oscilacoes');
 await chart().waitFor();
 const svg = chart();
-assert.ok((await svg.locator('path[stroke="var(--ink-soft)"]').count()) >= 1, 'linha de humor');
+assert.ok((await svg.locator('path.mood-line').count()) >= 1, 'linha de humor');
 assert.ok((await svg.locator('path[stroke-dasharray="6 4"]').count()) >= 1, 'linha de energia tracejada');
 assert.ok((await svg.locator('circle').count()) > 5, 'marcadores de humor');
 assert.ok((await svg.locator('rect[width="7"]').count()) > 5, 'marcadores quadrados da energia');
@@ -49,7 +49,7 @@ const fills = await svg.locator('circle').evaluateAll((els) => [...new Set(els.m
 assert.ok(fills.length >= 3, `cores de nível: ${fills}`);
 
 step('lacunas de mais de 3 dias interrompem a linha');
-const segs = await svg.locator('path[stroke="var(--ink-soft)"]').count();
+const segs = await svg.locator('path.mood-line').count();
 const expectedGaps = await page.evaluate(async () => {
   const d = window.__pal.store.getState().data;
   const to = new Date();

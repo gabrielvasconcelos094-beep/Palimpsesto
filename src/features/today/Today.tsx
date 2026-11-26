@@ -16,7 +16,7 @@ import { daySeries } from '../../domain/series';
 import { SleepSheet } from '../../ui/SleepFields';
 import { SLEEP_QUALITY } from '../../domain/scales';
 import { CalendarClock, Moon } from 'lucide-react';
-import { upcoming, PROFESSION_LABELS } from '../../domain/care';
+import { upcoming, whoLabel } from '../../domain/care';
 
 /**
  * Os últimos sete dias num relance: o símbolo de cada data é o resultado do
@@ -320,10 +320,13 @@ function NextAppointmentRow({ today }: { today: string }) {
       <CalendarClock size={18} strokeWidth={1.6} className="faint" />
       <div className="grow">
         <div className="title">
-          {PROFESSION_LABELS[next.forWhom]} {when}
+          {next.forWhom === 'outro' ? next.professional || 'Consulta' : whoLabel(next.forWhom, next.professionalGender)} {when}
           {next.time ? `, ${next.time}` : ''}
         </div>
-        <div className="meta">{days === 0 && next.time ? 'Toque para ver o preparo' : 'Preparar: pauta, perguntas e pedidos'}</div>
+        <div className="meta">
+          {next.professional && next.forWhom !== 'outro' ? `${next.professional} · ` : ''}
+          {days === 0 && next.time ? 'Toque para ver o preparo' : 'Preparar: pauta, perguntas e pedidos'}
+        </div>
       </div>
     </button>
   );

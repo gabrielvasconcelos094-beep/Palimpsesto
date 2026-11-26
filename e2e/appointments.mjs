@@ -93,8 +93,8 @@ assert.equal(fs.readFileSync(await dl.path()).subarray(0, 4).toString(), '%PDF')
 
 step('Hoje mostra a consulta dos próximos dias');
 await go('/');
-await page.getByText(/Psiquiatria em 3 dias, 14:30/).waitFor();
-await page.getByText(/Psiquiatria em 3 dias/).click();
+await page.getByText(/Psiquiatra em 3 dias, 14:30/).waitFor();
+await page.getByText(/Psiquiatra em 3 dias/).click();
 await page.waitForTimeout(300);
 assert.match(page.url(), /#\/guia\/consulta\//);
 
@@ -155,6 +155,33 @@ assert.equal(await page.getByText('Quetiapina · 25 mg').count(), 0, 'anterior f
 await page.getByRole('button', { name: /medicamentos anteriores \(1\)/ }).click();
 await page.getByText(/efeitos colaterais/).waitFor();
 await shot('care-tab-2');
+
+step('nomenclatura: "Psicóloga em X dias" na tela inicial');
+await page.evaluate(() => {
+  const s = window.__pal.store;
+  for (const a of s.getState().data.appointments) s.remove('appointments', a.id);
+});
+const d2 = await day(2);
+await go('/guia/consulta/nova');
+await page.getByRole('button', { name: 'Psicóloga', exact: true }).click();
+await page.locator('[aria-label="Data da consulta"]').fill(d2);
+await page.getByRole('button', { name: 'Agendar', exact: true }).click();
+await page.waitForTimeout(300);
+assert.equal((await page.locator('h1').first().textContent()).trim(), 'Psicóloga');
+await go('/');
+await page.getByText('Psicóloga em 2 dias').waitFor();
+
+step('excluir pela tela da consulta: some do banco, da aba Consultas e da tela inicial');
+await page.getByText('Psicóloga em 2 dias').click();
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: 'Excluir consulta' }).click();
+await page.locator('.dialog').getByRole('button', { name: 'Excluir' }).click();
+await page.waitForTimeout(400);
+assert.equal((await data()).appointments.length, 0);
+assert.equal(await page.getByText(/Psicóloga em 2 dias/).count(), 0, 'some da tela inicial');
+await go('/guia?t=acompanhamento');
+await page.getByText('Agendar a próxima consulta').waitFor();
+assert.equal(await page.locator('button.card.row', { hasText: /Próxima · / }).count(), 0, 'some da aba Consultas');
 
 assert.deepEqual(errors, [], 'sem erros de página');
 console.log('\nTodos os fluxos de consultas e medicamentos passaram.');

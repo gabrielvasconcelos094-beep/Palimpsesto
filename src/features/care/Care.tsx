@@ -35,12 +35,13 @@ import { dayKey } from '../../domain/util';
 import { deliverFile } from '../../platform/native';
 import { CONSULT_SECTIONS } from '../../report/sections';
 import { AppointmentsSection } from './Appointments';
+import { lastGender, whoLabel } from '../../domain/care';
 import { AgendaItemRow } from './AgendaItemRow';
 import { MedicationsSection } from './Medications';
 import { resolveTokens } from '../../theme/resolve';
 import { AutoText, Field, fmtDate, Page, Section, Segmented, useConfirm } from '../../ui/components';
 
-const FOR_WHOM: Record<AgendaItem['forWhom'], string> = { psiquiatria: 'Psiquiatria', psicologia: 'Psicologia', ambos: 'Ambos', outro: 'Outro' };
+
 
 /* ------------------------------------------------------------------------ */
 /* Aba do Guia                                                               */
@@ -153,9 +154,9 @@ function AgendaSection() {
         <AutoText value={textV} onChange={setText} placeholder="Ex.: o sono piorou desde a mudança de dose; quero falar sobre o trabalho…" minRows={2} />
         <div className="row between wrap" style={{ gap: 8 }}>
           <div className="chips" role="group" aria-label="Para quem">
-            {(Object.keys(FOR_WHOM) as AgendaItem['forWhom'][]).map((k) => (
+            {(['psiquiatria', 'psicologia', 'ambos', 'outro'] as AgendaItem['forWhom'][]).map((k) => (
               <button key={k} className="chip" aria-pressed={forWhom === k} onClick={() => setForWhom(k)}>
-                {FOR_WHOM[k]}
+                {k === 'ambos' ? 'Os dois' : whoLabel(k, lastGender(data.appointments, 'psicologia'))}
               </button>
             ))}
           </div>

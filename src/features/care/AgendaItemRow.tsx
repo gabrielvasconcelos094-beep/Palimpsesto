@@ -8,12 +8,11 @@ import { CalendarPlus, Check, Trash2, X } from 'lucide-react';
 import { navigate } from '../../app/router';
 import { store, useData } from '../../app/store';
 import { removeWithUndo } from '../../app/undo';
-import { PROFESSION_LABELS } from '../../domain/care';
+import { apptTitle, lastGender, whoLabel } from '../../domain/care';
 import type { AgendaItem, Appointment } from '../../domain/schema';
 import { dayKey } from '../../domain/util';
 import { AutoText, fmtDate } from '../../ui/components';
 
-const FOR_WHOM: Record<AgendaItem['forWhom'], string> = { psiquiatria: 'Psiquiatria', psicologia: 'Psicologia', ambos: 'Ambos', outro: 'Outro' };
 
 export function AgendaItemRow({ a, appointment }: { a: AgendaItem; appointment?: Appointment }) {
   const data = useData();
@@ -44,9 +43,9 @@ export function AgendaItemRow({ a, appointment }: { a: AgendaItem; appointment?:
         <div className="grow">
           <div style={{ textDecoration: a.doneAt ? 'line-through' : undefined, color: a.doneAt ? 'var(--ink-soft)' : undefined }}>{a.text}</div>
           <div className="xs faint">
-            {FOR_WHOM[a.forWhom]} · anotado em {fmtDate(a.createdAt, { short: true })}
+            {a.forWhom === 'ambos' ? 'Psiquiatra e psicóloga(o)' : whoLabel(a.forWhom, lastGender(data.appointments, 'psicologia'))} · anotado em {fmtDate(a.createdAt, { short: true })}
             {a.doneAt ? ` · conversado em ${fmtDate(a.doneAt, { short: true })}` : ''}
-            {linked && !appointment ? ` (${PROFESSION_LABELS[linked.forWhom].toLowerCase()})` : ''}
+            {linked && !appointment ? ` (${apptTitle(linked)})` : ''}
           </div>
         </div>
         <button className="icon-btn" aria-label={`Vincular um dia: ${a.text}`} onClick={() => setAddingDay(!addingDay)}>

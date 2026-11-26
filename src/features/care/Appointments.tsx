@@ -15,8 +15,8 @@ import { useSystemDark } from '../../app/theme';
 import { toast } from '../../app/toast';
 import { removeWithUndo } from '../../app/undo';
 import { periodPreset } from '../../domain/analytics';
-import { agendaFor, apptTime, lastDone, past, PROFESSION_LABELS, REMINDER_OPTIONS, reminderTime, REQUEST_LABELS, sinceSummary, upcoming } from '../../domain/care';
-import { PROFESSIONS, REQUESTS, type Appointment } from '../../domain/schema';
+import { agendaFor, apptTime, apptTitle, lastDone, lastGender, past, REMINDER_OPTIONS, whoWithArticle, reminderTime, REQUEST_LABELS, sinceSummary, upcoming } from '../../domain/care';
+import { REQUESTS, type Appointment } from '../../domain/schema';
 import { fmtHours } from '../../domain/sleep';
 import { dayKey } from '../../domain/util';
 import { fmtIndex } from '../../domain/valence';
@@ -57,10 +57,7 @@ export function AppointmentsSection() {
             <p className="kicker" style={{ margin: 0 }}>
               Próxima · {relative(next, today)}
             </p>
-            <div className="h3">
-              {PROFESSION_LABELS[next.forWhom]}
-              {next.professional ? ` · ${next.professional}` : ''}
-            </div>
+            <div className="h3">{apptTitle(next)}</div>
             <div className="small muted">
               {apptLabel(next)}
               {next.place ? ` · ${next.place}` : ''}
@@ -117,8 +114,7 @@ function ApptRow({ a, today }: { a: Appointment; today: string }) {
     <button className="list-row" onClick={() => navigate(`/guia/consulta/${a.id}`)}>
       <div className="grow">
         <div className="title" style={{ textDecoration: a.status === 'canceled' ? 'line-through' : undefined }}>
-          {PROFESSION_LABELS[a.forWhom]}
-          {a.professional ? ` · ${a.professional}` : ''}
+          {apptTitle(a)}
         </div>
         <div className="meta">
           {apptLabel(a)} · {status}
@@ -145,11 +141,14 @@ function NewAppointment({ notFound }: { notFound: boolean }) {
   const data = useData();
   const route = useRoute();
   const last = [...data.appointments].sort((x, y) => y.date.localeCompare(x.date))[0];
+  const tipo = (route.query.get('tipo') as Appointment['forWhom']) ?? last?.forWhom ?? 'psiquiatria';
+  const g = route.query.get('genero');
   const [d, setD] = useState({
     date: route.query.get('data') ?? '',
     time: '',
-    forWhom: (route.query.get('tipo') as Appointment['forWhom']) ?? last?.forWhom ?? 'psiquiatria',
-    professional: route.query.get('prof') ?? (last && last.forWhom === (route.query.get('tipo') ?? last.forWhom) ? last.professional : ''),
+    forWhom: tipo,
+    professionalGender: (g === 'f' || g === 'm' ? g : (lastGender(data.appointments, tipo) ?? null)) as Appointment['professionalGender'],
+    professional: route.query.get('prof') ?? (last && last.forWhom === tipo ? last.professional : ''),
     place: route.query.get('local') ?? '',
   });
   const save = () => {
@@ -175,16 +174,27 @@ function ApptFields({
   value,
   onChange,
 }: {
-  value: { date: string; time: string; forWhom: Appointment['forWhom']; professional: string; place: string };
-  onChange: (p: Partial<{ date: string; time: string; forWhom: Appointment['forWhom']; professional: string; place: string }>) => void;
+  value: { date: string; time: string; forWhom: Appointment['forWhom']; professionalGender: Appointment['professionalGender']; professional: string; place: string };
+  onChange: (p: Partial<{ date: string; time: string; forWhom: Appointment['forWhom']; professionalGender: Appointment['professionalGender']; professional: string; place: string }>) => void;
 }) {
+  const opts: Array<{ forWhom: Appointment['forWhom']; g: Appointment['professionalGender']; label: string }> = [
+    { forWhom: 'psiquiatria', g: null, label: 'Psiquiatra' },
+    { forWhom: 'psicologia', g: 'f', label: 'Psicóloga' },
+    { forWhom: 'psicologia', g: 'm', label: 'Psicólogo' },
+    { forWhom: 'outro', g: null, label: 'Outro profissional' },
+  ];
   return (
     <>
-      <Field label="Com quem">
-        <div className="chips" role="group" aria-label="Tipo de consulta">
-          {PROFESSIONS.map((p) => (
-            <button key={p} className="chip" aria-pressed={value.forWhom === p} onClick={() => onChange({ forWhom: p })}>
-              {PROFESSION_LABELS[p]}
+      <Field label="Com quem" help={value.forWhom === 'psicologia' && !value.professionalGender ? 'Escolha “Psicóloga” ou “Psicólogo” para o app usar o nome certo.' : undefined}>
+        <div className="chips" role="group" aria-label="Com quem">
+          {opts.map((o) => (
+            <button
+              key={o.label}
+              className="chip"
+              aria-pressed={value.forWhom === o.forWhom && (o.forWhom !== 'psicologia' || value.professionalGender === o.g)}
+              onClick={() => onChange({ forWhom: o.forWhom, professionalGender: o.forWhom === 'psicologia' ? o.g : value.forWhom === o.forWhom ? value.professionalGender : null })}
+            >
+              {o.label}
             </button>
           ))}
         </div>
@@ -273,7 +283,7 @@ function AppointmentDetail({ a }: { a: Appointment }) {
       back="/guia?t=acompanhamento"
       noNav
       kicker={`Consulta · ${a.status === 'done' ? 'realizada' : a.status === 'canceled' ? 'cancelada' : relative(a, today)}`}
-      title={`${PROFESSION_LABELS[a.forWhom]}${a.professional ? ` · ${a.professional}` : ''}`}
+      title={apptTitle(a)}
       subtitle={`${apptLabel(a)}${a.place ? ` · ${a.place}` : ''}`}
       ghost="consulta"
       actions={
@@ -282,8 +292,10 @@ function AppointmentDetail({ a }: { a: Appointment }) {
           aria-label="Excluir consulta"
           onClick={async () => {
             if (await ask({ title: 'Excluir esta consulta?', body: 'As anotações dela também serão excluídas (dá para desfazer logo em seguida). Os assuntos da pauta continuam.', confirm: 'Excluir', danger: true })) {
-              await cancelReminder(a.id);
+              // Exclui primeiro; o lembrete é cancelado em segundo plano (no Android, o plugin
+              // de notificações não pode atrasar nem impedir a exclusão).
               removeWithUndo('appointments', a.id, 'Consulta excluída.');
+              void cancelReminder(a.id);
               goBack('/guia?t=acompanhamento');
             }
           }}
@@ -404,7 +416,7 @@ function AppointmentDetail({ a }: { a: Appointment }) {
             <Field label="Como estive desde a última consulta" optional help="Em poucas linhas, nas suas palavras. Os números acima ajudam a lembrar.">
               <AutoText value={a.sinceLast} onChange={(sinceLast) => patch({ sinceLast })} placeholder="Ex.: semana boa até quinta; depois voltou a insônia…" minRows={3} />
             </Field>
-            <Field label="Assuntos que quero levar" optional help={`Da pauta geral, os que valem para ${PROFESSION_LABELS[a.forWhom].toLowerCase()}.`}>
+            <Field label="Assuntos que quero levar" optional help={`Da pauta geral, os que valem para ${whoWithArticle(a.forWhom, a.professionalGender)}.`}>
               <div className="stack" style={{ gap: 6 }}>
                 {pauta.length > 0 && (
                   <div className="list">
@@ -480,7 +492,7 @@ function AppointmentDetail({ a }: { a: Appointment }) {
               )}
               <button
                 className="btn sm"
-                onClick={() => navigate(`/guia/consulta/nova?tipo=${a.forWhom}&prof=${encodeURIComponent(a.professional)}&local=${encodeURIComponent(a.place)}`)}
+                onClick={() => navigate(`/guia/consulta/nova?tipo=${a.forWhom}${a.professionalGender ? `&genero=${a.professionalGender}` : ''}&prof=${encodeURIComponent(a.professional)}&local=${encodeURIComponent(a.place)}`)}
               >
                 <CalendarPlus size={15} /> Agendar a próxima
               </button>
@@ -492,16 +504,19 @@ function AppointmentDetail({ a }: { a: Appointment }) {
           <summary className="small muted">Editar data, horário e profissional</summary>
           <div className="stack lg" style={{ marginTop: 12 }}>
             <ApptFields
-              value={{ date: a.date, time: a.time ?? '', forWhom: a.forWhom, professional: a.professional, place: a.place }}
-              onChange={(p) => patch({ ...p, ...(p.time !== undefined ? { time: p.time || null } : {}) } as any)}
+              value={{ date: a.date, time: a.time ?? '', forWhom: a.forWhom, professionalGender: a.professionalGender, professional: a.professional, place: a.place }}
+              onChange={(p) => {
+                if (p.date !== undefined && !p.date) return; // a consulta precisa de uma data
+                patch({ ...p, ...(p.time !== undefined ? { time: p.time || null } : {}) } as any);
+              }}
             />
             <button
               className="btn danger-ghost sm"
               style={{ alignSelf: 'flex-start' }}
               onClick={async () => {
                 if (await ask({ title: 'Excluir esta consulta?', body: 'As anotações dela também serão excluídas (dá para desfazer logo em seguida).', confirm: 'Excluir', danger: true })) {
-                  await cancelReminder(a.id);
                   removeWithUndo('appointments', a.id, 'Consulta excluída.');
+                  void cancelReminder(a.id);
                   goBack('/guia?t=acompanhamento');
                 }
               }}

@@ -24,7 +24,7 @@ import { band, history, INSTRUMENT_DEFS, item9Positive, score } from '../domain/
 import { fmtHours, sleepSummary } from '../domain/sleep';
 import { DISTORTION_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
 import { INSTRUMENTS, type Appointment } from '../domain/schema';
-import { activeMeds, agendaFor, currentDose, medChanges, PROFESSION_LABELS, REQUEST_LABELS } from '../domain/care';
+import { activeMeds, agendaFor, apptTitle, currentDose, lastGender, medChanges, REQUEST_LABELS, whoLabel } from '../domain/care';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
 import { dayKey as dayStr } from '../domain/util';
 import { changes, recordSeries, segments, timeTicks } from '../domain/series';
@@ -158,7 +158,7 @@ export function buildReport(
   const ap = opts.appointment;
   if (ap) {
     heading('Para esta consulta');
-    text(`${PROFESSION_LABELS[ap.forWhom]}${ap.professional ? ` - ${ap.professional}` : ''} - ${fmt(ap.date)}${ap.time ? `, ${ap.time}` : ''}${ap.place ? ` - ${ap.place}` : ''}`, { size: 10.5, style: 'bold' });
+    text(`${apptTitle(ap).replace(' · ', ' - ')} - ${fmt(ap.date)}${ap.time ? `, ${ap.time}` : ''}${ap.place ? ` - ${ap.place}` : ''}`, { size: 10.5, style: 'bold' });
     if (ap.sinceLast.trim()) {
       sub('Como estive desde a última consulta');
       text(ap.sinceLast.slice(0, 3000), { size: 10 });
@@ -174,7 +174,8 @@ export function buildReport(
     const open = ap ? agendaFor(data.agenda, ap) : data.agenda.filter((a) => !a.doneAt).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (open.length) {
       heading('Assuntos para a consulta');
-      const who = { psiquiatria: 'psiquiatria', psicologia: 'psicologia', ambos: 'psiquiatria e psicologia', outro: 'outro profissional' } as const;
+      const g = lastGender(data.appointments, 'psicologia');
+      const who = { psiquiatria: 'psiquiatra', psicologia: whoLabel('psicologia', g).toLowerCase(), ambos: `psiquiatra e ${whoLabel('psicologia', g).toLowerCase()}`, outro: 'outro profissional' } as const;
       for (const a of open) text(`- ${a.text} (${who[a.forWhom]})${a.dates.length ? ` - dias: ${a.dates.map((d) => fmt(d)).join(', ')}` : ''}`, { size: 10, gap: 1 });
     }
   }

@@ -2,13 +2,14 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, usePrefs } from '../../app/store';
-import { useSystemDark } from '../../app/theme';
+import { resolveTokens, useSystemDark } from '../../app/theme';
 import { toast } from '../../app/toast';
 import type { CustomTheme, ThemeColors } from '../../domain/schema';
 import { isHex } from '../../theme/color';
 import { findPreset, PRESET_THEMES, type CardStyle, type DisplayFont } from '../../theme/presets';
 import { deriveTokens, tokensToCss, type Tokens } from '../../theme/tokens';
 import { Field, Page, Section, Segmented, Toggle, useConfirm } from '../../ui/components';
+import { CHART_PALETTES } from '../../theme/chartPalettes';
 
 function cssVars(t: Tokens, font?: DisplayFont): CSSProperties {
   return tokensToCss(t, { displayFont: font }) as unknown as CSSProperties;
@@ -90,6 +91,7 @@ function StylePreview({ kind }: { kind: 'minimal' | 'organic' }) {
 export function ThemesPage() {
   const prefs = usePrefs();
   const systemDark = useSystemDark();
+  const themeMood = resolveTokens({ ...prefs, chartPalette: 'theme' }, systemDark).mood;
   const dark = prefs.appearance === 'dark' || (prefs.appearance === 'system' && systemDark);
   const previews = useMemo(
     () => PRESET_THEMES.map((p) => ({ p, tokens: deriveTokens(dark ? p.dark : p.light, p, p.mood?.[dark ? 'dark' : 'light']).tokens })),
@@ -147,6 +149,31 @@ export function ThemesPage() {
           ]}
         />
       </Field>
+
+      <Section kicker="Cores dos gráficos" title="Paleta dos gráficos">
+        <p className="small muted" style={{ marginTop: -4 }}>
+          A escala do humor nos gráficos, no calendário, nos símbolos e nos widgets. Vale para qualquer tema, claro ou escuro — o contraste é ajustado automaticamente.
+        </p>
+        <div className="stack" role="radiogroup" aria-label="Paleta dos gráficos">
+          {CHART_PALETTES.map((p) => {
+            const sw = p.colors ?? [1, 2, 3, 4, 5].map((i) => `var(--mood-${i})`);
+            const on = (prefs.chartPalette ?? 'theme') === p.id;
+            return (
+              <button key={p.id} role="radio" aria-checked={on} className={`card tight row palette-opt${on ? ' on' : ''}`} onClick={() => store.setPreferences({ chartPalette: p.id })}>
+                <span className="palette-sw" aria-hidden>
+                  {sw.map((c, i) => (
+                    <span key={i} style={{ background: p.id === 'theme' && !on ? themeMood[i] : c }} />
+                  ))}
+                </span>
+                <span className="grow" style={{ textAlign: 'left' }}>
+                  <span style={{ fontWeight: 600, display: 'block' }}>{p.name}</span>
+                  <span className="xs muted">{p.description}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Section>
 
       <Section kicker="Galeria">
         <div className="grid-2">

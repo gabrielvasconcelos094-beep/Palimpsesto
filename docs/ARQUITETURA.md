@@ -661,3 +661,48 @@ fatores do sono com amostra mínima, esquema com padrões e limites) e `e2e/v19.
 visões do calendário, pauta riscada com dia vinculado, consulta com período editável e exclusão,
 atalho de período, fatores do sono, registro de pensamentos, categoria Pensamentos, perfil da
 emoção com guia).
+
+## 16. Versão 1.10 — exclusão, nomenclatura e visual dos gráficos
+
+### Exclusão de consultas (bug)
+**Causa:** no Android, a exclusão *esperava* o cancelamento do lembrete pelo plugin de
+notificações antes de remover a consulta — e essa espera estava fora da proteção contra erros
+(o carregamento do plugin podia lançar ou demorar sem fim). A caixa de confirmação fechava, mas
+a remoção nunca acontecia. No navegador o plugin não existe, por isso os testes não pegavam.
+**Correção:** a consulta é removida primeiro; o lembrete é cancelado em segundo plano. Todas as
+chamadas ao plugin passam por `guarded()` (nunca lançam erro e desistem após 4 s).
+
+Revisão das demais exclusões e edições: todas as telas com gravação automática interrompem a
+gravação só depois da confirmação (exceto Situações, que a interrompia antes — se a pessoa
+desistisse de excluir, as últimas edições se perdiam; agora grava o pendente antes de
+perguntar). Também corrigidos: o nome do medicamento não podia ser apagado por inteiro para
+redigitar; apagar a data da consulta no campo de edição gerava erro (a data é obrigatória);
+datas vazias em observação/parada de medicamento.
+
+### Nomenclatura
+"Psicologia em 3 dias" usava o nome da área. Agora a consulta guarda "Com quem": Psiquiatra,
+Psicóloga, Psicólogo ou Outro profissional (`professionalGender`, sem supor gênero — se não
+informado, "Psicóloga(o)"). `whoLabel`, `whoWithArticle` e `apptTitle` (`domain/care.ts`) são
+usados na tela inicial, nas listas, no título da consulta, na pauta ("Psiquiatra",
+"Psicóloga", "Os dois"), na linha do tempo, no PDF e no lembrete ("Sessão com a psicóloga às
+14:00", quando o texto não é o neutro).
+
+### Gráficos e tabelas
+- **Paleta dos gráficos** (Ajustes → Temas): "Do tema", "Vibrante", "Aurora", "Natureza" e
+  "Mar e coral" (`theme/chartPalettes.ts`). Divergentes (quente → cinza → frio/verde), com as
+  pontas diferentes também em claridade (daltonismo); contraste ≥ 3:1 com a superfície
+  garantido em todos os temas, claro e escuro (teste). Vale para gráficos, calendário,
+  símbolos coloridos, widgets e PDF.
+- **Arco-resumo** da distribuição na Trajetória: semicírculo pelas proporções, total no centro
+  e os cinco símbolos com a contagem (tocar abre os registros do nível).
+- **Gráfico em linha:** faixas suaves de cada nível ao fundo; a linha do humor e a área abaixo
+  dela mudam de cor conforme o nível (degradê vertical na escala); legenda correspondente.
+- **Colunas empilhadas:** blocos encostados, coluna com cantos arredondados, grade tracejada.
+- **Barras e índices:** barras mais grossas e arredondadas; trilho do índice com um leve
+  degradê do desagradável ao agradável.
+- **Tabelas:** estilo único (`.data-table`): cabeçalho discreto, linhas alternadas, números
+  alinhados e ponto de cor do nível; mapa de calor com intensidade maior e número em destaque.
+
+Testes: `tests/v110.test.ts` (rótulos de quem atende, título e lembrete; paletas em todos os
+temas e modos); `e2e/appointments.mjs` ("Psicóloga em 2 dias" na tela inicial; excluir pela
+tela da consulta some do banco, da aba Consultas e da tela inicial).

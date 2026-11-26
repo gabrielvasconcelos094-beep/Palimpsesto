@@ -35,7 +35,7 @@ await page.getByText('Ainda não respondido').first().waitFor();
 
 step('pauta: adicionar, marcar como conversado, anotar o combinado e desfazer exclusão');
 await page.getByPlaceholder(/o sono piorou/).fill('Falar sobre a insônia desde a mudança de dose');
-await page.getByRole('button', { name: 'Psiquiatria', exact: true }).click();
+await page.getByRole('button', { name: 'Psiquiatra', exact: true }).click();
 await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
 await page.getByText('Falar sobre a insônia desde a mudança de dose').waitFor();
 assert.equal((await data()).agenda[0].forWhom, 'psiquiatria');

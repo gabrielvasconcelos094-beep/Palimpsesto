@@ -6,7 +6,35 @@ import type { AgendaItem, AppData, Appointment, Medication } from './schema';
 import { sleepSummary } from './sleep';
 import { valenceIndex } from './valence';
 
+/** Área (para frases como "consulta de psiquiatria"). */
 export const PROFESSION_LABELS: Record<Appointment['forWhom'], string> = { psiquiatria: 'Psiquiatria', psicologia: 'Psicologia', outro: 'Outro profissional' };
+
+type Gender = 'f' | 'm' | null | undefined;
+/**
+ * Quem atende — o nome certo para a PESSOA, não para a área: "Psiquiatra" (serve para os
+ * dois gêneros), "Psicóloga" ou "Psicólogo" (ou "Psicóloga(o)" se não informado).
+ */
+export function whoLabel(forWhom: Appointment['forWhom'] | 'ambos', gender?: Gender): string {
+  if (forWhom === 'psiquiatria') return 'Psiquiatra';
+  if (forWhom === 'psicologia') return gender === 'm' ? 'Psicólogo' : gender === 'f' ? 'Psicóloga' : 'Psicóloga(o)';
+  if (forWhom === 'ambos') return 'Ambos';
+  return 'Outro profissional';
+}
+/** "a psicóloga", "o psicólogo", "a(o) psiquiatra"… para usar no meio de frases. */
+export function whoWithArticle(forWhom: Appointment['forWhom'], gender?: Gender): string {
+  const w = whoLabel(forWhom, gender).toLowerCase();
+  if (forWhom === 'outro') return 'o outro profissional';
+  return gender === 'f' ? `a ${w}` : gender === 'm' ? `o ${w}` : forWhom === 'psiquiatria' ? `a(o) ${w}` : `a(o) ${w}`;
+}
+/** Título de uma consulta: "Psicóloga · Dra. Helena". */
+export function apptTitle(a: Pick<Appointment, 'forWhom' | 'professionalGender' | 'professional'>) {
+  if (a.forWhom === 'outro') return a.professional || 'Outro profissional';
+  return `${whoLabel(a.forWhom, a.professionalGender)}${a.professional ? ` · ${a.professional}` : ''}`;
+}
+/** Gênero informado na consulta mais recente de psicologia (para rótulos da pauta). */
+export function lastGender(list: Appointment[], forWhom: Appointment['forWhom']): Gender {
+  return [...list].filter((a) => a.forWhom === forWhom && a.professionalGender).sort((a, b) => b.date.localeCompare(a.date))[0]?.professionalGender;
+}
 export const REQUEST_LABELS: Record<Appointment['requests'][number], string> = {
   receita: 'Receita',
   atestado: 'Atestado ou declaração',
@@ -42,10 +70,11 @@ export function reminderTime(a: Pick<Appointment, 'date' | 'time' | 'reminderMin
   return new Date(base.getTime() - mins * 60000);
 }
 
-export function reminderText(a: Pick<Appointment, 'time' | 'forWhom' | 'professional' | 'reminderShowsType'>) {
+export function reminderText(a: Pick<Appointment, 'time' | 'forWhom' | 'professional' | 'reminderShowsType'> & { professionalGender?: Appointment['professionalGender'] }) {
   const when = a.time ? `às ${a.time}` : 'hoje';
   if (!a.reminderShowsType) return { title: 'Lembrete', body: `Você tem um compromisso ${when}.` };
-  const who = a.forWhom === 'outro' ? 'Consulta' : `Consulta de ${PROFESSION_LABELS[a.forWhom].toLowerCase()}`;
+  const who =
+    a.forWhom === 'outro' ? 'Consulta' : a.forWhom === 'psicologia' ? (a.professionalGender ? `Sessão com ${whoWithArticle('psicologia', a.professionalGender)}` : 'Sessão de psicologia') : 'Consulta de psiquiatria';
   return { title: 'Lembrete de consulta', body: `${who} ${when}${a.professional ? ` com ${a.professional}` : ''}.` };
 }
 

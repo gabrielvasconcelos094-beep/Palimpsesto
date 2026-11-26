@@ -298,7 +298,7 @@ function MedicationDetail({ m }: { m: Medication }) {
               className="btn primary"
               disabled={!note.text.trim()}
               onClick={() => {
-                patch({ notes: [...m.notes, { date: note.date, text: note.text.trim() }] });
+                patch({ notes: [...m.notes, { date: note.date || today, text: note.text.trim() }] });
                 setNote({ date: today, text: '' });
                 setMode(null);
                 toast('Observação anotada.');
@@ -320,7 +320,7 @@ function MedicationDetail({ m }: { m: Medication }) {
             <button
               className="btn primary"
               onClick={() => {
-                patch({ endDate: stop.date, stopReason: stop.reason });
+                patch({ endDate: stop.date || today, stopReason: stop.reason });
                 setMode(null);
                 toast('Registrado. Ele fica no histórico.');
               }}
@@ -361,7 +361,7 @@ function MedicationDetail({ m }: { m: Medication }) {
           <summary className="small muted">Editar nome, indicação e quem prescreveu</summary>
           <div className="stack lg" style={{ marginTop: 12 }}>
             <Field label="Nome">
-              <input className="input" value={m.name} maxLength={120} onChange={(e) => e.target.value.trim() && patch({ name: e.target.value })} />
+              <NameInput value={m.name} onSave={(name) => patch({ name })} />
             </Field>
             <Field label="Para quê" optional>
               <input className="input" value={m.purpose} maxLength={300} onChange={(e) => patch({ purpose: e.target.value })} />
@@ -391,5 +391,23 @@ function MedicationDetail({ m }: { m: Medication }) {
       </div>
       {node}
     </Page>
+  );
+}
+
+/** O nome pode ficar vazio enquanto se digita; só grava um nome não vazio (ao digitar ou ao sair do campo). */
+function NameInput({ value, onSave }: { value: string; onSave: (v: string) => void }) {
+  const [v, setV] = useState(value);
+  return (
+    <input
+      className="input"
+      value={v}
+      maxLength={120}
+      aria-label="Nome do medicamento"
+      onChange={(e) => {
+        setV(e.target.value);
+        if (e.target.value.trim()) onSave(e.target.value.trim());
+      }}
+      onBlur={() => !v.trim() && setV(value)}
+    />
   );
 }

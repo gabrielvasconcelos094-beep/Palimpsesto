@@ -3,7 +3,7 @@
  * - Valência é ordinal: mostramos contagens e proporções, nunca médias.
  * - Identidade nunca depende só da cor: legenda sempre visível e valores no toque.
  */
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Bucket, Counts5 } from '../../domain/analytics';
 import { shares, sum } from '../../domain/analytics';
 import { fmtIndex } from '../../domain/valence';
@@ -47,7 +47,7 @@ export function Distribution(props: {
               {c && <span className="faint"> (antes {pct(c[i])})</span>}
             </span>
           </div>
-          <div className="bar-track" style={{ height: 9 }}>
+          <div className="bar-track" style={{ height: 12 }}>
             <div className="bar-fill" style={{ width: `${(s[i] / max) * 100}%`, background: props.colors[i] }} />
           </div>
           {c && (
@@ -97,6 +97,7 @@ export function Evolution(props: { buckets: Bucket[]; colors: string[]; labels: 
   const labelEvery = Math.ceil(n / 7);
   const unitName = { day: 'Dia', week: 'Semana de', month: 'Mês' }[props.unit];
   const s = sel !== null ? props.buckets[sel] : null;
+  const idBase = useId().replace(/[^a-zA-Z0-9_-]/g, '');
 
   return (
     <div>
@@ -106,7 +107,7 @@ export function Evolution(props: { buckets: Bucket[]; colors: string[]; labels: 
             const y = H - (t / max) * H;
             return (
               <g key={t}>
-                <line x1={0} x2={W} y1={y} y2={y} stroke="var(--line)" strokeWidth={1} />
+                <line x1={0} x2={W} y1={y} y2={y} stroke="var(--line)" strokeWidth={1} strokeDasharray="3 4" />
                 <text x={2} y={y - 3} fontSize={10} fill="var(--ink-faint)">
                   {t}
                 </text>
@@ -121,12 +122,18 @@ export function Evolution(props: { buckets: Bucket[]; colors: string[]; labels: 
               if (!c) return null;
               const h = (c / max) * H;
               y -= h;
-              return <rect key={k} x={x} y={y + 1} width={barW} height={Math.max(1, h - 2)} rx={Math.min(3, barW / 3)} fill={props.colors[k]} />;
+              // Blocos encostados (sem frestas), separados por um fio da cor do fundo.
+              return <rect key={k} x={x} y={y} width={barW} height={Math.max(1, h)} fill={props.colors[k]} stroke="var(--surface)" strokeWidth={0.75} />;
             });
+            const top = H - (b.total / max) * H;
+            const cid = `evo-${idBase}-${i}`;
             return (
               <g key={i} onClick={() => setSel(sel === i ? null : i)} style={{ cursor: 'pointer' }}>
-                <rect x={i * colW} y={0} width={colW} height={H + 20} fill={sel === i ? 'var(--surface-2)' : 'transparent'} />
-                {segs}
+                <rect x={i * colW} y={0} width={colW} height={H + 20} rx={6} fill={sel === i ? 'var(--surface-2)' : 'transparent'} />
+                <clipPath id={cid}>
+                  <rect x={x} y={top} width={barW} height={H - top} rx={Math.min(5, barW / 2.5)} />
+                </clipPath>
+                <g clipPath={`url(#${cid})`}>{segs}</g>
                 {i % labelEvery === 0 && (
                   <text x={i * colW + colW / 2} y={H + 15} fontSize={10} fill="var(--ink-faint)" textAnchor="middle">
                     {b.label}
@@ -217,7 +224,7 @@ export function HeatTable(props: { rowLabels: string[]; colLabels: string[]; val
   const max = Math.max(1, ...props.values.flat());
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'separate', borderSpacing: 3, fontSize: 12, width: '100%' }}>
+      <table className="heat-table" style={{ borderCollapse: 'separate', borderSpacing: 3, fontSize: 12, width: '100%' }}>
         <caption className="xs muted" style={{ textAlign: 'left', captionSide: 'bottom', paddingTop: 6 }}>
           {props.caption}
         </caption>
@@ -242,7 +249,9 @@ export function HeatTable(props: { rowLabels: string[]; colLabels: string[]; val
                     textAlign: 'center',
                     padding: '6px 2px',
                     borderRadius: 6,
-                    background: v ? `color-mix(in srgb, var(--primary-ink) ${Math.round(6 + (v / max) * 22)}%, var(--surface))` : 'var(--surface-2)',
+                    background: v ? `color-mix(in srgb, var(--primary-ink) ${Math.round(8 + (v / max) * 40)}%, var(--surface))` : 'var(--surface-2)',
+                    color: v / max > 0.62 ? 'var(--on-primary)' : undefined,
+                    fontWeight: v / max > 0.62 ? 600 : undefined,
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -284,7 +293,7 @@ export function IndexBars({
                 <strong style={{ color: 'var(--ink)' }}>{fmtIndex(v)}</strong> · {r.note}
               </span>
             </div>
-            <div className="index-track" aria-hidden>
+            <div className="index-track tinted" aria-hidden>
               <span className="index-zero" />
               {v !== null && (
                 <span
@@ -305,3 +314,79 @@ export function IndexBars({
   );
 }
 
+
+
+/**
+ * Arco-resumo da distribuição: um semicírculo dividido pelas proporções dos cinco
+ * níveis, com o total no centro e os símbolos com a contagem logo abaixo. Tocar num
+ * símbolo pode abrir os registros daquele nível.
+ */
+export function MoodArc(props: {
+  counts: number[];
+  total: number;
+  totalLabel: string;
+  colors: string[];
+  labels: string[];
+  marks: (i: number) => React.ReactNode;
+  onSelect?: (i: number) => void;
+  /** Mostra proporções em vez de contagens (ex.: quando cada data pesa igual). */
+  sharesOnly?: boolean;
+}) {
+  const sumC = props.counts.reduce((a, b) => a + b, 0);
+  const R = 92;
+  const SW = 22;
+  const cx = 120;
+  const cy = 112;
+  const gap = sumC && props.counts.filter(Boolean).length > 1 ? 0.025 : 0;
+  let a0 = Math.PI;
+  const arcs = props.counts.map((c, i) => {
+    if (!c || !sumC) return null;
+    const span = (c / sumC) * Math.PI;
+    const s0 = a0 + (i === 0 ? 0 : gap / 2);
+    const s1 = a0 + span - gap / 2;
+    a0 += span;
+    const p = (a: number) => [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+    const [x0, y0] = p(s0);
+    const [x1, y1] = p(Math.max(s0 + 0.0001, s1));
+    return <path key={i} d={`M${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`} stroke={props.colors[i]} strokeWidth={SW} fill="none" strokeLinecap="butt" />;
+  });
+  return (
+    <div className="mood-arc">
+      <svg viewBox="0 0 240 124" width="100%" style={{ maxWidth: 320, display: 'block', margin: '0 auto' }} role="img" aria-label={`${props.total} ${props.totalLabel}: ${props.labels.map((l, i) => `${l} ${sumC ? Math.round((props.counts[i] / sumC) * 100) : 0}%`).join(', ')}`}>
+        <path d={`M${cx - R} ${cy} A${R} ${R} 0 0 1 ${cx + R} ${cy}`} stroke="var(--surface-2)" strokeWidth={SW} fill="none" />
+        {arcs}
+        <text x={cx} y={cy - 14} textAnchor="middle" fontSize={34} fontFamily="var(--font-display)" fill="var(--ink)">
+          {props.total}
+        </text>
+        <text x={cx} y={cy + 4} textAnchor="middle" fontSize={11} fill="var(--ink-soft)">
+          {props.totalLabel}
+        </text>
+      </svg>
+      <div className="arc-marks">
+        {props.counts.map((c, i) => {
+          const pct = sumC ? Math.round((c / sumC) * 100) : 0;
+          const inner = (
+            <>
+              <span className="arc-mark-sym">
+                {props.marks(i)}
+                <span className="arc-badge" style={{ ['--badge' as any]: props.colors[i] }}>
+                  {props.sharesOnly ? `${pct}%` : c}
+                </span>
+              </span>
+              <span className="xs muted">{props.sharesOnly ? '' : `${pct}%`}</span>
+            </>
+          );
+          return props.onSelect ? (
+            <button key={i} className="arc-mark" onClick={() => props.onSelect!(i)} aria-label={`${props.labels[i]}: ${props.sharesOnly ? `${pct}%` : `${c} (${pct}%)`}`}>
+              {inner}
+            </button>
+          ) : (
+            <span key={i} className="arc-mark" aria-label={`${props.labels[i]}: ${c}`}>
+              {inner}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

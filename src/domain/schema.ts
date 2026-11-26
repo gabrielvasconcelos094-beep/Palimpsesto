@@ -415,6 +415,8 @@ export const AppointmentSchema = z.looseObject({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
   forWhom: z.enum(PROFESSIONS).default('psiquiatria'),
+  /** Para escrever "psicóloga" ou "psicólogo" (null = não informado → "psicóloga(o)"). */
+  professionalGender: z.enum(['f', 'm']).nullable().default(null),
   /** Nome do profissional (opcional). */
   professional: z.string().max(120).default(''),
   /** Local ou "online". */
@@ -523,6 +525,8 @@ export const PreferencesSchema = z.looseObject({
   symbolSet: z.enum(['nature', 'faces', 'fine', 'moon', 'weather', 'emoji']).default('nature'),
   /** Categorias da Trajetória que o usuário escolheu ocultar. */
   trajectoryHidden: z.array(z.string().max(40)).max(40).default([]),
+  /** Paleta dos gráficos e da escala do humor ("theme" = derivada do tema). */
+  chartPalette: z.enum(['theme', 'vibrant', 'nature', 'aurora', 'ocean']).default('theme'),
   /** Hemisfério, para as estações do ano no calendário (sem usar localização). */
   hemisphere: z.enum(['south', 'north']).default('south'),
   /** Acompanhar o sono (horas, qualidade e dificuldades), uma vez por noite. */

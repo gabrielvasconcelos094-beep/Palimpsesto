@@ -20,7 +20,16 @@ const dev = (): Dev | null => (import.meta.env.DEV && typeof window !== 'undefin
 
 async function plugin() {
   if (!Capacitor.isNativePlatform()) return null;
-  return (await import('@capacitor/local-notifications')).LocalNotifications;
+  try {
+    return (await import('@capacitor/local-notifications')).LocalNotifications;
+  } catch {
+    return null;
+  }
+}
+
+/** Chamadas ao plugin nunca podem travar o app: no máximo 4 s e nunca lançam erro. */
+function guarded<T>(p: Promise<T>, ms = 4000): Promise<T | undefined> {
+  return Promise.race([p, new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))]).catch(() => undefined);
 }
 
 export type PermissionState = 'granted' | 'denied' | 'prompt' | 'unsupported';
@@ -45,14 +54,14 @@ export async function syncReminder(a: Appointment, now = new Date()): Promise<Da
   const ln = await plugin();
   const d = dev();
   try {
-    if (ln) await ln.cancel({ notifications: [{ id }] });
+    if (ln) await guarded(ln.cancel({ notifications: [{ id }] }));
     if (d) delete d.scheduled[id];
     if (!at || at <= now) return null;
     const { title, body } = reminderText(a);
     if (ln) {
-      await ln.schedule({
+      await guarded(ln.schedule({
         notifications: [{ id, title, body, schedule: { at, allowWhileIdle: true }, extra: { appointmentId: a.id }, smallIcon: 'ic_stat_palimpsesto' }],
-      });
+      }));
     }
     if (d) d.scheduled[id] = { at: at.toISOString(), title, body };
     return at;
@@ -62,14 +71,10 @@ export async function syncReminder(a: Appointment, now = new Date()): Promise<Da
 }
 
 export async function cancelReminder(id: string) {
-  const ln = await plugin();
   const d = dev();
   if (d) delete d.scheduled[notificationId(id)];
-  try {
-    if (ln) await ln.cancel({ notifications: [{ id: notificationId(id) }] });
-  } catch {
-    /* nada a fazer */
-  }
+  const ln = await plugin();
+  if (ln) await guarded(ln.cancel({ notifications: [{ id: notificationId(id) }] }));
 }
 
 /** Reagenda todos (ao abrir o app, depois de importar um backup etc.). */

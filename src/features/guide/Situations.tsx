@@ -346,6 +346,7 @@ function SituationView({ s }: { s: Situation }) {
         <SituationForm s={s} onClose={() => setEdit(false)} onDelete={async () => {
           setEdit(false);
           if (await ask({ title: 'Excluir esta situação?', body: 'A lista de cuidados será excluída. Experiências e cartas ligadas a ela são mantidas.', confirm: 'Excluir', danger: true })) {
+            // O formulário já foi fechado e gravado; nada mais a salvar.
             removeWithUndo('situations', s.id, 'Situação excluída.');
             goBack('/guia?t=situacoes');
           }
@@ -386,7 +387,7 @@ function SituationForm({ s, onClose, onDelete }: { s: Situation; onClose: () => 
         <button className="btn secondary" onClick={() => store.patch('situations', s.id, { archived: !s.archived })}>
           <Archive size={16} /> {s.archived ? 'Desarquivar' : 'Arquivar'}
         </button>
-        <button className="icon-btn" aria-label="Excluir situação" style={{ color: 'var(--danger)' }} onClick={() => (auto.cancel(), onDelete())}>
+        <button className="icon-btn" aria-label="Excluir situação" style={{ color: 'var(--danger)' }} onClick={() => (auto.saveNow(), onDelete())}>
           <Trash2 size={20} />
         </button>
         <button

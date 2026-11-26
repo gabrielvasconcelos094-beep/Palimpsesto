@@ -11,7 +11,7 @@ import { valenceLabel } from '../../domain/scales';
 import { Empty, fmtDate, Page, Section, Segmented, Sheet, Toggle } from '../../ui/components';
 import { FilterSheet, FilterSummary } from '../../ui/FilterSheet';
 import { ValenceMark } from '../../ui/pickers';
-import { Distribution } from './charts';
+import { Distribution, MoodArc } from './charts';
 import { CATEGORIES } from './categories';
 import { OscillationPanel } from './Oscillations';
 import { useTrajectory } from './useTrajectory';
@@ -142,6 +142,16 @@ export function Trajectory() {
                 { value: 'record', label: 'Por registro' },
                 { value: 'day', label: 'Por data' },
               ]}
+            />
+            <MoodArc
+              counts={dist.counts}
+              total={unit === 'record' ? t.entries.length : daysWith}
+              totalLabel={unit === 'record' ? 'registros' : 'datas'}
+              colors={MOOD_COLORS}
+              labels={vLabels}
+              sharesOnly={unit === 'day'}
+              marks={(i) => <ValenceMark v={i - 2} size={26} />}
+              onSelect={(i) => navigate(`/diario?de=${t.range.from}&ate=${t.range.to}&valencia=${i - 2}`)}
             />
             <Distribution
               labels={vLabels}
