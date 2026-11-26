@@ -557,3 +557,50 @@ Testes: `tests/care.test.ts` (migração 2 → 3, noites repetidas unificadas, `
 duplicar e removendo quando vazio, vários registros no dia não multiplicam a noite, qualidade
 e comparações); `e2e/care.mjs` ("Como foi a noite?" com as descrições, três registros de humor
 no mesmo dia editando a mesma noite, Trajetória → Sono).
+
+## 14. Versão 1.8 — consultas com data e lembrete, e medicamentos
+
+Avaliação do pedido (o que entrou, o que mudou e por quê):
+
+- **Data e alarme da consulta — entrou, com cuidado.** O app evitava notificações porque não
+  quer cobrar nada; um lembrete *pedido por você, para uma consulta* é outra coisa. Fica
+  desligado por padrão, é escolhido por consulta (30 min, 1 h, 2 h ou 1 dia antes) e usa
+  notificação **local** (`@capacitor/local-notifications`, AlarmManager; sobrevive a
+  reinícios). O texto é **neutro por padrão** ("Você tem um compromisso às 14:30"), porque a
+  notificação pode aparecer na tela de bloqueio; mostrar "Consulta de psiquiatria" é opção.
+  Não pedimos permissão de alarme exato (`SCHEDULE_EXACT_ALARM` removida do manifesto): o
+  aviso pode chegar com alguns minutos de diferença — aceitável para uma consulta e uma
+  permissão a menos. Ao marcar como realizada/cancelada ou excluir, o lembrete é cancelado;
+  ao abrir o app, todos são reagendados (ex.: após importar um backup).
+- **Campos certinhos — entraram, mas poucos.** Antes: "como estive desde a última consulta"
+  (com um resumo automático do período: registros, índice, sono, PHQ-9/GAD-7, mudanças de
+  medicação e acontecimentos), assuntos da pauta (filtrados por profissional), perguntas e
+  pedidos (receita, atestado, exames, relatório). Depois: "o que foi observado ou dito" e
+  "combinados até a próxima". Evitei um formulário longo: numa consulta curta, o que mais se
+  perde são as perguntas e os pedidos.
+- **Observações do terapeuta — entrou com outro nome.** "O que foi observado ou dito", nas
+  suas palavras: são anotações suas, não um prontuário do profissional.
+- **Histórico de remédios — entrou como módulo próprio**, no lugar de depender de
+  "acontecimentos" de medicação: em uso (dose, frequência, desde quando, para quê, quem
+  prescreveu), histórico de doses, observações datadas e anteriores (até quando e por que
+  parou). O histórico de tentativas anteriores é das primeiras perguntas da psiquiatria.
+  **Ficou de fora, de propósito:** banco de remédios, cálculo/validação de dose e lembrete de
+  tomar (riscos de erro e de cobrança); "Parei de tomar" lembra que alguns precisam de redução
+  gradual e que nada deve mudar sem orientação.
+
+Implementação: coleções `appointments` e `medications` (esquema 3, com padrão — sem
+migração); regras puras em `src/domain/care.ts`; lembretes em `src/platform/reminders.ts`;
+telas em `src/features/care/Appointments.tsx` e `Medications.tsx`; atalho na tela Hoje para
+consultas dos próximos 7 dias; PDF com "Para esta consulta" e "Medicamentos" (em uso e
+mudanças no período); o resumo de uma consulta cobre desde a última consulta realizada do
+mesmo tipo.
+
+Testes: `tests/appointments.test.ts` (horário do lembrete com e sem horário, texto neutro,
+próximas × anteriores, última realizada do mesmo tipo, pauta por profissional, id estável da
+notificação, dose atual, em uso × anteriores, mudanças no período, esquema). `e2e/appointments.mjs`:
+agendar (herdando o profissional), lembrete e texto neutro/explícito, preparo com resumo,
+pauta filtrada, perguntas e pedidos, PDF da consulta, atalho na tela Hoje, marcar como
+realizada cancelando o lembrete, anotações e pauta conversada, agendar a próxima,
+medicamentos (novo, mudança de dose, observação, anterior com motivo).
+Não testado em aparelho: a notificação tocando de fato (o emulador deste ambiente não roda
+o WebView do app).

@@ -362,6 +362,64 @@ export const AgendaItemSchema = z.looseObject({
 });
 export type AgendaItem = Known<z.infer<typeof AgendaItemSchema>>;
 
+export const PROFESSIONS = ['psiquiatria', 'psicologia', 'outro'] as const;
+export const REQUESTS = ['receita', 'atestado', 'exames', 'relatorio', 'outro'] as const;
+
+/** Uma consulta: antes (preparo), o dia (lembrete) e depois (o que ficou). */
+export const AppointmentSchema = z.looseObject({
+  ...base,
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/).nullable().default(null),
+  forWhom: z.enum(PROFESSIONS).default('psiquiatria'),
+  /** Nome do profissional (opcional). */
+  professional: z.string().max(120).default(''),
+  /** Local ou "online". */
+  place: z.string().max(200).default(''),
+  status: z.enum(['scheduled', 'done', 'canceled']).default('scheduled'),
+  /** Lembrete local: minutos antes; null = sem lembrete. */
+  reminderMinutes: z.number().int().min(0).max(10080).nullable().default(null),
+  /** Mostrar o tipo de consulta na notificação (padrão: texto neutro, por privacidade). */
+  reminderShowsType: z.boolean().default(false),
+  // Antes
+  sinceLast: text(8000).default(''),
+  questions: text(8000).default(''),
+  requests: z.array(z.enum(REQUESTS)).max(5).default([]),
+  // Depois
+  observations: text(8000).default(''),
+  agreements: text(8000).default(''),
+});
+export type Appointment = Known<z.infer<typeof AppointmentSchema>>;
+
+export const STOP_REASONS = ['efeitos', 'sem_efeito', 'melhora', 'troca', 'custo', 'outro'] as const;
+
+/** Um medicamento: doses ao longo do tempo e observações datadas. */
+export const MedicationSchema = z.looseObject({
+  ...base,
+  name: z.string().min(1).max(120),
+  /** Para que foi indicado (nas suas palavras). */
+  purpose: z.string().max(300).default(''),
+  prescriber: z.string().max(120).default(''),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** null = em uso. */
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  stopReason: z.enum(STOP_REASONS).nullable().default(null),
+  /** Histórico de dose: a primeira é a inicial; a última, a atual. */
+  doses: z
+    .array(
+      z.looseObject({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        dose: z.string().max(80),
+        schedule: z.string().max(160).default(''),
+        note: z.string().max(1000).default(''),
+      }),
+    )
+    .min(1)
+    .max(200),
+  /** Observações datadas: efeitos percebidos, dúvidas, como se sentiu. */
+  notes: z.array(z.looseObject({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), text: z.string().min(1).max(4000) })).max(500).default([]),
+});
+export type Medication = Known<z.infer<typeof MedicationSchema>>;
+
 const lines = z.array(z.string().max(500)).max(30).default([]);
 /** Plano de segurança (modelo Stanley-Brown). Há no máximo um. */
 export const SafetyPlanSchema = z.looseObject({
@@ -452,6 +510,8 @@ export const COLLECTIONS = [
   'agenda',
   'safetyPlans',
   'sleepLogs',
+  'appointments',
+  'medications',
 ] as const;
 export type CollectionName = (typeof COLLECTIONS)[number];
 
@@ -473,6 +533,8 @@ export const CollectionSchemas = {
   agenda: AgendaItemSchema,
   safetyPlans: SafetyPlanSchema,
   sleepLogs: SleepLogSchema,
+  appointments: AppointmentSchema,
+  medications: MedicationSchema,
 } as const;
 
 export type EntityOf<C extends CollectionName> = Known<z.infer<(typeof CollectionSchemas)[C]>>;
@@ -496,6 +558,8 @@ export const AppDataSchema = z.looseObject({
   agenda: z.array(AgendaItemSchema).default([]),
   safetyPlans: z.array(SafetyPlanSchema).max(1).default([]),
   sleepLogs: z.array(SleepLogSchema).default([]),
+  appointments: z.array(AppointmentSchema).default([]),
+  medications: z.array(MedicationSchema).default([]),
   preferences: PreferencesSchema.default(PreferencesSchema.parse({})),
 });
 export type AppData = Known<z.infer<typeof AppDataSchema>>;

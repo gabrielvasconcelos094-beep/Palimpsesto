@@ -156,4 +156,6 @@ export const COLLECTION_LABELS: Record<CollectionName, string> = {
   agenda: 'Assuntos para a consulta',
   safetyPlans: 'Plano de segurança',
   sleepLogs: 'Noites de sono',
+  appointments: 'Consultas',
+  medications: 'Medicamentos',
 };

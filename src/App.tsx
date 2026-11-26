@@ -6,9 +6,12 @@ import { store, useStoreState } from './app/store';
 import { useApplyTheme } from './app/theme';
 import { dismissToast, useToast } from './app/toast';
 import { AssessmentPage, SafetyPlanPage } from './features/care/Care';
+import { AppointmentPage } from './features/care/Appointments';
+import { MedicationPage } from './features/care/Medications';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
 import { setPrivacyScreen } from './platform/native';
 import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
+import { onReminderTap, syncAllReminders } from './platform/reminders';
 import { routeForWidgetAction } from './app/widgetActions';
 import { Today } from './features/today/Today';
 import { Journal } from './features/journal/Journal';
@@ -59,6 +62,8 @@ function Screen() {
       if (b === 'carta') return <LetterPage />;
       if (b === 'questionario') return <AssessmentPage />;
       if (b === 'plano') return <SafetyPlanPage />;
+      if (b === 'consulta') return <AppointmentPage />;
+      if (b === 'remedio') return <MedicationPage />;
       return <GuideHome />;
     case 'busca':
       return <SearchPage />;
@@ -146,6 +151,15 @@ export function App() {
     const t = setTimeout(() => void syncWidgets(prefsRef.current).catch(() => {}), 500);
     return () => clearTimeout(t);
   }, [st.ready, appearanceKey]);
+
+  // Lembretes de consulta: reagenda ao abrir (ex.: após importar um backup) e abre a consulta ao tocar.
+  const remindersOnce = useRef(false);
+  useEffect(() => {
+    if (!st.ready || remindersOnce.current) return;
+    remindersOnce.current = true;
+    void syncAllReminders(st.data.appointments);
+    void onReminderTap((id) => navigate(`/guia/consulta/${id}`));
+  }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Toques nos widgets: guarda a ação e só a executa com o app desbloqueado.
   const [widgetAction, setWidgetAction] = useState<string | null>(null);

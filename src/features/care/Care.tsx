@@ -34,6 +34,8 @@ import { INSTRUMENTS, type AgendaItem, type Assessment, type Instrument, type Sa
 import { dayKey } from '../../domain/util';
 import { deliverFile } from '../../platform/native';
 import { CONSULT_SECTIONS } from '../../report/sections';
+import { AppointmentsSection } from './Appointments';
+import { MedicationsSection } from './Medications';
 import { resolveTokens } from '../../theme/resolve';
 import { AutoText, Field, fmtDate, Page, Section, Segmented, useConfirm } from '../../ui/components';
 
@@ -50,10 +52,14 @@ export function CareTab() {
   return (
     <div style={{ marginTop: 16 }}>
       <p className="small muted" style={{ marginTop: 0 }}>
-        Para levar às consultas o que você observou — e para cuidar de si quando o dia pesar. Tudo opcional, sem lembretes.
+        Para levar às consultas o que você observou — e para cuidar de si quando o dia pesar. Tudo opcional; lembretes só quando você pedir, por consulta.
       </p>
 
+      <AppointmentsSection />
+
       <AgendaSection />
+
+      <MedicationsSection />
 
       <Section title="Questionários" kicker="Medidas padronizadas, para comparar ao longo do tempo">
         <div className="list">
@@ -119,7 +125,7 @@ function AgendaSection() {
     setText('');
   };
   return (
-    <Section title="Para a próxima consulta" kicker="Assuntos que você não quer esquecer">
+    <Section title="Pauta" kicker="Assuntos que você não quer esquecer — entram no preparo de cada consulta">
       <div className="card stack">
         <AutoText value={textV} onChange={setText} placeholder="Ex.: o sono piorou desde a mudança de dose; quero falar sobre o trabalho…" minRows={2} />
         <div className="row between wrap" style={{ gap: 8 }}>

@@ -23,7 +23,8 @@ import { fmtIndex, instability, stability, valenceIndex, weekdayIndex } from '..
 import { band, history, INSTRUMENT_DEFS, item9Positive, score } from '../domain/assessments';
 import { fmtHours, sleepSummary } from '../domain/sleep';
 import { SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
-import { INSTRUMENTS } from '../domain/schema';
+import { INSTRUMENTS, type Appointment } from '../domain/schema';
+import { activeMeds, agendaFor, currentDose, medChanges, PROFESSION_LABELS, REQUEST_LABELS } from '../domain/care';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
 import { dayKey as dayStr } from '../domain/util';
 import { changes, recordSeries, segments, timeTicks } from '../domain/series';
@@ -54,7 +55,7 @@ export function buildReport(
   period: Period,
   sections: ReportSection[],
   tokens: Tokens,
-  opts: { entryFilter?: (m: AppData['moodEntries'][number]) => boolean; filterLabel?: string; title?: string } = {},
+  opts: { entryFilter?: (m: AppData['moodEntries'][number]) => boolean; filterLabel?: string; title?: string; appointment?: Appointment } = {},
 ): Uint8Array {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
@@ -154,12 +155,56 @@ export function buildReport(
     if (custom) text(`Nomes personalizados da escala: ${vLabels.join(' / ')} (valores fixos de -2 a +2).`, { size: 9, color: soft });
   }
 
+  const ap = opts.appointment;
+  if (ap) {
+    heading('Para esta consulta');
+    text(`${PROFESSION_LABELS[ap.forWhom]}${ap.professional ? ` - ${ap.professional}` : ''} - ${fmt(ap.date)}${ap.time ? `, ${ap.time}` : ''}${ap.place ? ` - ${ap.place}` : ''}`, { size: 10.5, style: 'bold' });
+    if (ap.sinceLast.trim()) {
+      sub('Como estive desde a última consulta');
+      text(ap.sinceLast.slice(0, 3000), { size: 10 });
+    }
+    if (ap.questions.trim()) {
+      sub('Perguntas');
+      text(ap.questions.slice(0, 3000), { size: 10 });
+    }
+    if (ap.requests.length) text(`Pedidos: ${ap.requests.map((r) => REQUEST_LABELS[r]).join(', ')}.`, { size: 10, gap: 2 });
+  }
+
   if (sections.includes('agenda')) {
-    const open = data.agenda.filter((a) => !a.doneAt).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const open = ap ? agendaFor(data.agenda, ap) : data.agenda.filter((a) => !a.doneAt).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     if (open.length) {
       heading('Assuntos para a consulta');
       const who = { psiquiatria: 'psiquiatria', psicologia: 'psicologia', ambos: 'psiquiatria e psicologia', outro: 'outro profissional' } as const;
       for (const a of open) text(`- ${a.text} (${who[a.forWhom]})`, { size: 10, gap: 1 });
+    }
+  }
+
+  if (sections.includes('medications') && data.medications.length) {
+    const fromD = dayStr(period.from);
+    const toD = dayStr(period.to);
+    const act = activeMeds(data.medications, toD);
+    const ch = medChanges(data.medications, fromD, toD);
+    if (act.length || ch.length) {
+      heading('Medicamentos');
+      text('Registro pessoal, para conferência com quem prescreve.', { size: 8.5, color: soft });
+      if (act.length) {
+        sub(`Em uso em ${fmt(toD)}`);
+        for (const m of act) {
+          const d = currentDose(m);
+          text(`- ${m.name}: ${d.dose}${d.schedule ? ` (${d.schedule})` : ''} - desde ${fmt(m.startDate)}${m.purpose ? ` - para: ${m.purpose}` : ''}`, { size: 10, gap: 0.8 });
+        }
+        y += 1.5;
+      }
+      if (ch.length) {
+        sub('Mudanças no período');
+        for (const c of ch) text(`${fmt(c.date)} - ${c.med.name}: ${c.kind === 'start' ? 'início' : c.kind === 'dose' ? 'nova dose' : 'suspenso'}${c.text ? ` - ${c.text}` : ''}`, { size: 9.5, gap: 0.6 });
+        y += 1.5;
+      }
+      const notes = data.medications.flatMap((m) => m.notes.filter((n) => n.date >= fromD && n.date <= toD).map((n) => ({ ...n, med: m.name }))).sort((a, b) => a.date.localeCompare(b.date));
+      if (notes.length) {
+        sub('Observações sobre os medicamentos');
+        for (const n of notes.slice(-15)) text(`${fmt(n.date)} - ${n.med}: ${n.text.slice(0, 400)}`, { size: 9.5, gap: 0.6 });
+      }
     }
   }
 

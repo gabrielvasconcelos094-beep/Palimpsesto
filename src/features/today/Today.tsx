@@ -15,7 +15,8 @@ import { SITUATION_TEMPLATES } from '../../domain/seed';
 import { daySeries } from '../../domain/series';
 import { SleepSheet } from '../../ui/SleepFields';
 import { SLEEP_QUALITY } from '../../domain/scales';
-import { Moon } from 'lucide-react';
+import { CalendarClock, Moon } from 'lucide-react';
+import { upcoming, PROFESSION_LABELS } from '../../domain/care';
 
 /**
  * Os últimos sete dias num relance: o símbolo de cada data é o resultado do
@@ -164,6 +165,7 @@ export function Today() {
       </div>
 
       {data.preferences.trackSleep && <NightRow day={todayKey} />}
+      <NextAppointmentRow today={todayKey} />
 
       <WeekStrip now={now} />
 
@@ -302,5 +304,27 @@ function NightRow({ day }: { day: string }) {
       </button>
       <SleepSheet open={open} date={day} onClose={() => setOpen(false)} />
     </>
+  );
+}
+
+/** Consulta nos próximos 7 dias: um lembrete discreto, sem cobrança. */
+function NextAppointmentRow({ today }: { today: string }) {
+  const data = useData();
+  const next = upcoming(data.appointments)[0];
+  if (!next) return null;
+  const days = Math.round((new Date(next.date + 'T12:00:00').getTime() - new Date(today + 'T12:00:00').getTime()) / 86400000);
+  if (days > 7) return null;
+  const when = days === 0 ? 'hoje' : days === 1 ? 'amanhã' : `em ${days} dias`;
+  return (
+    <button className="list-row" style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }} onClick={() => navigate(`/guia/consulta/${next.id}`)}>
+      <CalendarClock size={18} strokeWidth={1.6} className="faint" />
+      <div className="grow">
+        <div className="title">
+          {PROFESSION_LABELS[next.forWhom]} {when}
+          {next.time ? `, ${next.time}` : ''}
+        </div>
+        <div className="meta">{days === 0 && next.time ? 'Toque para ver o preparo' : 'Preparar: pauta, perguntas e pedidos'}</div>
+      </div>
+    </button>
   );
 }
