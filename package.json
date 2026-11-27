@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android:sync": "npm run build && npx cap sync android",
-    "android:apk": "npm run android:sync && cd android && ./gradlew assembleRelease"
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleRelease",
+    "lint": "oxlint src tests e2e",
+    "check": "npm run typecheck && npm run lint && npm test"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
@@ -38,6 +40,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "fake-indexeddb": "^6.2.8",
+    "oxlint": "1.92.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.1"

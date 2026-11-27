@@ -110,7 +110,7 @@ export function EmotionPicker({ value, onChange }: { value: string[]; onChange: 
     const label = draft.trim();
     if (!label) return setAdding(false);
     const existing = data.emotions.find((e) => fold(e.label) === fold(label));
-    const e = existing ?? store.upsert('emotions', { label, builtIn: false, hidden: false } as any);
+    const e = existing ?? store.upsert('emotions', { label, builtIn: false, hidden: false });
     if (existing?.hidden) store.patch('emotions', existing.id, { hidden: false });
     if (!value.includes(e.id)) onChange([...value, e.id]);
     setDraft('');
@@ -268,7 +268,7 @@ export function ActivityPicker({ value, onChange }: { value: string[]; onChange:
     const n = name.trim();
     if (!n) return;
     const existing = data.repertoire.find((i) => fold(i.name) === fold(n));
-    const it = existing ?? store.upsert('repertoire', { kind: 'activity', name: n, category: '' } as any);
+    const it = existing ?? store.upsert('repertoire', { kind: 'activity', name: n, category: '' });
     if (!value.includes(it.id)) onChange([...value, it.id]);
   };
   return (

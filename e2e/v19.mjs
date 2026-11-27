@@ -16,7 +16,9 @@ const step = (s) => console.log('•', s);
 const data = () => page.evaluate(() => window.__pal.store.getState().data);
 const go = async (r) => {
   await page.goto(BASE + '#' + r);
-  await page.waitForTimeout(350);
+  // Em vez de uma espera fixa: app pronto e dois quadros desenhados após a troca de rota.
+  await page.waitForFunction(() => window.__pal?.store.getState().ready);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 };
 const shot = async (n) => SHOTS && page.screenshot({ path: `${SHOTS}/${n}.png`, fullPage: true });
 const day = (n) =>

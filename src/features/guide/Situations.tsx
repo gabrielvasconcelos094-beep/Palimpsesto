@@ -26,7 +26,7 @@ export function SituationsTab() {
   const archived = data.situations.filter((s) => s.archived);
 
   const create = (t: string, tags: string[]) => {
-    const s = store.upsert('situations', { title: t, tags } as any);
+    const s = store.upsert('situations', { title: t, tags });
     setNewOpen(false);
     setTitle('');
     navigate(`/guia/situacao/${s.id}`);
@@ -130,10 +130,11 @@ function SituationView({ s }: { s: Situation }) {
 
   const toggleLink = (field: 'itemIds' | 'discoveryIds' | 'questionIds' | 'noteIds', id: string) => {
     const has = s[field].includes(id);
-    store.patch('situations', s.id, { [field]: has ? s[field].filter((x) => x !== id) : [...s[field], id] } as any);
+    store.patch('situations', s.id, { [field]: has ? s[field].filter((x) => x !== id) : [...s[field], id] });
     toast(has ? 'Desafixado.' : 'Fixado nesta situação.');
   };
-  const PinBtn = ({ field, id, linked }: { field: Parameters<typeof toggleLink>[0]; id: string; linked: boolean }) => (
+  // Função (não componente): um componente criado a cada render seria remontado e o foco do botão se perderia ao fixar.
+  const pinBtn = ({ field, id, linked }: { field: Parameters<typeof toggleLink>[0]; id: string; linked: boolean }) => (
     <button className="icon-btn" aria-label={linked ? 'Desafixar' : 'Fixar nesta situação'} onClick={() => toggleLink(field, id)} style={{ color: linked ? 'var(--primary-ink)' : 'var(--ink-faint)' }}>
       {linked ? <PinOff size={17} /> : <Pin size={17} />}
     </button>
@@ -220,7 +221,7 @@ function SituationView({ s }: { s: Situation }) {
                     <ConfidenceBadge c={x.confidence} />
                   </div>
                 </button>
-                <PinBtn field="discoveryIds" id={x.id} linked={why === 'vinculado'} />
+                {pinBtn({ field: 'discoveryIds', id: x.id, linked: why === 'vinculado' })}
               </div>
             ))}
             {g.answers.map(({ x, question, why }) => (
@@ -233,7 +234,7 @@ function SituationView({ s }: { s: Situation }) {
                     {x.text.length > 280 ? x.text.slice(0, 280) + '…' : x.text}
                   </div>
                 </button>
-                <PinBtn field="questionIds" id={x.questionId} linked={why === 'vinculado'} />
+                {pinBtn({ field: 'questionIds', id: x.questionId, linked: why === 'vinculado' })}
               </div>
             ))}
             {g.notes.map(({ x, section, why }) => (
@@ -244,7 +245,7 @@ function SituationView({ s }: { s: Situation }) {
                   </p>
                   <div className="prose">{x.text}</div>
                 </button>
-                <PinBtn field="noteIds" id={x.id} linked={why === 'vinculado'} />
+                {pinBtn({ field: 'noteIds', id: x.id, linked: why === 'vinculado' })}
               </div>
             ))}
             {g.essentials.length > 0 && (
@@ -280,7 +281,7 @@ function SituationView({ s }: { s: Situation }) {
                     {total ? ` · funcionou ao menos em parte ${worked} de ${total} vez(es)` : ''}
                   </div>
                 </button>
-                <PinBtn field="itemIds" id={x.id} linked={why === 'vinculado'} />
+                {pinBtn({ field: 'itemIds', id: x.id, linked: why === 'vinculado' })}
               </div>
             ))}
           </div>

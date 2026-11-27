@@ -1,7 +1,7 @@
 /** Utilidades puras: ids, datas e marcadores. */
 
 export function newId(): string {
-  const c = (globalThis as any).crypto;
+  const c = (globalThis).crypto;
   if (c?.randomUUID) return c.randomUUID();
   // Fallback RFC4122 v4 com getRandomValues.
   const b = new Uint8Array(16);

@@ -38,6 +38,7 @@ const clean = (s: string) =>
     .replace(/[“”]/g, '"')
     .replace(/[‘’]/g, "'")
     .replace(/…/g, '...')
+    // oxlint-disable-next-line no-control-regex -- remove de propósito o que a fonte padrão do PDF não desenha
     .replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g, '');
 
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];

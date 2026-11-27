@@ -4,7 +4,7 @@
  * - PIN de bloqueio: PBKDF2-SHA256 com sal aleatório; guardamos apenas o hash.
  */
 const subtle = () => {
-  const s = (globalThis as any).crypto?.subtle as SubtleCrypto | undefined;
+  const s = (globalThis).crypto?.subtle as SubtleCrypto | undefined;
   if (!s) throw new Error('WebCrypto indisponível neste dispositivo.');
   return s;
 };
@@ -30,7 +30,7 @@ export function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
 
 export function randomBytes(n: number): Uint8Array<ArrayBuffer> {
   const b = new Uint8Array(n);
-  (globalThis as any).crypto.getRandomValues(b);
+  (globalThis).crypto.getRandomValues(b);
   return b;
 }
 

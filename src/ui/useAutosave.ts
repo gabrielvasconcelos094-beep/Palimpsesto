@@ -38,7 +38,7 @@ export function useAutosave<C extends CollectionName>(
     if (!o.meaningful(d)) return idRef.current;
     const prev = idRef.current ? store.get(collection, idRef.current) : undefined;
     const value = o.transform ? o.transform(prev, d) : d;
-    const saved = store.upsert(collection, { ...(prev ?? {}), ...value, id: idRef.current ?? undefined } as any);
+    const saved = store.upsert(collection, { ...prev, ...value, id: idRef.current ?? undefined });
     const created = !idRef.current;
     idRef.current = saved.id;
     dirty.current = false;

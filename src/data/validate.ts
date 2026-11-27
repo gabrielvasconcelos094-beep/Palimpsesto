@@ -160,7 +160,7 @@ export function repairIntegrity(input: AppData): { data: AppData; report: Integr
 
 export function countData(data: AppData): Record<CollectionName, number> {
   const out = {} as Record<CollectionName, number>;
-  for (const c of COLLECTIONS) out[c] = (data as any)[c].length;
+  for (const c of COLLECTIONS) out[c] = (data)[c].length;
   return out;
 }
 

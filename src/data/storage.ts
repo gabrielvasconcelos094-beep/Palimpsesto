@@ -47,7 +47,7 @@ export class IndexedDbStorage implements StorageAdapter {
       req.onerror = () => reject(req.error);
     });
     // Pede ao navegador para não descartar os dados sob pressão de espaço.
-    (navigator as any).storage?.persist?.().catch(() => {});
+    (navigator).storage?.persist?.().catch(() => {});
   }
   private async tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
     const db = await this.dbp;

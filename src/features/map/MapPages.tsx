@@ -138,7 +138,7 @@ function SectionEditSheet(props: { open: boolean; onClose: () => void; sectionId
               ...(s ?? { builtIn: false, hidden: false, order: data.sections.length + 1 }),
               title: title.trim(),
               description: description.trim(),
-            } as any);
+            });
             props.onClose();
             if (!s) navigate(`/mapa/ficha/${saved.id}`);
           }}
@@ -182,7 +182,7 @@ export function SectionPage() {
 
   const addNote = () => {
     if (!noteDraft.trim()) return;
-    store.upsert('notes', { sectionId: id, text: noteDraft.trim(), tags: [], layers: [] } as any);
+    store.upsert('notes', { sectionId: id, text: noteDraft.trim(), tags: [], layers: [] });
     setNoteDraft('');
   };
 
@@ -367,7 +367,7 @@ function NoteEditor({ note, onClose }: { note: MapNote; onClose: () => void }) {
   const auto = useAutosave('notes', draft, {
     initialId: note.id,
     meaningful: (d) => !!d.text.trim(),
-    transform: (prev, d) => ({ ...d, layers: withLayer(prev as any, d.text) }),
+    transform: (prev, d) => ({ ...d, layers: withLayer(prev, d.text) }),
   });
   return (
     <div className="stack lg">
@@ -414,7 +414,7 @@ function NewQuestionSheet(props: { open: boolean; onClose: () => void; sectionId
           className="btn primary block"
           disabled={!text.trim()}
           onClick={() => {
-            const q = store.upsert('questions', { sectionId: props.sectionId, text: text.trim(), builtIn: false, order: count + 1 } as any);
+            const q = store.upsert('questions', { sectionId: props.sectionId, text: text.trim(), builtIn: false, order: count + 1 });
             setText('');
             props.onClose();
             navigate(`/mapa/pergunta/${q.id}`);
@@ -455,7 +455,7 @@ function QuestionEditor({ q }: { q: Question }) {
   const auto = useAutosave('answers', draft, {
     initialId: answer?.id ?? null,
     meaningful: (d) => !!d.text.trim() || !!answer,
-    transform: (prev, d) => ({ ...d, layers: withLayer(prev as any, d.text) }),
+    transform: (prev, d) => ({ ...d, layers: withLayer(prev, d.text) }),
   });
 
   return (

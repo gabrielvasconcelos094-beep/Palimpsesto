@@ -193,7 +193,7 @@ export function EmotionsPage() {
           className="btn primary"
           disabled={!label.trim()}
           onClick={() => {
-            store.upsert('emotions', { label: label.trim(), builtIn: false, hidden: false } as any);
+            store.upsert('emotions', { label: label.trim(), builtIn: false, hidden: false });
             setLabel('');
           }}
         >

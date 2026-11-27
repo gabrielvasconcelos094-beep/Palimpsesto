@@ -75,7 +75,7 @@ export function openHardDay() {
   const s = d.situations.find((x) => !x.archived && x.tags.some((t) => fold(t) === 'dia dificil'));
   if (s) return navigate(`/guia/situacao/${s.id}`);
   const t = SITUATION_TEMPLATES[0];
-  const created = store.upsert('situations', { title: t.title, tags: t.tags, description: 'Um lugar para o que você já sabe que ajuda quando o dia pesa.' } as any);
+  const created = store.upsert('situations', { title: t.title, tags: t.tags, description: 'Um lugar para o que você já sabe que ajuda quando o dia pesa.' });
   navigate(`/guia/situacao/${created.id}`);
 }
 

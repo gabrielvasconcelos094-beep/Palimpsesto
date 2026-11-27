@@ -142,7 +142,7 @@ function NewMedication({ notFound }: { notFound: boolean }) {
       endDate: d.past ? d.endDate : null,
       stopReason: d.past ? d.stopReason : null,
       doses: [{ date: d.startDate, dose: d.dose.trim(), schedule: d.schedule.trim(), note: '' }],
-    } as any);
+    });
     toast('Medicamento registrado.');
     navigate(`/guia/remedio/${created.id}`, { replace: true });
   };

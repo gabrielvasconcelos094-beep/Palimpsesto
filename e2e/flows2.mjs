@@ -18,7 +18,9 @@ const data = () => page.evaluate(() => window.__pal.store.getState().data);
 const flush = () => page.evaluate(() => window.__pal.store.flush());
 const go = async (r) => {
   await page.goto(BASE + '#' + r);
-  await page.waitForTimeout(250);
+  // Em vez de uma espera fixa: app pronto e dois quadros desenhados após a troca de rota.
+  await page.waitForFunction(() => window.__pal?.store.getState().ready);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 };
 const pad = (n) => String(n).padStart(2, '0');
 const dk = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

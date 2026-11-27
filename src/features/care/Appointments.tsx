@@ -154,7 +154,7 @@ function NewAppointment({ notFound }: { notFound: boolean }) {
     place: route.query.get('local') ?? '',
   });
   const save = () => {
-    const created = store.upsert('appointments', { ...d, time: d.time || null } as any);
+    const created = store.upsert('appointments', { ...d, time: d.time || null });
     navigate(`/guia/consulta/${created.id}`, { replace: true });
   };
   return (
@@ -434,7 +434,7 @@ function AppointmentDetail({ a }: { a: Appointment }) {
                     className="btn sm"
                     disabled={!newTopic.trim()}
                     onClick={() => {
-                      store.upsert('agenda', { text: newTopic.trim(), forWhom: a.forWhom === 'outro' ? 'outro' : a.forWhom } as any);
+                      store.upsert('agenda', { text: newTopic.trim(), forWhom: a.forWhom === 'outro' ? 'outro' : a.forWhom });
                       setNewTopic('');
                     }}
                   >
@@ -509,7 +509,7 @@ function AppointmentDetail({ a }: { a: Appointment }) {
               value={{ date: a.date, time: a.time ?? '', forWhom: a.forWhom, professionalGender: a.professionalGender, professional: a.professional, place: a.place }}
               onChange={(p) => {
                 if (p.date !== undefined && !p.date) return; // a consulta precisa de uma data
-                patch({ ...p, ...(p.time !== undefined ? { time: p.time || null } : {}) } as any);
+                patch({ ...p, ...(p.time !== undefined ? { time: p.time || null } : {}) });
               }}
             />
             <button

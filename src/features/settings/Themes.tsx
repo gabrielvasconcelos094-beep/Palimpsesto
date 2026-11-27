@@ -34,7 +34,7 @@ function ThemePreview({ tokens, name, active, onClick, font }: { tokens: Tokens;
         fontFamily: 'var(--font-body)',
       }}
     >
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)' as any, fontSize: 19, lineHeight: 1.1, marginBottom: 8 }}>{name}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)', fontSize: 19, lineHeight: 1.1, marginBottom: 8 }}>{name}</div>
       <div
         style={{
           background: 'var(--card-bg)',
@@ -304,7 +304,7 @@ export function ThemeEditorPage() {
         }}
         aria-label="Prévia do tema"
       >
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)' as any, fontSize: 24, lineHeight: 1.1 }}>Prévia do tema</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 'var(--display-weight)', fontSize: 24, lineHeight: 1.1 }}>Prévia do tema</div>
         <div style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '4px 0 10px' }}>Texto secundário, como datas e descrições.</div>
         <div style={{ background: 'var(--card-bg)', border: 'var(--card-border)', boxShadow: 'var(--card-shadow)', borderRadius: 'var(--radius)', padding: 12 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

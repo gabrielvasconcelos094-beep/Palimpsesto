@@ -352,7 +352,7 @@ function DiscoveryEditor() {
           if (!saved) return;
           const rev = { at: new Date().toISOString(), title: saved.title, description: saved.description, confidence: saved.confidence, status: saved.status, note };
           const next = { ...draft, ...patch };
-          store.upsert('discoveries', { ...saved, ...next, revisions: [...saved.revisions, rev] } as any);
+          store.upsert('discoveries', { ...saved, ...next, revisions: [...saved.revisions, rev] });
           // Atualiza o rascunho sem disparar nova camada automática.
           setDraft({ ...next, revisions: [...saved.revisions, rev] });
           toast('Mudança registrada.');

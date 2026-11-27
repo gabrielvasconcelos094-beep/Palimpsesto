@@ -13,7 +13,9 @@ const step = (s) => console.log('•', s);
 const data = () => page.evaluate(() => window.__pal.store.getState().data);
 const go = async (r) => {
   await page.goto(BASE + '#' + r);
-  await page.waitForTimeout(300);
+  // Em vez de uma espera fixa: app pronto e dois quadros desenhados após a troca de rota.
+  await page.waitForFunction(() => window.__pal?.store.getState().ready);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 };
 const chart = () => page.locator('svg[role=group][aria-label^="Gráfico em linha"]');
 

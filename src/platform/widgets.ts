@@ -9,7 +9,7 @@
  * Para o modo escuro do sistema, enviamos as duas variantes (clara e escura) e o
  * nativo escolhe pela configuração do aparelho no momento de desenhar.
  */
-import { createElement } from 'react';
+import { createElement, type ReactElement } from 'react';
 import { Feather, Flag } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { Preferences } from '../domain/schema';
@@ -55,18 +55,36 @@ function withNamespace(svg: string) {
   return svg.includes('xmlns=') ? svg : svg.replace('<svg ', `<svg ${XMLNS} `);
 }
 
+/**
+ * Marcação estática de um elemento. No app usa o react-dom que já vem no pacote
+ * (renderiza num elemento solto, fora da página); só nos testes em Node, sem DOM,
+ * usa react-dom/server — que assim fica fora do APK (~200 KB a menos, carregados a
+ * cada abertura para atualizar os widgets).
+ */
+async function markup(el: ReactElement): Promise<string> {
+  if (__NODE_RENDER__) {
+    const { renderToStaticMarkup } = await import('react-dom/server');
+    return renderToStaticMarkup(el);
+  }
+  const [{ createRoot }, { flushSync }] = await Promise.all([import('react-dom/client'), import('react-dom')]);
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  flushSync(() => root.render(el));
+  const html = host.innerHTML;
+  root.unmount();
+  return html;
+}
+
 /** SVG do símbolo `v` (−2…+2) da família `set`, com cores reais (nada de var(--…)). */
 export async function symbolSvg(set: Exclude<SymbolSet, 'emoji'>, v: number, mood: string[], surface: string, size = ICON_PX): Promise<string> {
-  const { renderToStaticMarkup } = await import('react-dom/server');
-  const html = renderToStaticMarkup(createElement(MoodSymbol, { v, set, size }));
+  const html = await markup(createElement(MoodSymbol, { v, set, size }));
   return withNamespace(html)
     .replace(/var\(--mood-(\d)\)/g, (_, n) => mood[Number(n) - 1])
     .replace(/var\(--surface\)/g, surface);
 }
 
 async function lucideSvg(icon: typeof Feather | typeof Flag, color: string, size = ICON_PX) {
-  const { renderToStaticMarkup } = await import('react-dom/server');
-  return withNamespace(renderToStaticMarkup(createElement(icon, { size, color, strokeWidth: 1.7 })));
+  return withNamespace(await markup(createElement(icon, { size, color, strokeWidth: 1.7 })));
 }
 
 const EMOJI = ['😣', '🙁', '😐', '🙂', '😄'];

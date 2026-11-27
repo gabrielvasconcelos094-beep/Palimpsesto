@@ -61,7 +61,7 @@ export const MIGRATIONS: Record<number, Migration> = {
       if (have.has(date)) continue;
       sleepLogs.push({ id: `sleep-${date}`, createdAt: v.createdAt ?? now, updatedAt: now, date, hours: v.hours, quality: v.quality, troubles: [], note: '' });
     }
-    const prefs = { ...(d.preferences ?? {}) };
+    const prefs = { ...d.preferences };
     const enabled: string[] = prefs.enabledIndicators ?? [];
     prefs.trackSleep = Boolean(prefs.trackSleep || prefs.trackSleepHours || enabled.includes('sleep'));
     prefs.enabledIndicators = enabled.filter((k) => k !== 'sleep');
@@ -71,7 +71,7 @@ export const MIGRATIONS: Record<number, Migration> = {
       schemaVersion: 3,
       moodEntries: moods.map((m: any) => {
         const { sleepHours: _h, ...rest } = m;
-        const ind = { ...(m.indicators ?? {}) };
+        const ind = { ...m.indicators };
         delete ind.sleep;
         return { ...rest, indicators: ind };
       }),

@@ -24,7 +24,7 @@ describe('resultado do dia (média arredondada, empate para longe do zero)', () 
     expect(roundAway(-1.5)).toBe(-2);
     expect(roundAway(3.5, 3)).toBe(4);
     expect(roundAway(2.5, 3)).toBe(2);
-    expect(dayResult([0.1, 0.2, 0.2].map((x) => x * 0 + 0))).toBe(0);
+    expect(dayResult([0, 0, 0])).toBe(0);
   });
   it('o resumo por data do gráfico usa a mesma regra do calendário', () => {
     const d = daySeries([E('2026-11-01T08:00:00', -2), E('2026-11-01T20:00:00', -1)].map((m) => ({ ...m, energy: null, emotionIds: [], timePrecision: 'exact', createdAt: '2026-11-01T00:00:00Z' })));

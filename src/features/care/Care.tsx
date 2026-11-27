@@ -147,7 +147,7 @@ function AgendaSection() {
   const add = () => {
     const t = textV.trim();
     if (!t) return;
-    store.upsert('agenda', { text: t, forWhom } as any);
+    store.upsert('agenda', { text: t, forWhom });
     setText('');
   };
   return (
@@ -279,7 +279,7 @@ export function AssessmentPage() {
     );
   const complete = isComplete(id, answers);
   const save = () => {
-    const a = store.upsert('assessments', { instrument: id, date, answers: answers as number[], difficulty: id === 'phq9' ? difficulty : null } as any) as Assessment;
+    const a = store.upsert('assessments', { instrument: id, date, answers: answers as number[], difficulty: id === 'phq9' ? difficulty : null }) as Assessment;
     setSaved(a);
     window.scrollTo?.(0, 0);
   };
@@ -597,8 +597,8 @@ export function SafetyPlanPage() {
   const get = (k: PlanKey) => ((plan?.[k] as string[] | undefined) ?? []).join('\n');
   const put = (k: PlanKey, v: string) => {
     const lines = v.split('\n').slice(0, 30).map((x) => x.slice(0, 500));
-    if (plan) store.patch('safetyPlans', plan.id, { [k]: lines } as any);
-    else store.upsert('safetyPlans', { [k]: lines } as any);
+    if (plan) store.patch('safetyPlans', plan.id, { [k]: lines });
+    else store.upsert('safetyPlans', { [k]: lines });
   };
   return (
     <Page

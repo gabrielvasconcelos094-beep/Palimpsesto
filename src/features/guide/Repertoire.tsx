@@ -433,7 +433,7 @@ function UseForm(props: { onClose: () => void; itemId: string; use: StrategyUse 
         <button
           className="btn primary block"
           onClick={() => {
-            store.upsert('uses', { ...(props.use ?? { experienceId: null }), itemId: props.itemId, ...when, outcome, tags, note } as any);
+            store.upsert('uses', { ...(props.use ?? { experienceId: null }), itemId: props.itemId, ...when, outcome, tags, note });
             toast('Uso registrado.');
             props.onClose();
           }}

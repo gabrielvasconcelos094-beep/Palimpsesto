@@ -83,7 +83,7 @@ export function ExperienceEditor() {
 
   const ensureId = () => {
     if (auto.id.current) return auto.id.current;
-    const saved = store.upsert('experiences', { ...draft, title: draft.title || 'Experiência' } as any);
+    const saved = store.upsert('experiences', { ...draft, title: draft.title || 'Experiência' });
     auto.id.current = saved.id;
     navigate(`/diario/experiencia/${saved.id}`, { replace: true });
     return saved.id;
@@ -92,7 +92,7 @@ export function ExperienceEditor() {
   const link = (itemId: string) => {
     const id = ensureId();
     if (data.uses.some((u) => u.experienceId === id && u.itemId === itemId)) return;
-    store.upsert('uses', { itemId, at: draft.at, outcome: 'unknown', tags: draft.tags, note: '', experienceId: id } as any);
+    store.upsert('uses', { itemId, at: draft.at, outcome: 'unknown', tags: draft.tags, note: '', experienceId: id });
   };
 
   const remove = async () => {
@@ -148,7 +148,7 @@ export function ExperienceEditor() {
         <ThoughtRecord draft={draft} set={set} />
         {fields.map(([k, label, ph]) => (
           <Field key={k} label={label} optional>
-            <AutoText value={draft[k] as string} onChange={(v) => set({ [k]: v } as any)} placeholder={ph} minRows={2} />
+            <AutoText value={draft[k] as string} onChange={(v) => set({ [k]: v })} placeholder={ph} minRows={2} />
           </Field>
         ))}
 
@@ -273,7 +273,7 @@ export function LinkSheet(props: { open: boolean; onClose: () => void; onPick: (
             className="btn primary"
             disabled={!name.trim()}
             onClick={() => {
-              const it = store.upsert('repertoire', { kind, name: name.trim() } as any);
+              const it = store.upsert('repertoire', { kind, name: name.trim() });
               props.onPick(it.id);
               setName('');
               props.onClose();

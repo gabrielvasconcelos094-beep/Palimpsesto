@@ -211,10 +211,10 @@ export class Store {
     const candidate = {
       ...entity,
       id: entity.id ?? newId(),
-      createdAt: (prev as any)?.createdAt ?? entity.createdAt ?? now,
+      createdAt: (prev)?.createdAt ?? entity.createdAt ?? now,
       updatedAt: now,
     };
-    const parsed = (CollectionSchemas[c] as any).parse(candidate) as EntityOf<C>;
+    const parsed = (CollectionSchemas[c]).parse(candidate) as EntityOf<C>;
     const arr = this.list(c);
     const next = prev ? arr.map((e: any) => (e.id === parsed.id ? parsed : e)) : [...arr, parsed];
     this.commitData({ ...this.state.data, [c]: next });
@@ -234,7 +234,7 @@ export class Store {
    */
   setSleep(date: string, patch: { hours?: number | null; quality?: number | null; troubles?: string[]; factors?: string[]; note?: string }) {
     const cur = this.list('sleepLogs').find((s) => s.date === date);
-    const next = { hours: null, quality: null, troubles: [], factors: [], note: '', ...(cur ?? {}), ...patch, date } as any;
+    const next = { hours: null, quality: null, troubles: [], factors: [], note: '', ...cur, ...patch, date } as any;
     const empty = next.hours == null && next.quality == null && !next.troubles.length && !next.factors.length && !next.note.trim();
     if (empty) {
       if (cur) this.remove('sleepLogs', cur.id);
@@ -367,7 +367,7 @@ export class Store {
 /* Regras de remoção em cascata                                              */
 /* ------------------------------------------------------------------------ */
 export function removeWithCascade(data: AppData, c: CollectionName, id: string): AppData {
-  const d: any = { ...data, [c]: (data as any)[c].filter((e: any) => e.id !== id) };
+  const d: any = { ...data, [c]: (data)[c].filter((e: any) => e.id !== id) };
   const strip = (arr: string[]) => arr.filter((x) => x !== id);
   switch (c) {
     case 'emotions':
