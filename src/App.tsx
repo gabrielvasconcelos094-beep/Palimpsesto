@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { BarChart3, BookOpen, Compass, Map as MapIcon, Sun } from 'lucide-react';
 import { closeTopOverlay } from './app/overlays';
 import { canGoBack, goBack, navigate, useRoute } from './app/router';
@@ -8,7 +8,6 @@ import { dismissToast, useToast } from './app/toast';
 import { AssessmentPage, SafetyPlanPage } from './features/care/Care';
 import { AppointmentPage } from './features/care/Appointments';
 import { MedicationPage } from './features/care/Medications';
-import { EmotionProfilePage, EmotionsListPage } from './features/guide/EmotionGuide';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
 import { clearExportCache, setPrivacyScreen } from './platform/native';
 import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
@@ -18,21 +17,36 @@ import { Today } from './features/today/Today';
 import { Journal } from './features/journal/Journal';
 import { ExperienceEditor } from './features/journal/ExperienceEditor';
 import { EventPage } from './features/journal/EventEditor';
-import { SearchPage } from './features/search/SearchPage';
 import { MapHome, QuestionPage, SectionPage } from './features/map/MapPages';
 import { DiscoveryPage } from './features/map/Discoveries';
 import { GuideHome } from './features/guide/GuideHome';
 import { ItemPage } from './features/guide/Repertoire';
 import { SituationPage } from './features/guide/Situations';
 import { LetterPage } from './features/guide/Letters';
-import { Trajectory } from './features/trajectory/Trajectory';
-import { TrajectoryCategory } from './features/trajectory/categories';
 import { AboutPage, EmotionsPage, IndicatorsPage, ScalePage, SettingsHome } from './features/settings/Settings';
-import { ThemeEditorPage, ThemesPage } from './features/settings/Themes';
-import { DataPage } from './features/settings/DataPage';
 import { LockScreen, PrivacyPage } from './features/settings/Privacy';
 import { Onboarding } from './features/onboarding/Onboarding';
 import { Dialog } from './ui/components';
+
+/**
+ * Telas pesadas e menos usadas são carregadas sob demanda (gráficos e estatísticas da
+ * Trajetória, temas, dados/importação, busca, perfis de emoção): o pacote inicial fica
+ * menor e o app abre mais rápido em aparelhos modestos.
+ */
+function lazyNamed<M extends Record<string, unknown>, K extends keyof M>(load: () => Promise<M>, name: K) {
+  return lazy(async () => ({ default: (await load())[name] as ComponentType }));
+}
+const loadTrajectory = () => import('./features/trajectory/Trajectory');
+const Trajectory = lazyNamed(loadTrajectory, 'Trajectory');
+const TrajectoryCategory = lazyNamed(() => import('./features/trajectory/categories'), 'TrajectoryCategory');
+const loadEmotionGuide = () => import('./features/guide/EmotionGuide');
+const EmotionProfilePage = lazyNamed(loadEmotionGuide, 'EmotionProfilePage');
+const EmotionsListPage = lazyNamed(loadEmotionGuide, 'EmotionsListPage');
+const SearchPage = lazyNamed(() => import('./features/search/SearchPage'), 'SearchPage');
+const loadThemes = () => import('./features/settings/Themes');
+const ThemesPage = lazyNamed(loadThemes, 'ThemesPage');
+const ThemeEditorPage = lazyNamed(loadThemes, 'ThemeEditorPage');
+const DataPage = lazyNamed(() => import('./features/settings/DataPage'), 'DataPage');
 
 const TABS = [
   { path: '/', label: 'Hoje', icon: Sun },
@@ -220,7 +234,9 @@ export function App() {
 
   return (
     <div className="app">
-      <Screen key={screenKey} />
+      <Suspense fallback={null}>
+        <Screen key={screenKey} />
+      </Suspense>
       <BottomNav />
       {message && (
         <div className="toast" role="status">
