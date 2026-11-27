@@ -14,7 +14,8 @@
  * (ex.: Kaufmann et al., 2016). Tudo aqui é descritivo: associação, nunca causa.
  */
 import { SLEEP_FACTORS, type MoodEntry, type SleepFactor, type SleepLog, type SleepTrouble } from './schema';
-import { valenceIndex } from './valence';
+import { dayMeans, valenceIndex } from './valence';
+import { ALPHA, benjaminiHochberg, fisherExactP, permutationDiffMeans } from './stats';
 
 export const SLEEP_MIN_NIGHTS = 5;
 export const SLEEP_GROUP_MIN_DATES = 3;
@@ -46,14 +47,17 @@ export interface SleepSummary {
   short: Idx;
   enough: Idx;
   comparable: boolean;
+  /** Diferença de humor após noites curtas × longas improvável por acaso (permutação entre datas). */
+  shortClear: boolean;
   /** Qualidade: contagem de noites por nível (1–5). */
   quality: [number, number, number, number, number];
   bad: Idx;
   good: Idx;
   qualityComparable: boolean;
+  qualityClear: boolean;
   troubles: Record<SleepTrouble, number>;
   /** Fatores marcados, do mais frequente ao menos; com a proporção de noites ruins com e sem o fator. */
-  factors: Array<{ factor: SleepFactor; nights: number; badWith: number | null; badWithout: number | null }>;
+  factors: Array<{ factor: SleepFactor; nights: number; badWith: number | null; badWithout: number | null; clear: boolean }>;
 }
 
 export function sleepSummary(logs: SleepLog[], entries: MoodEntry[]): SleepSummary {
@@ -62,12 +66,20 @@ export function sleepSummary(logs: SleepLog[], entries: MoodEntry[]): SleepSumma
   const mean = hours.reduce((a, b) => a + b, 0) / (hours.length || 1);
   const ok = n.length >= SLEEP_MIN_NIGHTS;
   const onDays = (days: Set<string>) => valenceIndex(entries.filter((m) => days.has(m.at.slice(0, 10))));
-  const short = onDays(new Set(n.filter((x) => x.hours < SHORT_SLEEP).map((x) => x.day)));
-  const enough = onDays(new Set(n.filter((x) => x.hours >= ENOUGH_SLEEP).map((x) => x.day)));
+  const means = dayMeans(entries);
+  const meansOn = (days: Set<string>) => [...days].filter((d) => means.has(d)).map((d) => means.get(d)!.mean);
+  const shortDays = new Set(n.filter((x) => x.hours < SHORT_SLEEP).map((x) => x.day));
+  const enoughDays = new Set(n.filter((x) => x.hours >= ENOUGH_SLEEP).map((x) => x.day));
+  const short = onDays(shortDays);
+  const enough = onDays(enoughDays);
   const quality: SleepSummary['quality'] = [0, 0, 0, 0, 0];
   logs.forEach((s) => s.quality != null && quality[s.quality - 1]++);
-  const bad = onDays(new Set(logs.filter((s) => s.quality != null && s.quality <= 2).map((s) => s.date)));
-  const good = onDays(new Set(logs.filter((s) => s.quality != null && s.quality >= 4).map((s) => s.date)));
+  const badDays = new Set(logs.filter((s) => s.quality != null && s.quality <= 2).map((s) => s.date));
+  const goodDays = new Set(logs.filter((s) => s.quality != null && s.quality >= 4).map((s) => s.date));
+  const bad = onDays(badDays);
+  const good = onDays(goodDays);
+  const comparable = short.dates >= SLEEP_GROUP_MIN_DATES && enough.dates >= SLEEP_GROUP_MIN_DATES;
+  const qualityComparable = bad.dates >= SLEEP_GROUP_MIN_DATES && good.dates >= SLEEP_GROUP_MIN_DATES;
   const troubles: Record<SleepTrouble, number> = { onset: 0, awakenings: 0, early: 0, nightmares: 0 };
   logs.forEach((s) => s.troubles.forEach((t) => troubles[t]++));
   return {
@@ -78,11 +90,13 @@ export function sleepSummary(logs: SleepLog[], entries: MoodEntry[]): SleepSumma
     shortShare: ok ? n.filter((x) => x.hours < SHORT_SLEEP).length / n.length : null,
     short,
     enough,
-    comparable: short.dates >= SLEEP_GROUP_MIN_DATES && enough.dates >= SLEEP_GROUP_MIN_DATES,
+    comparable,
+    shortClear: comparable && permutationDiffMeans(meansOn(shortDays), meansOn(enoughDays)) < ALPHA,
     quality,
     bad,
     good,
-    qualityComparable: bad.dates >= SLEEP_GROUP_MIN_DATES && good.dates >= SLEEP_GROUP_MIN_DATES,
+    qualityComparable,
+    qualityClear: qualityComparable && permutationDiffMeans(meansOn(badDays), meansOn(goodDays)) < ALPHA,
     troubles,
     factors: factorStats(logs),
   };
@@ -97,15 +111,30 @@ export const FACTOR_MIN_NIGHTS = 3;
  */
 export function factorStats(logs: SleepLog[]) {
   const rated = logs.filter((s) => s.quality != null);
-  const bad = (l: SleepLog[]) => (l.length ? l.filter((s) => (s.quality as number) <= 2).length / l.length : null);
-  return SLEEP_FACTORS.map((factor) => {
+  const isBad = (s: SleepLog) => (s.quality as number) <= 2;
+  const rows = SLEEP_FACTORS.map((factor) => {
     const nights = logs.filter((s) => (s.factors ?? []).includes(factor)).length;
     const w = rated.filter((s) => (s.factors ?? []).includes(factor));
     const wo = rated.filter((s) => !(s.factors ?? []).includes(factor));
     const ok = w.length >= FACTOR_MIN_NIGHTS && wo.length >= FACTOR_MIN_NIGHTS;
-    return { factor, nights, badWith: ok ? bad(w) : null, badWithout: ok ? bad(wo) : null };
-  })
-    .filter((f) => f.nights > 0)
+    const bw = w.filter(isBad).length;
+    const bo = wo.filter(isBad).length;
+    return {
+      factor,
+      nights,
+      badWith: ok ? bw / w.length : null,
+      badWithout: ok ? bo / wo.length : null,
+      p: ok ? fisherExactP(bw, w.length - bw, bo, wo.length - bo) : null,
+    };
+  }).filter((f) => f.nights > 0);
+  // Correção para vários fatores testados ao mesmo tempo (Benjamini-Hochberg).
+  const tested = rows.filter((r) => r.p !== null);
+  const q = benjaminiHochberg(tested.map((r) => r.p as number));
+  return rows
+    .map(({ p: _p, ...r }) => {
+      const i = tested.findIndex((t) => t.factor === r.factor);
+      return { ...r, clear: i >= 0 && q[i] < ALPHA };
+    })
     .sort((a, b) => b.nights - a.nights);
 }
 

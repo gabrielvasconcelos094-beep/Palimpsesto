@@ -3,7 +3,8 @@ import { Delete, Fingerprint } from 'lucide-react';
 import { store, useStoreState } from '../../app/store';
 import { toast } from '../../app/toast';
 import { hashPin, verifyPin } from '../../data/crypto';
-import { biometricAuthenticate, biometricAvailable, setPrivacyScreen } from '../../platform/native';
+import { biometricAuthenticate, biometricAvailable, clearExportCache, setPrivacyScreen } from '../../platform/native';
+import { syncAllReminders } from '../../platform/reminders';
 import { Field, Page, Section, Sheet, Toggle, useConfirm } from '../../ui/components';
 
 export function PrivacyPage() {
@@ -26,6 +27,8 @@ export function PrivacyPage() {
           <li>Não entram no backup automático do Google nem em cópias por cabo (adb).</li>
           <li>O aplicativo não se conecta a nenhum servidor: não há contas, análises nem anúncios, e conexões externas são bloqueadas.</li>
           <li>Backups exportados podem ser cifrados com senha (AES-256).</li>
+          <li>O PIN protege a abertura do app, não cifra os arquivos: quem guarda os dados em segurança é a criptografia do Android (por isso, mantenha o bloqueio de tela do aparelho ativado).</li>
+          <li>PDFs e arquivos que você compartilha ficam numa pasta temporária do app, limpa ao abrir o app e ao sair das telas de exportação.</li>
         </ul>
       </div>
 
@@ -104,6 +107,9 @@ export function PrivacyPage() {
             onClick={async () => {
               if (await ask({ title: 'Apagar tudo definitivamente?', body: 'Esta é a última confirmação.', confirm: 'Apagar tudo', danger: true })) {
                 await store.eraseEverything();
+                // Nada de lembretes ou arquivos exportados sobrando de dados que não existem mais.
+                await syncAllReminders([]);
+                await clearExportCache();
                 location.hash = '#/';
                 location.reload();
               }

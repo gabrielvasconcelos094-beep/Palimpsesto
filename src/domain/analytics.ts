@@ -8,6 +8,7 @@
  *
  * Os padrões são ASSOCIAÇÕES observadas nos registros, nunca causas.
  */
+import { ALPHA, benjaminiHochberg, fisherExactP, mannWhitneyP } from './stats';
 import type { AppData, IndicatorKey, MoodEntry, Outcome, StrategyUse } from './schema';
 import { addDays, dayKey, fold, startOfDay, startOfWeek } from './util';
 
@@ -195,6 +196,8 @@ export interface Pattern {
   withoutShare: number;
   withCounts?: Counts5;
   withoutCounts?: Counts5;
+  /** Valor q (Benjamini-Hochberg) da comparação. */
+  q?: number;
 }
 
 /**
@@ -207,11 +210,16 @@ export function findPatterns(entries: MoodEntry[], opts: { indicators?: Indicato
   enough: boolean;
   total: number;
   patterns: Pattern[];
+  /** Quantas comparações foram feitas (para explicar a correção). */
+  tests?: number;
 } {
   const total = entries.length;
   if (total < PATTERN_MIN_ENTRIES) return { enough: false, total, patterns: [] };
   const tags = tagFrequency(entries).filter((t) => t.count >= PATTERN_MIN_GROUP && total - t.count >= PATTERN_MIN_GROUP);
   const out: Pattern[] = [];
+  // Todas as comparações feitas entram na correção para comparações múltiplas,
+  // inclusive as que não passariam do tamanho mínimo de efeito.
+  const tested: Array<{ p: number; pattern: Pattern | null }> = [];
 
   const ordinal = (metric: PatternMetric, pick: (e: MoodEntry) => number | null | undefined, highFrom: number) => {
     for (const { tag } of tags) {
@@ -225,13 +233,17 @@ export function findPatterns(entries: MoodEntry[], opts: { indicators?: Indicato
       }
       if (withV.length < PATTERN_MIN_GROUP || withoutV.length < PATTERN_MIN_GROUP) continue;
       const d = cliffsDelta(withV, withoutV);
-      if (Math.abs(d) < PATTERN_MIN_DELTA) continue;
+      const pv = mannWhitneyP(withV, withoutV);
+      if (Math.abs(d) < PATTERN_MIN_DELTA) {
+        tested.push({ p: pv, pattern: null });
+        continue;
+      }
       const toCounts = (xs: number[]) => {
         const c = zero5();
         xs.forEach((x) => c[x]++);
         return c;
       };
-      out.push({
+      tested.push({ p: pv, pattern: {
         id: `${metric}|${k}`,
         tag,
         metric,
@@ -243,7 +255,7 @@ export function findPatterns(entries: MoodEntry[], opts: { indicators?: Indicato
         withoutShare: withoutV.filter((x) => x >= highFrom).length / withoutV.length,
         withCounts: toCounts(withV),
         withoutCounts: toCounts(withoutV),
-      });
+      } });
     }
   };
 
@@ -263,11 +275,13 @@ export function findPatterns(entries: MoodEntry[], opts: { indicators?: Indicato
       const b = withoutE.filter((e) => e.emotionIds.includes(id)).length;
       const pa = a / withE.length;
       const pb = b / withoutE.length;
-      if (a < 3 && pa > pb) continue;
+      const pv = fisherExactP(a, withE.length - a, b, withoutE.length - b);
       const diff = pa - pb;
-      if (Math.abs(diff) < 0.25) continue;
-      if (Math.max(pa, pb) < 0.3) continue;
-      out.push({
+      if ((a < 3 && pa > pb) || Math.abs(diff) < 0.25 || Math.max(pa, pb) < 0.3) {
+        tested.push({ p: pv, pattern: null });
+        continue;
+      }
+      tested.push({ p: pv, pattern: {
         id: `emotion:${id}|${k}`,
         tag,
         metric: `emotion:${id}`,
@@ -277,11 +291,16 @@ export function findPatterns(entries: MoodEntry[], opts: { indicators?: Indicato
         withoutN: withoutE.length,
         withShare: pa,
         withoutShare: pb,
-      });
+      } });
     }
   }
+  // Benjamini-Hochberg sobre todas as comparações: só fica o que é improvável por acaso.
+  const q = benjaminiHochberg(tested.map((t) => t.p));
+  tested.forEach((t, i) => {
+    if (t.pattern && q[i] < ALPHA) out.push({ ...t.pattern, q: q[i] });
+  });
   out.sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
-  return { enough: true, total, patterns: out.slice(0, 24) };
+  return { enough: true, total, patterns: out.slice(0, 24), tests: tested.length };
 }
 
 /* ------------------------------------------------------------------------ */

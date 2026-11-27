@@ -10,9 +10,9 @@ import { AppointmentPage } from './features/care/Appointments';
 import { MedicationPage } from './features/care/Medications';
 import { EmotionProfilePage, EmotionsListPage } from './features/guide/EmotionGuide';
 import { exitApp, onAppPause, onAppResume, onBackButton } from './platform/lifecycle';
-import { setPrivacyScreen } from './platform/native';
+import { clearExportCache, setPrivacyScreen } from './platform/native';
 import { syncWidgets, widgetAppearanceKey, Widgets } from './platform/widgets';
-import { onReminderTap, syncAllReminders } from './platform/reminders';
+import { onReminderTap, remindersKey, syncAllReminders } from './platform/reminders';
 import { routeForWidgetAction } from './app/widgetActions';
 import { Today } from './features/today/Today';
 import { Journal } from './features/journal/Journal';
@@ -155,14 +155,25 @@ export function App() {
     return () => clearTimeout(t);
   }, [st.ready, appearanceKey]);
 
-  // Lembretes de consulta: reagenda ao abrir (ex.: após importar um backup) e abre a consulta ao tocar.
+  // Lembretes de consulta: abre a consulta ao tocar e mantém as notificações agendadas
+  // iguais às consultas — ao abrir e sempre que elas mudarem por qualquer caminho
+  // (apagar tudo, importar, restaurar, desfazer uma exclusão).
   const remindersOnce = useRef(false);
   useEffect(() => {
     if (!st.ready || remindersOnce.current) return;
     remindersOnce.current = true;
-    void syncAllReminders(st.data.appointments);
+    // Arquivos exportados (backups, PDFs) de uma sessão anterior não ficam no cache.
+    void clearExportCache();
     void onReminderTap((id) => navigate(`/guia/consulta/${id}`));
   }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  const apptKey = remindersKey(st.data.appointments);
+  const apptRef = useRef(st.data.appointments);
+  apptRef.current = st.data.appointments;
+  useEffect(() => {
+    if (!st.ready) return;
+    const t = setTimeout(() => void syncAllReminders(apptRef.current), 400);
+    return () => clearTimeout(t);
+  }, [st.ready, apptKey]);
 
   // Toques nos widgets: guarda a ação e só a executa com o app desbloqueado.
   const [widgetAction, setWidgetAction] = useState<string | null>(null);

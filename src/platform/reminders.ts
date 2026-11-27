@@ -77,9 +77,32 @@ export async function cancelReminder(id: string) {
   if (ln) await guarded(ln.cancel({ notifications: [{ id: notificationId(id) }] }));
 }
 
-/** Reagenda todos (ao abrir o app, depois de importar um backup etc.). */
+/**
+ * Deixa as notificações agendadas IGUAIS à lista de consultas: agenda as que têm
+ * lembrete e CANCELA as que sobraram de consultas que não existem mais (apagar tudo,
+ * restaurar ou substituir por um backup, desfazer…). Sem isso, um lembrete de uma
+ * consulta apagada ainda tocaria — e mostraria o texto dela na tela de bloqueio.
+ * Todas as notificações locais do app são lembretes de consulta.
+ */
 export async function syncAllReminders(list: Appointment[]) {
+  const wanted = new Set(list.filter((a) => a.reminderMinutes != null).map((a) => notificationId(a.id)));
+  const d = dev();
+  if (d) for (const k of Object.keys(d.scheduled)) if (!wanted.has(Number(k))) delete d.scheduled[Number(k)];
+  const ln = await plugin();
+  if (ln) {
+    const pending = (await guarded(ln.getPending()))?.notifications ?? [];
+    const orphans = pending.filter((n) => !wanted.has(n.id)).map((n) => ({ id: n.id }));
+    if (orphans.length) await guarded(ln.cancel({ notifications: orphans }));
+  }
   for (const a of list) if (a.reminderMinutes != null) await syncReminder(a);
+}
+
+/** Chave que muda quando algo que afeta os lembretes muda (para reagendar só quando preciso). */
+export function remindersKey(list: Appointment[]): string {
+  return list
+    .map((a) => [a.id, a.status, a.date, a.time, a.reminderMinutes, a.reminderShowsType, a.forWhom, a.professionalGender, a.professional].join('|'))
+    .sort()
+    .join('\n');
 }
 
 /** Tocar na notificação abre a consulta. */

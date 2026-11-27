@@ -19,7 +19,7 @@ import {
 import type { z } from 'zod';
 import { newId, nowIso } from '../domain/util';
 import { defaultDevice, initialData, syncBuiltIns } from './defaults';
-import { parseAppData } from './validate';
+import { parseAppData, repairIntegrity } from './validate';
 import type { StorageAdapter } from './storage';
 
 export const KEY_DATA = 'data.json';
@@ -264,12 +264,21 @@ export class Store {
       for (const k of Object.keys(before) as Array<keyof AppData>) {
         const old = before[k];
         if (!Array.isArray(old)) continue;
-        const cur = (next[k] ?? []) as Array<{ id: string }>;
+        const oldById = new Map((old as Array<{ id: string }>).map((e) => [e.id, e]));
+        const afterList = after[k] as Array<{ id: string }>;
+        const afterIds = new Set(afterList.map((e) => e.id));
+        // Referências limpas pela cascata (ex.: a emoção tirada dos registros) voltam
+        // nos itens que NÃO foram mexidos depois da exclusão (mesmo objeto de `after`).
+        // Um item editado depois fica como está: o trabalho posterior não é desfeito.
+        const touched = new Set(afterList.filter((e) => oldById.has(e.id) && oldById.get(e.id) !== e));
+        let cur = (next[k] ?? []) as Array<{ id: string }>;
+        if (touched.size) cur = cur.map((e) => (touched.has(e) ? oldById.get(e.id)! : e));
         const ids = new Set(cur.map((e) => e.id));
-        const back = (old as Array<{ id: string }>).filter((e) => !ids.has(e.id) && !(after[k] as Array<{ id: string }>).some((x) => x.id === e.id));
-        if (back.length) next[k] = [...cur, ...back];
+        const back = (old as Array<{ id: string }>).filter((e) => !ids.has(e.id) && !afterIds.has(e.id));
+        if (back.length || touched.size) next[k] = [...cur, ...back];
       }
-      this.transact(() => next);
+      // O que voltou pode apontar para algo apagado nesse meio-tempo.
+      this.transact(() => repairIntegrity(next).data);
     };
   }
 
@@ -410,6 +419,10 @@ export function removeWithCascade(data: AppData, c: CollectionName, id: string):
       break;
     case 'letters':
       d.situations = d.situations.map((s: any) => ({ ...s, letterIds: strip(s.letterIds) }));
+      break;
+    case 'appointments':
+      // Os assuntos da pauta continuam existindo; só deixam de apontar para a consulta.
+      d.agenda = d.agenda.map((a: any) => (a.appointmentId === id ? { ...a, appointmentId: null } : a));
       break;
   }
   return d as AppData;

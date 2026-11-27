@@ -324,7 +324,7 @@ export function CalendarView({
           <ChevronRight size={20} />
         </button>
       </div>
-      <div className="cal" role="grid" aria-label="Calendário emocional">
+      <div className="cal" role="group" aria-label="Calendário emocional">
         {Array.from({ length: 7 }, (_, i) => (
           <div key={i} className="wd" aria-hidden>
             {WD[(i + ws) % 7]}

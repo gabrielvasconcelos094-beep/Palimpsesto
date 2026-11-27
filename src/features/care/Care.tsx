@@ -32,7 +32,7 @@ import {
 } from '../../domain/assessments';
 import { INSTRUMENTS, type AgendaItem, type Assessment, type Instrument, type SafetyPlan } from '../../domain/schema';
 import { dayKey } from '../../domain/util';
-import { deliverFile } from '../../platform/native';
+import { clearExportCache, deliverFile } from '../../platform/native';
 import { CONSULT_SECTIONS } from '../../report/sections';
 import { AppointmentsSection } from './Appointments';
 import { lastGender, whoLabel } from '../../domain/care';
@@ -47,6 +47,8 @@ import { AutoText, Field, fmtDate, Page, Section, Segmented, useConfirm } from '
 /* Aba do Guia                                                               */
 /* ------------------------------------------------------------------------ */
 export function CareTab() {
+  // PDFs gerados aqui não ficam no cache depois que você sai da tela.
+  useEffect(() => () => void clearExportCache(), []);
   const data = useData();
   const today = dayKey(new Date());
   const plan = data.safetyPlans[0];

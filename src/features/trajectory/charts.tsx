@@ -1,6 +1,8 @@
 /**
  * Gráficos em SVG/HTML próprios, guiados pelos tokens do tema.
- * - Valência é ordinal: mostramos contagens e proporções, nunca médias.
+ * - Valência é ordinal: os gráficos de distribuição mostram contagens e proporções. Onde
+ *   há um "índice" (média com peso igual por data), ele é rotulado como aproximação descritiva
+ *   e vem acompanhado das contagens (ver docs/ARQUITETURA.md §4 e domain/valence.ts).
  * - Identidade nunca depende só da cor: legenda sempre visível e valores no toque.
  */
 import { useId, useState } from 'react';

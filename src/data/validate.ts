@@ -40,6 +40,8 @@ export function parseAppData(raw: unknown): ParseResult | ParseError {
  * Remove ids duplicados (mantém a versão mais recente) e limpa
  * referências para entidades inexistentes.
  */
+const SAFETY_PLAN_FIELDS = ['warningSigns', 'copingAlone', 'distractions', 'helpers', 'professionals', 'safeEnvironment', 'reasons'] as const;
+
 export function repairIntegrity(input: AppData): { data: AppData; report: IntegrityReport } {
   const report: IntegrityReport = { duplicateIds: 0, danglingRefs: 0, notes: [] };
   const data: any = { ...input };
@@ -128,6 +130,30 @@ export function repairIntegrity(input: AppData): { data: AppData; report: Integr
     letterIds: keep(letters)(s.letterIds),
   }));
   data.letters = data.letters.map((l: any) => ({ ...l, situationId: nullIfMissing(sits, l.situationId) }));
+  // Pauta: vínculo com uma consulta que não existe mais vira "sem consulta".
+  const appts = has('appointments');
+  data.agenda = data.agenda.map((a: any) => ({ ...a, appointmentId: nullIfMissing(appts, a.appointmentId ?? null) }));
+  // Plano de segurança: no máximo um. Ao mesclar dois aparelhos podem chegar dois
+  // planos com ids diferentes; em vez de recusar a importação (ou descartar um deles),
+  // fica o alterado por último, somando as linhas do outro que ele não tinha.
+  if (data.safetyPlans.length > 1) {
+    const plans = [...data.safetyPlans].sort((a: any, b: any) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+    const merged: any = { ...plans[0] };
+    for (const f of SAFETY_PLAN_FIELDS) {
+      const seen = new Set<string>();
+      const out: string[] = [];
+      for (const p of plans)
+        for (const line of (p[f] ?? []) as string[]) {
+          const k = line.trim().toLocaleLowerCase('pt-BR');
+          if (!k || seen.has(k)) continue;
+          seen.add(k);
+          out.push(line);
+        }
+      merged[f] = out.slice(0, 30);
+    }
+    report.notes.push(`${plans.length} planos de segurança foram unidos em um só (nenhuma linha foi perdida, exceto repetidas).`);
+    data.safetyPlans = [merged];
+  }
   if (report.duplicateIds) report.notes.push(`${report.duplicateIds} registro(s) com identificador repetido foram unificados.`);
   return { data: data as AppData, report };
 }

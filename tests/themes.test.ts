@@ -14,10 +14,17 @@ describe('temas predefinidos', () => {
         expect(contrast(t.lineStrong, t.surface)).toBeGreaterThanOrEqual(3);
         for (const m of t.mood) expect(contrast(m, t.surface)).toBeGreaterThanOrEqual(3);
         for (const m of t.moodOrganic) expect(contrast(m, t.surface)).toBeGreaterThanOrEqual(3);
+        // Cartões suaves (estilo minimalista): texto principal e secundário legíveis.
+        for (const soft of [t.primarySoft, t.accentSoft]) {
+          expect(contrast(t.ink, soft)).toBeGreaterThanOrEqual(7);
+          expect(contrast(t.inkSoft, soft)).toBeGreaterThanOrEqual(4.5);
+          expect(contrast(t.inkFaint, soft)).toBeGreaterThanOrEqual(4.5);
+        }
         // Blocos pastel do estilo orgânico continuam legíveis.
         for (const tint of t.tints) {
           expect(contrast(t.ink, tint)).toBeGreaterThanOrEqual(7);
           expect(contrast(t.inkSoft, tint)).toBeGreaterThanOrEqual(4.5);
+          expect(contrast(t.inkFaint, tint)).toBeGreaterThanOrEqual(4.5);
           for (const m of t.moodOrganic) expect(contrast(m, tint)).toBeGreaterThanOrEqual(3);
           expect(tint).not.toBe(t.surface);
         }

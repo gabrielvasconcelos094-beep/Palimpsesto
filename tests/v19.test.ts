@@ -62,8 +62,8 @@ describe('o que atrapalhou o sono', () => {
       N('2026-01-07', null, ['caffeine']),
     ];
     const f = factorStats(logs);
-    expect(f[0]).toEqual({ factor: 'screens', nights: 3, badWith: 2 / 3, badWithout: 1 / 3 });
-    expect(f.find((x) => x.factor === 'caffeine')).toEqual({ factor: 'caffeine', nights: 1, badWith: null, badWithout: null });
+    expect(f[0]).toEqual({ factor: 'screens', nights: 3, badWith: 2 / 3, badWithout: 1 / 3, clear: false }); // 3 noites: diferença não distinguível do acaso
+    expect(f.find((x) => x.factor === 'caffeine')).toEqual({ factor: 'caffeine', nights: 1, badWith: null, badWithout: null, clear: false });
   });
 });
 

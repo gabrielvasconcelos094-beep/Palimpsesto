@@ -193,3 +193,28 @@ describe('CSV', () => {
     expect(csvCell('-2')).toBe('-2');
   });
 });
+
+describe('integridade 1.11', () => {
+  it('mesclar dois aparelhos com planos de segurança diferentes: une em um, sem perder linhas', async () => {
+    const { mergeData } = await import('../src/data/merge');
+    const { emptyData } = await import('../src/data/defaults');
+    const { AppDataSchema } = await import('../src/domain/schema');
+    const base = (id: string, at: string, signs: string[]) => ({ id, createdAt: at, updatedAt: at, warningSigns: signs, copingAlone: [], distractions: [], helpers: [id], professionals: [], safeEnvironment: [], reasons: [] });
+    const a = { ...emptyData(), safetyPlans: [base('p1', '2026-10-01T00:00:00Z', ['Dormir pouco', 'Me isolar'])] } as any;
+    const b = { ...emptyData(), safetyPlans: [base('p2', '2026-11-01T00:00:00Z', ['me isolar ', 'Parar de comer'])] } as any;
+    const { data } = mergeData(a, b, { strategy: 'newest' } as any);
+    expect(() => AppDataSchema.parse(data)).not.toThrow();
+    expect(data.safetyPlans).toHaveLength(1);
+    expect(data.safetyPlans[0].id).toBe('p2'); // o alterado por último
+    expect(data.safetyPlans[0].warningSigns).toEqual(['me isolar ', 'Parar de comer', 'Dormir pouco']);
+    expect(data.safetyPlans[0].helpers).toEqual(['p2', 'p1']);
+  });
+  it('vínculo da pauta com consulta inexistente é limpo ao importar', async () => {
+    const { repairIntegrity } = await import('../src/data/validate');
+    const { emptyData } = await import('../src/data/defaults');
+    const d = { ...emptyData(), agenda: [{ id: 'g', createdAt: 'x', updatedAt: 'x', text: 't', appointmentId: 'sumiu' }] } as any;
+    const r = repairIntegrity(d);
+    expect(r.data.agenda[0].appointmentId).toBeNull();
+    expect(r.report.danglingRefs).toBe(1);
+  });
+});

@@ -183,6 +183,32 @@ await go('/guia?t=acompanhamento');
 await page.getByText('Agendar a próxima consulta').waitFor();
 assert.equal(await page.locator('button.card.row', { hasText: /Próxima · / }).count(), 0, 'some da aba Consultas');
 
+step('lembretes acompanham as consultas por qualquer caminho: excluir, desfazer, importar por cima, apagar tudo');
+const remCount = () => page.evaluate(() => Object.keys(window.__reminders?.scheduled ?? {}).length);
+const d3 = await day(3);
+const apId = await page.evaluate((d3) => window.__pal.store.upsert('appointments', { date: d3, time: '10:00', forWhom: 'psiquiatria', reminderMinutes: 60 }).id, d3);
+await page.waitForFunction(() => Object.keys(window.__reminders?.scheduled ?? {}).length === 1);
+await page.evaluate((id) => (window.__undoAppt = window.__pal.store.removeUndoable('appointments', id)), apId);
+await page.waitForFunction(() => Object.keys(window.__reminders.scheduled).length === 0);
+await page.evaluate(() => window.__undoAppt());
+await page.waitForFunction(() => Object.keys(window.__reminders.scheduled).length === 1);
+await page.evaluate(async () => {
+  const s = window.__pal.store;
+  await s.replaceAll({ ...s.getState().data, appointments: [] }, 'teste');
+});
+await page.waitForFunction(() => Object.keys(window.__reminders.scheduled).length === 0);
+assert.equal(await remCount(), 0);
+await page.evaluate((d3) => window.__pal.store.upsert('appointments', { date: d3, time: '11:00', forWhom: 'psicologia', reminderMinutes: 30 }), d3);
+await page.waitForFunction(() => Object.keys(window.__reminders.scheduled).length === 1);
+await go('/ajustes/privacidade');
+await page.getByRole('textbox', { name: 'Digite APAGAR para confirmar' }).fill('APAGAR');
+await page.getByRole('button', { name: 'Apagar todos os dados' }).click();
+await Promise.all([page.waitForEvent('load'), page.locator('.dialog').getByRole('button', { name: 'Apagar tudo' }).click()]);
+await page.waitForFunction(() => window.__pal?.store.getState().ready);
+assert.equal((await data()).appointments.length, 0);
+await page.waitForTimeout(600);
+assert.equal(await remCount(), 0, 'nenhum lembrete sobra depois de apagar tudo');
+
 assert.deepEqual(errors, [], 'sem erros de página');
 console.log('\nTodos os fluxos de consultas e medicamentos passaram.');
 await browser.close();

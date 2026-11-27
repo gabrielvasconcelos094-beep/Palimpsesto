@@ -20,7 +20,7 @@ import { REQUESTS, type Appointment } from '../../domain/schema';
 import { fmtHours } from '../../domain/sleep';
 import { dayKey } from '../../domain/util';
 import { fmtIndex } from '../../domain/valence';
-import { deliverFile } from '../../platform/native';
+import { clearExportCache, deliverFile } from '../../platform/native';
 import { cancelReminder, notificationPermission, syncReminder } from '../../platform/reminders';
 import { CONSULT_SECTIONS } from '../../report/sections';
 import { useTrajPeriod } from '../../app/filters';
@@ -129,6 +129,8 @@ function ApptRow({ a, today }: { a: Appointment; today: string }) {
 /* Página da consulta                                                        */
 /* ------------------------------------------------------------------------ */
 export function AppointmentPage() {
+  // PDFs gerados aqui não ficam no cache depois que você sai da tela.
+  useEffect(() => () => void clearExportCache(), []);
   const route = useRoute();
   const id = route.parts[2];
   const data = useData();

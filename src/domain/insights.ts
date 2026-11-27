@@ -2,16 +2,20 @@
  * Estatísticas descritivas da Trajetória.
  *
  * Cuidados metodológicos (ver docs/ARQUITETURA.md §4):
- * - A valência é ordinal: usamos contagens e proporções, nunca médias.
+ * - A valência é ordinal: aqui usamos contagens e proporções (os índices, médias com
+ *   peso igual por data, ficam em valence.ts e são sempre rotulados como aproximação).
  * - "Agradável" = categorias +1 e +2; "desagradável" = −1 e −2.
  * - Ausência de registro NÃO é humor neutro: dias sem registro ficam de fora.
  * - Dias da semana: por padrão cada DATA pesa o mesmo (proporção calculada em
  *   cada data e depois combinada), para que um dia com muitos registros não
  *   domine. A contagem por registro também é oferecida, e a unidade é sempre
  *   informada.
- * - Comparações só são apresentadas quando há dados mínimos e uma diferença
- *   mínima; caso contrário, dizemos que ainda não há observações suficientes.
+ * - Comparações só são apresentadas quando há dados mínimos, uma diferença
+ *   mínima E um teste indica que ela é improvável por acaso (stats.ts); caso
+ *   contrário, dizemos que ainda não há observações suficientes ou que não há
+ *   diferença clara.
  */
+import { ALPHA, benjaminiHochberg, fisherExactP, permutationRange } from './stats';
 import type { AppData, MoodEntry, StrategyUse } from './schema';
 import { addDays, dayKey } from './util';
 import { outcomeCounts } from './analytics';
@@ -132,6 +136,15 @@ export function weekdayHighlight(entries: MoodEntry[], pred: (m: MoodEntry) => b
   if (top.share === 0) return { ok: false, reason: 'Nenhum registro deste tipo entre os dias com dados suficientes.' };
   if (top.share - second.share < WEEKDAY_MIN_GAP)
     return { ok: false, reason: `Não há diferença clara entre os dias (menos de ${Math.round(WEEKDAY_MIN_GAP * 100)} pontos percentuais entre o primeiro e o segundo).` };
+  // Teste de permutação entre os dias elegíveis (unidade: a data, ou o registro se pedido).
+  const groups = stats.map((st) => {
+    if (unit === 'record') return st.entries.map((m) => (pred(m) ? 1 : 0));
+    const byDay = new Map<string, MoodEntry[]>();
+    st.entries.forEach((m) => byDay.set(dayOf(m), [...(byDay.get(dayOf(m)) ?? []), m]));
+    return [...byDay.values()].map((l) => l.filter(pred).length / l.length);
+  });
+  if (permutationRange(groups) >= ALPHA)
+    return { ok: false, reason: 'Sem diferença clara entre os dias: com esta quantidade de dados, diferenças desse tamanho aparecem com frequência por puro acaso.' };
   return {
     ok: true,
     h: {
@@ -431,8 +444,8 @@ export function buildInsights(data: AppData, entries: MoodEntry[], uses: Strateg
       hypothesis: `Minha energia costuma estar mais baixa às ${low.h.label}s.`,
     });
 
-  for (const a of activityStats(entries).filter((x) => x.records >= ACTIVITY_MIN && x.othersRecords >= ACTIVITY_MIN)) {
-    if (a.pleasantShare - a.othersPleasantShare >= 0.2) {
+  for (const a of activityTests(entries)) {
+    if (a.pleasantShare - a.othersPleasantShare >= 0.2 && a.clear) {
       const name = items.get(a.itemId) ?? 'Uma atividade';
       out.push({
         id: `act-pleasant|${a.itemId}`,
@@ -444,7 +457,29 @@ export function buildInsights(data: AppData, entries: MoodEntry[], uses: Strateg
   }
 
   const unpleasant = entries.filter((m) => isUnpleasant(m.valence));
-  const pair = emotionPairs(unpleasant, 3).find((p) => p.together / p.either >= 0.3);
+  // Só se as duas aparecem juntas MAIS do que o esperado se fossem independentes (Fisher).
+  // A correção (Benjamini-Hochberg) conta TODOS os pares possíveis entre emoções
+  // frequentes, não só os que já pareciam próximos: pré-selecionar pelos dados e
+  // depois testar só os escolhidos fazia o destaque aparecer em ~17% de dados aleatórios.
+  const freq = new Map<string, number>();
+  unpleasant.forEach((m) => new Set(m.emotionIds).forEach((id) => freq.set(id, (freq.get(id) ?? 0) + 1)));
+  const common = [...freq.keys()].filter((id) => freq.get(id)! >= 3).sort();
+  const has = (m: MoodEntry, id: string) => m.emotionIds.includes(id);
+  const allPairs: Array<{ a: string; b: string; together: number; either: number; p: number }> = [];
+  for (let i = 0; i < common.length; i++)
+    for (let j = i + 1; j < common.length; j++) {
+      const [x, y] = [common[i], common[j]];
+      const both = unpleasant.filter((m) => has(m, x) && has(m, y)).length;
+      const onlyA = freq.get(x)! - both;
+      const onlyB = freq.get(y)! - both;
+      const none = unpleasant.length - both - onlyA - onlyB;
+      const expected = (freq.get(x)! * freq.get(y)!) / Math.max(1, unpleasant.length);
+      allPairs.push({ a: x, b: y, together: both, either: both + onlyA + onlyB, p: both > expected ? fisherExactP(both, onlyA, onlyB, none) : 1 });
+    }
+  const pairQ = benjaminiHochberg(allPairs.map((x) => x.p));
+  const pair = allPairs
+    .filter((x, i) => pairQ[i] < ALPHA && x.together >= 3 && x.together / x.either >= 0.3)
+    .sort((x, y) => y.together - x.together || y.together / y.either - x.together / x.either)[0];
   if (pair) {
     const a = emo.get(pair.a) ?? '?';
     const b = emo.get(pair.b) ?? '?';
@@ -464,7 +499,9 @@ export function buildInsights(data: AppData, entries: MoodEntry[], uses: Strateg
   if (recent.length >= 8 && before.length >= 8) {
     const r = recent.filter((m) => m.energy! <= 2).length / recent.length;
     const b = before.filter((m) => m.energy! <= 2).length / before.length;
-    if (Math.abs(r - b) >= 0.15)
+    const lowR = recent.filter((m) => m.energy! <= 2).length;
+    const lowB = before.filter((m) => m.energy! <= 2).length;
+    if (Math.abs(r - b) >= 0.15 && fisherExactP(lowR, recent.length - lowR, lowB, before.length - lowB) < ALPHA)
       out.push({
         id: `lowenergy-30|${dayKey(now).slice(0, 7)}|${r > b ? 'up' : 'down'}`,
         text: `Seus registros de baixa energia foram ${r > b ? 'mais' : 'menos'} frequentes nos últimos 30 dias (${pct(r)}) do que nos 30 anteriores (${pct(b)}).`,
@@ -485,4 +522,20 @@ export function buildInsights(data: AppData, entries: MoodEntry[], uses: Strateg
 
   const dismissed = new Set(data.preferences.dismissedInsights);
   return out.filter((i) => !dismissed.has(i.id));
+}
+
+/**
+ * Atividades com a comparação "registros agradáveis com × sem a atividade" testada
+ * (Fisher exato) e corrigida para várias atividades ao mesmo tempo (Benjamini-Hochberg).
+ * `clear` = diferença improvável por acaso (q < 0,05).
+ */
+export function activityTests(entries: MoodEntry[]) {
+  const list = activityStats(entries).filter((x) => x.records >= ACTIVITY_MIN && x.othersRecords >= ACTIVITY_MIN);
+  const ps = list.map((a) => {
+    const w = Math.round(a.pleasantShare * a.records);
+    const o = Math.round(a.othersPleasantShare * a.othersRecords);
+    return fisherExactP(w, a.records - w, o, a.othersRecords - o);
+  });
+  const q = benjaminiHochberg(ps);
+  return list.map((a, i) => ({ ...a, p: ps[i], q: q[i], clear: q[i] < ALPHA }));
 }

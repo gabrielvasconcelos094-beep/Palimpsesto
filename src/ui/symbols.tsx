@@ -242,17 +242,20 @@ function weather(i: number, c: string): ReactNode {
 
 const DRAW: Record<Exclude<SymbolSet, 'emoji'>, (i: number, c: string) => ReactNode> = { nature: (i) => nature(i), faces, fine, moon, weather };
 
+/** Com título: imagem nomeada. Sem título: decorativo (o texto ao lado já diz o que é). */
+const a11y = (title?: string) => (title ? { role: 'img' as const, 'aria-label': title } : { 'aria-hidden': true as const });
+
 export function MoodSymbol({ v, set, size = 22, title }: { v: number; set: SymbolSet; size?: number; title?: string }) {
   const i = Math.max(0, Math.min(4, Math.round(v) + 2));
   if (set === 'emoji')
     return (
-      <span role="img" aria-label={title ?? ''} style={{ fontSize: size * 0.88, lineHeight: 1, width: size, height: size, display: 'inline-grid', placeItems: 'center', flex: 'none' }}>
+      <span {...a11y(title)} style={{ fontSize: size * 0.88, lineHeight: 1, width: size, height: size, display: 'inline-grid', placeItems: 'center', flex: 'none' }}>
         {EMOJI[i]}
       </span>
     );
   const c = `var(--mood-${i + 1})`;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label={title ?? ''} style={{ flex: 'none' }} fill="none" stroke={c} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" {...a11y(title)} style={{ flex: 'none' }} fill="none" stroke={c} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
       {DRAW[set](i, c)}
     </svg>
   );

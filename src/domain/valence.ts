@@ -12,6 +12,7 @@
  */
 import type { MoodEntry } from './schema';
 import { addDays, dayKey, startOfWeek } from './util';
+import { ALPHA, permutationDiffMeans, permutationRange } from './stats';
 
 /** Arredonda ao inteiro mais próximo; no empate (x,5), para longe do centro. */
 export function roundAway(x: number, center = 0): number {
@@ -25,6 +26,9 @@ export function roundAway(x: number, center = 0): number {
  * Resultado de uma data: média dos valores, arredondada (empate → longe do zero).
  * Ex.: (−1, +1) → 0; (−2, +1) → −1; (−2, −1) → −2; (+1, +2) → +2.
  * Não altera os registros: é só a forma de mostrar a data num símbolo.
+ * Regra definida pelo usuário e mantida de propósito. Efeito conhecido: no empate o
+ * símbolo vai para o extremo (−1,5 → −2; +1,5 → +2), então o calendário tende a mostrar
+ * dias um pouco mais extremos do que a média; os índices usam a média sem arredondar.
  */
 export function dayResult(values: number[], center = 0): number | null {
   if (!values.length) return null;
@@ -87,6 +91,8 @@ export function weekdayIndex(entries: Pick<MoodEntry, 'at' | 'valence'>[]): {
   highest: WeekdayIndex | null;
   lowest: WeekdayIndex | null;
   reason: string | null;
+  /** p do teste de permutação da amplitude entre os dias elegíveis (null = não testado). */
+  p: number | null;
 } {
   const days = Array.from({ length: 7 }, (_, wd) => {
     const list = entries.filter((m) => new Date(m.at.slice(0, 10) + 'T12:00:00').getDay() === wd);
@@ -100,12 +106,26 @@ export function weekdayIndex(entries: Pick<MoodEntry, 'at' | 'valence'>[]): {
       highest: null,
       lowest: null,
       reason: `Para comparar os dias da semana, é preciso ter pelo menos ${WEEKDAY_INDEX_MIN_DAYS} dias da semana com ${WEEKDAY_INDEX_MIN_DATES} datas ou mais cada.`,
+      p: null,
     };
   const hi = ok[0];
   const lo = ok[ok.length - 1];
   if ((hi.index ?? 0) - (lo.index ?? 0) < MIN_RELEVANT_CHANGE)
-    return { days, highest: null, lowest: null, reason: `Os dias da semana ficaram próximos entre si (menos de ${MIN_RELEVANT_CHANGE.toLocaleString('pt-BR')} ponto de diferença).` };
-  return { days, highest: hi, lowest: lo, reason: null };
+    return { days, highest: null, lowest: null, p: null, reason: `Os dias da semana ficaram próximos entre si (menos de ${MIN_RELEVANT_CHANGE.toLocaleString('pt-BR')} ponto de diferença).` };
+  // Teste de permutação: as médias das DATAS são redistribuídas ao acaso entre os dias da
+  // semana; se amplitudes tão grandes quanto a observada forem comuns, não há destaque.
+  const meansByDay = new Map<string, number>([...dayMeans(entries)].map(([k, v]) => [k, v.mean]));
+  const groups = ok.map((d) => [...meansByDay].filter(([k]) => new Date(k + 'T12:00:00').getDay() === d.wd).map(([, m]) => m));
+  const p = permutationRange(groups);
+  if (p >= ALPHA)
+    return {
+      days,
+      highest: null,
+      lowest: null,
+      p,
+      reason: 'Sem diferença clara entre os dias da semana: com esta quantidade de dados, diferenças desse tamanho aparecem com frequência por puro acaso.',
+    };
+  return { days, highest: hi, lowest: lo, reason: null, p };
 }
 
 /* ------------------------------------------------------------------------ */
@@ -119,7 +139,12 @@ export interface Comparison {
   b: IndexSummary & { shares: number[] };
   /** b − a, em pontos da escala; null se algum lado não tem registros. */
   delta: number | null;
+  /** up/down: diferença relevante E improvável por acaso; same: pequena ou compatível com o acaso. */
   verdict: 'up' | 'down' | 'same' | 'insufficient';
+  /** p do teste de permutação entre as médias das datas de A e de B (null se insuficiente). */
+  p: number | null;
+  /** A diferença passou do mínimo relevante, mas não do teste (para explicar ao usuário). */
+  chance: boolean;
 }
 
 export function compareIndex(a: Pick<MoodEntry, 'at' | 'valence'>[], b: Pick<MoodEntry, 'at' | 'valence'>[]): Comparison {
@@ -127,8 +152,11 @@ export function compareIndex(a: Pick<MoodEntry, 'at' | 'valence'>[], b: Pick<Moo
   const B = { ...valenceIndex(b), shares: dayWeightedShares(b) };
   const delta = A.index !== null && B.index !== null ? B.index - A.index : null;
   const enough = (s: IndexSummary) => s.records >= COMPARE_MIN_RECORDS && s.dates >= COMPARE_MIN_DATES;
-  const verdict = delta === null || !enough(A) || !enough(B) ? 'insufficient' : Math.abs(delta) < MIN_RELEVANT_CHANGE ? 'same' : delta > 0 ? 'up' : 'down';
-  return { a: A, b: B, delta, verdict };
+  if (delta === null || !enough(A) || !enough(B)) return { a: A, b: B, delta, verdict: 'insufficient', p: null, chance: false };
+  if (Math.abs(delta) < MIN_RELEVANT_CHANGE) return { a: A, b: B, delta, verdict: 'same', p: null, chance: false };
+  const p = permutationDiffMeans([...dayMeans(a).values()].map((d) => d.mean), [...dayMeans(b).values()].map((d) => d.mean));
+  if (p >= ALPHA) return { a: A, b: B, delta, verdict: 'same', p, chance: true };
+  return { a: A, b: B, delta, verdict: delta > 0 ? 'up' : 'down', p, chance: false };
 }
 
 /** Intervalo (datas locais) da semana que contém `day`. */
@@ -202,7 +230,10 @@ export interface Instability {
  * Quanto a avaliação muda de um registro para o SEGUINTE (Trull et al.; Ebner-Priemer
  * et al.). Diferente do desvio-padrão, depende da ordem: oscilações rápidas pesam mais
  * que uma mudança lenta. Pares separados por mais de 3 dias não entram (a lacuna não
- * é um "salto").
+ * é um "salto"). Limitação conhecida (auditoria 1.10): os pares não são ponderados pelo
+ * intervalo — dois registros com 2 horas ou com 3 dias de distância contam igual —, então
+ * o valor depende do RITMO de registro. A interface avisa isso; não há correção simples
+ * sem modelos de tempo contínuo, que seriam excessivos para uma escala de 5 pontos.
  */
 export function instability(entries: Pick<MoodEntry, 'at' | 'valence'>[]): Instability {
   const list = [...entries].sort((a, b) => a.at.localeCompare(b.at));

@@ -5,6 +5,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Activity, BatteryLow, Brain, CalendarDays, ChartLine, Clock, Flag, GitCompareArrows, Heart, Layers3, Moon, Repeat2 } from 'lucide-react';
 import { FACTOR_MIN_NIGHTS, fmtHours, sleepSummary, nights as sleepNights, SLEEP_GROUP_MIN_DATES, SLEEP_MIN_NIGHTS } from '../../domain/sleep';
+import { ALPHA, benjaminiHochberg, fisherExactP } from '../../domain/stats';
 import { DISTORTION_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../../domain/scales';
 import { dayResults, seasonsAll, seasonsRows, SEASON_LABELS, weeksOfYear, yearsRows } from '../../domain/calendar';
 import type { Distortion } from '../../domain/schema';
@@ -17,6 +18,7 @@ import { setSharedFilters, NO_FILTERS } from '../../app/filters';
 import { buckets, findPatterns, valenceCounts, energyCounts, PATTERN_MIN_ENTRIES } from '../../domain/analytics';
 import {
   activityStats,
+  activityTests,
   countsByWeek,
   dayPartStats,
   difficultMoments,
@@ -203,7 +205,7 @@ function DaysBody() {
           <Note>
             Índice descritivo de −2 a +2: primeiro a média dos registros de cada data, depois a média das datas daquele dia da semana — uma data com muitos registros não pesa mais. A
             escala é ordinal, então o índice é uma aproximação, não uma medida. Dias com menos de {WEEKDAY_INDEX_MIN_DATES} datas aparecem esmaecidos e não entram no destaque; dias sem
-            registro não contam como neutros. É uma associação com o dia da semana, não uma causa.
+            registro não contam como neutros. “Mais alto” e “mais baixo” só aparecem quando um teste de permutação entre as datas indica que a diferença é improvável por acaso (p menor que 0,05). É uma associação com o dia da semana, não uma causa.
           </Note>
         </div>
       </Section>
@@ -304,10 +306,21 @@ function EmotionsBody() {
   const top = counts.slice(0, 6).map((c) => c.id);
   const byMonth = emotionsByMonth(t.allFiltered.filter((m) => m.at.slice(0, 10) <= t.range.to), top, 6);
   const prev = new Map(emotionCounts(t.prevEntries).map((c) => [c.id, c]));
-  const changes = counts
+  // Só mostra mudanças improváveis por acaso (Fisher exato + Benjamini-Hochberg entre as emoções testadas).
+  const candidates = counts
     .filter((c) => c.count >= 3 || (prev.get(c.id)?.count ?? 0) >= 3)
-    .map((c) => ({ id: c.id, now: c.share, before: prev.get(c.id)?.share ?? 0 }))
-    .filter((c) => Math.abs(c.now - c.before) >= 0.1)
+    .map((c) => {
+      const before = prev.get(c.id)?.count ?? 0;
+      return {
+        id: c.id,
+        now: c.share,
+        before: t.prevEntries.length ? before / t.prevEntries.length : 0,
+        p: fisherExactP(c.count, t.entries.length - c.count, before, t.prevEntries.length - before),
+      };
+    });
+  const cq = benjaminiHochberg(candidates.map((c) => c.p));
+  const changes = candidates
+    .filter((c, i) => Math.abs(c.now - c.before) >= 0.1 && cq[i] < ALPHA)
     .sort((a, b) => Math.abs(b.now - b.before) - Math.abs(a.now - a.before))
     .slice(0, 5);
   const withEmo = t.entries.filter((m) => m.emotionIds.length).length;
@@ -413,7 +426,7 @@ function EmotionsBody() {
           {t.prevEntries.length < 5 ? (
             <span className="muted">Poucos registros no período anterior ({t.prevEntries.length}) para comparar.</span>
           ) : changes.length === 0 ? (
-            <span className="muted">Nenhuma emoção mudou de frequência em 10 pontos percentuais ou mais.</span>
+            <span className="muted">Nenhuma mudança clara: nenhuma emoção mudou de frequência mais do que o acaso costuma produzir com esta quantidade de registros.</span>
           ) : (
             changes.map((c) => (
               <div key={c.id} className="row between">
@@ -425,7 +438,8 @@ function EmotionsBody() {
             ))
           )}
           <Note>
-            Proporção de registros com a emoção: período anterior ({t.prevEntries.length} registros) → atual ({t.entries.length}).
+            Proporção de registros com a emoção: período anterior ({t.prevEntries.length} registros) → atual ({t.entries.length}). Só aparecem mudanças de 10 pontos ou mais que um
+            teste (Fisher exato, corrigido para várias emoções) indica serem improváveis por acaso.
           </Note>
         </div>
       </Section>
@@ -509,6 +523,7 @@ function EnergyBody() {
 function ActivitiesBody() {
   const t = useTrajectory();
   const items = new Map(t.data.repertoire.map((i) => [i.id, i]));
+  const tests = new Map(activityTests(t.entries).map((a) => [a.itemId, a]));
   const acts = activityStats(t.entries).filter((a) => items.has(a.itemId));
   const groups = strategyGroups(t.uses).filter((g) => items.has(g.itemId));
   const hard = difficultMoments(t.data, t.entries, t.uses).filter((x) => items.has(x.itemId)).slice(0, 6);
@@ -573,7 +588,15 @@ function ActivitiesBody() {
                       Por mês: {months.map((m) => `${monthLabel(m.month)} ${m.n}`).join(' · ')}
                     </p>
                   )}
-                  {!enough && <p className="xs faint" style={{ margin: '6px 0 0' }}>Poucos registros para comparar com segurança.</p>}
+                  {!enough ? (
+                    <p className="xs faint" style={{ margin: '6px 0 0' }}>Poucos registros para comparar com segurança.</p>
+                  ) : tests.get(a.itemId)?.clear ? (
+                    <p className="xs" style={{ margin: '6px 0 0' }}>
+                      <strong>Diferença clara</strong> entre os registros com e sem a atividade (improvável por acaso, mesmo considerando todas as atividades comparadas).
+                    </p>
+                  ) : (
+                    <p className="xs faint" style={{ margin: '6px 0 0' }}>Sem diferença clara: a diferença entre com e sem a atividade está dentro do que o acaso costuma produzir.</p>
+                  )}
                   <button
                     className="btn ghost sm"
                     style={{ paddingLeft: 0 }}
@@ -708,7 +731,9 @@ function EvolutionBody() {
     cmp.verdict === 'insufficient'
       ? `Ainda não dá para comparar com segurança: cada período precisa de pelo menos ${COMPARE_MIN_RECORDS} registros em ${COMPARE_MIN_DATES} datas diferentes.`
       : cmp.verdict === 'same'
-        ? `Sem mudança relevante: a diferença ficou abaixo de ${MIN_RELEVANT_CHANGE.toLocaleString('pt-BR')} ponto.`
+        ? cmp.chance
+          ? `Sem diferença clara: os períodos diferem em ${fmtIndex(cmp.delta)} ponto(s), mas, com esta quantidade de datas, diferenças desse tamanho aparecem com frequência por puro acaso. Mais registros ajudam a distinguir.`
+          : `Sem mudança relevante: a diferença ficou abaixo de ${MIN_RELEVANT_CHANGE.toLocaleString('pt-BR')} ponto.`
         : cmp.verdict === 'up'
           ? `O índice de B ficou ${fmtIndex(cmp.delta)} ponto(s) em relação a A — avaliações, em conjunto, mais agradáveis.`
           : `O índice de B ficou ${fmtIndex(cmp.delta)} ponto(s) em relação a A — avaliações, em conjunto, menos agradáveis.`;
@@ -785,13 +810,13 @@ function EvolutionBody() {
           <div className={`notice ${cmp.verdict === 'insufficient' ? '' : 'calm'} small`} aria-live="polite">
             {cmp.delta !== null && cmp.verdict !== 'insufficient' && (
               <strong style={{ display: 'block', marginBottom: 2 }}>
-                Diferença: {fmtIndex(cmp.delta)} ponto(s) {cmp.verdict === 'up' ? '↑' : cmp.verdict === 'down' ? '↓' : '≈'}
+                Diferença observada: {fmtIndex(cmp.delta)} ponto(s) {cmp.verdict === 'up' ? '↑' : cmp.verdict === 'down' ? '↓' : '≈'}
               </strong>
             )}
             {verdictText}
           </div>
           <Note>
-            Índice de −2 a +2 com peso igual por data (média de cada data, depois média das datas); a barra mostra os cinco níveis com o mesmo peso. É um resumo descritivo de uma
+            Índice de −2 a +2 com peso igual por data (média de cada data, depois média das datas); a barra mostra os cinco níveis com o mesmo peso. Só se diz que “subiu” ou “desceu” quando a diferença passa de 0,25 ponto e um teste de permutação entre as datas indica que ela é improvável por acaso (p menor que 0,05). É um resumo descritivo de uma
             escala ordinal, não uma medida clínica, e não diz por que algo mudou. Os mesmos filtros da Trajetória valem aqui.
           </Note>
         </div>
@@ -823,7 +848,7 @@ function EvolutionBody() {
               <span className="faint">
                 {' '}
                 A estabilidade acima olha o conjunto; esta medida olha a ordem — oscilações rápidas, de um registro para o próximo, pesam mais que uma mudança lenta. Pares separados por mais de 3
-                dias não entram.
+                dias não entram. O valor depende do ritmo de registro (vários por dia ou um a cada poucos dias): compare períodos em que você registrou com frequência parecida.
               </span>
             </div>
           )}
@@ -980,11 +1005,14 @@ function ContextsBody() {
   return (
     <>
       <p className="small muted">
-        Comparação dos registros com e sem cada marcador de contexto. Escalas ordenadas usam o delta de Cliff (|δ| ≥ 0,3); emoções, a diferença de proporções (≥ 25 pontos). Exige 20
-        registros no período e 5 em cada grupo. São associações, não causas.
+        Comparação dos registros com e sem cada marcador de contexto. Escalas ordenadas usam o delta de Cliff (|δ| ≥ 0,3) e o teste de Mann-Whitney; emoções, a diferença de proporções
+        (≥ 25 pontos) e o teste exato de Fisher. Como muitas comparações são feitas ao mesmo tempo ({res.tests ?? 0} neste recorte), só aparece o que continua improvável por acaso
+        depois da correção de Benjamini-Hochberg. Exige 20 registros no período e 5 em cada grupo. São associações, não causas.
       </p>
       {res.patterns.length === 0 ? (
-        <div className="card dashed small muted">Nenhuma associação forte o bastante neste recorte. Isso também é informação.</div>
+        <div className="card dashed small muted">
+          Nenhuma associação clara neste recorte: as diferenças encontradas estão dentro do que o acaso costuma produzir com esta quantidade de registros. Isso também é informação.
+        </div>
       ) : (
         <div className="stack">
           {res.patterns.slice(0, 12).map((p) => (
@@ -1451,11 +1479,13 @@ function SleepBody() {
                 <span className="muted" style={{ textAlign: 'right' }}>
                   {f.nights} noite(s)
                   {f.badWith != null ? ` · ${pct(f.badWith)} ruins (sem ele: ${pct(f.badWithout!)})` : ''}
+                  {f.badWith != null && <span style={{ display: 'block', fontWeight: f.clear ? 600 : 400 }}>{f.clear ? 'diferença clara' : 'sem diferença clara'}</span>}
                 </span>
               </div>
             ))}
             <Note>
-              “Ruins” = qualidade ruim ou muito ruim, entre as noites com qualidade informada. A comparação aparece quando há pelo menos {FACTOR_MIN_NIGHTS} noites com e sem o fator.
+              “Ruins” = qualidade ruim ou muito ruim, entre as noites com qualidade informada. A comparação aparece quando há pelo menos {FACTOR_MIN_NIGHTS} noites com e sem o fator;
+              “diferença clara” só quando o teste exato de Fisher, corrigido para vários fatores, indica que ela é improvável por acaso.
               Associação, não causa — mas é uma boa pista para levar à consulta.
             </Note>
           </div>
@@ -1466,7 +1496,8 @@ function SleepBody() {
           {s.comparable ? (
             <p style={{ margin: 0 }}>
               Nas datas após noites com <strong>menos de 6 h</strong>, o índice de humor foi <strong>{fmtIndex(s.short.index)}</strong> ({s.short.dates} datas); após noites de{' '}
-              <strong>7 h ou mais</strong>, <strong>{fmtIndex(s.enough.index)}</strong> ({s.enough.dates} datas).
+              <strong>7 h ou mais</strong>, <strong>{fmtIndex(s.enough.index)}</strong> ({s.enough.dates} datas).{' '}
+              {s.shortClear ? <strong>Diferença clara.</strong> : <span className="muted">Sem diferença clara: pode ser acaso com esta quantidade de datas.</span>}
             </p>
           ) : (
             <p className="small muted" style={{ margin: 0 }}>
@@ -1477,7 +1508,8 @@ function SleepBody() {
           {s.qualityComparable ? (
             <p style={{ margin: 0 }}>
               Após noites de qualidade <strong>ruim ou muito ruim</strong>, o índice foi <strong>{fmtIndex(s.bad.index)}</strong> ({s.bad.dates} datas); após noites{' '}
-              <strong>boas ou muito boas</strong>, <strong>{fmtIndex(s.good.index)}</strong> ({s.good.dates} datas).
+              <strong>boas ou muito boas</strong>, <strong>{fmtIndex(s.good.index)}</strong> ({s.good.dates} datas).{' '}
+              {s.qualityClear ? <strong>Diferença clara.</strong> : <span className="muted">Sem diferença clara: pode ser acaso com esta quantidade de datas.</span>}
             </p>
           ) : (
             qTotal > 0 && (
@@ -1488,7 +1520,7 @@ function SleepBody() {
           )}
           {s.sd === null && n.length > 0 && <p className="xs faint" style={{ margin: 0 }}>A variação entre noites aparece a partir de {SLEEP_MIN_NIGHTS} noites com horas informadas.</p>}
           <Note>
-            Associação descritiva nos seus registros, não causa: o humor também pode afetar o sono, e outras coisas podem afetar os dois. Por que olhar a regularidade: em estudos com
+            “Diferença clara” = um teste de permutação entre as datas indica que é improvável por acaso. Mesmo assim, é associação, não causa: o humor também pode afetar o sono, e outras coisas podem afetar os dois. Por que olhar a regularidade: em estudos com
             diários, a variação da duração do sono de uma noite para outra acompanhou os sintomas de humor mais do que a média de horas (ex.: Kaufmann et al., 2016).
           </Note>
         </div>

@@ -111,6 +111,32 @@ describe('Store — persistência', () => {
     expect(s.list('moodEntries').length).toBe(2);
   });
 
+  it('desfazer depois de outra alteração também devolve as referências limpas pela cascata', async () => {
+    const { s } = await mk();
+    const emo = s.upsert('emotions', { label: 'Saudade' } as any);
+    const m1 = s.upsert('moodEntries', { at: localIso(), valence: -1, emotionIds: [emo.id] } as any);
+    const m2 = s.upsert('moodEntries', { at: localIso(), valence: -1, emotionIds: [emo.id, 'emo.calma'] } as any);
+    const undo = s.removeUndoable('emotions', emo.id);
+    expect(s.get('moodEntries', m1.id)!.emotionIds).toEqual([]);
+    s.patch('moodEntries', m2.id, { note: 'editado depois' }); // mexido depois da exclusão
+    const other = s.upsert('moodEntries', { at: localIso(), valence: 2 } as any);
+    undo();
+    expect(s.get('emotions', emo.id)!.label).toBe('Saudade');
+    expect(s.get('moodEntries', m1.id)!.emotionIds).toEqual([emo.id]); // intocado: referência volta
+    expect(s.get('moodEntries', m2.id)!.note).toBe('editado depois'); // edição posterior preservada
+    expect(s.get('moodEntries', other.id)).toBeDefined();
+  });
+
+  it('excluir uma consulta desvincula os assuntos da pauta (sem apagá-los) e desfazer revincula', async () => {
+    const { s } = await mk();
+    const ap = s.upsert('appointments', { date: '2026-12-10', forWhom: 'psiquiatria' } as any);
+    const it1 = s.upsert('agenda', { text: 'Dose', appointmentId: ap.id } as any);
+    const undo = s.removeUndoable('appointments', ap.id);
+    expect(s.get('agenda', it1.id)!.appointmentId).toBeNull();
+    undo();
+    expect(s.get('agenda', it1.id)!.appointmentId).toBe(ap.id);
+  });
+
   it('remover uma ficha remove perguntas, respostas e notas dela', async () => {
     const { s } = await mk();
     const q = s.list('questions').find((q) => q.sectionId === 'sec.valores')!;

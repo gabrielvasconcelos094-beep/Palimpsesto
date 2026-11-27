@@ -89,8 +89,16 @@ export function deriveTokens(
   const a = fill(colors.accent);
   const primaryInk = ensureContrast(colors.primary, grounds, 4.6);
   const accentInk = ensureContrast(colors.accent, grounds, 4.6);
-  const primarySoft = mix(colors.primary, surface, dark ? 0.78 : 0.86);
-  const accentSoft = mix(colors.accent, surface, dark ? 0.78 : 0.84);
+  // Fundos suaves (cartões .soft/.accent): o texto secundário também precisa ficar legível
+  // sobre eles (auditoria 1.10: 3,9:1 no escuro). Aproxima da superfície até passar.
+  const softOk = (c: string) => contrast(ink, c) >= 7 && contrast(inkSoft, c) >= 4.6 && contrast(inkFaint, c) >= 4.5;
+  const soft = (base: string, t: number) => {
+    let c = mix(base, surface, t);
+    for (let k = 0; k < 24 && !softOk(c); k++) c = mix(c, surface, 0.2);
+    return c;
+  };
+  const primarySoft = soft(colors.primary, dark ? 0.78 : 0.86);
+  const accentSoft = soft(colors.accent, dark ? 0.78 : 0.84);
   const comp1Ink = ensureContrast(colors.complement1, grounds, 4.5);
   const comp2Ink = ensureContrast(colors.complement2, grounds, 4.5);
   const danger = ensureContrast(dark ? '#F28B82' : '#B3261E', grounds, 4.6);
@@ -107,8 +115,8 @@ export function deriveTokens(
   const m3 = ensureContrast(neutral, [surface], 3);
   const mood: Tokens['mood'] = [m1, m2, m3, m4, m5];
 
-  // Matizes pastel (estilo orgânico): texto principal ≥ 7:1 e secundário ≥ 4,5:1.
-  const tintOk = (c: string) => contrast(ink, c) >= 7 && contrast(inkSoft, c) >= 4.6;
+  // Matizes pastel (estilo orgânico): texto principal ≥ 7:1, secundário e discreto ≥ 4,5:1.
+  const tintOk = (c: string) => contrast(ink, c) >= 7 && contrast(inkSoft, c) >= 4.6 && contrast(inkFaint, c) >= 4.5;
   const tint = (base: string, t: number) => {
     let c = mix(base, surface, t);
     for (let k = 0; k < 24 && !tintOk(c); k++) c = mix(c, surface, 0.2);

@@ -245,7 +245,7 @@ export function buildReport(
       const ins = instability(entries);
       if (ins.rmssd !== null)
         text(
-          `Variação entre registros consecutivos (RMSSD): ${ins.rmssd.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} em ${ins.pairs} pares; ${Math.round((ins.bigJumps ?? 0) * 100)}% dos pares mudaram 2 níveis ou mais.`,
+          `Variação entre registros consecutivos (RMSSD): ${ins.rmssd.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} em ${ins.pairs} pares; ${Math.round((ins.bigJumps ?? 0) * 100)}% dos pares mudaram 2 níveis ou mais. Depende do ritmo de registro (pares de até 3 dias, sem ponderar o intervalo).`,
           { size: 9, gap: 0.8 },
         );
       text(
@@ -409,12 +409,12 @@ export function buildReport(
       text(`Noites informadas: ${s.logged}. Com horas: ${s.nights}; mediana ${fmtHours(s.median)}.${s.sd !== null ? ` Variação entre as noites (desvio-padrão): ${fmtHours(s.sd)}.` : ''}${s.shortShare !== null ? ` Noites com menos de 6 h: ${Math.round(s.shortShare * 100)}%.` : ''}`, { size: 10 });
       const qT = s.quality.reduce((a, b) => a + b, 0);
       if (qT) text(`Qualidade: ${SLEEP_QUALITY.map((q, i) => (s.quality[i] ? `${q.label.toLowerCase()} ${s.quality[i]}` : '')).filter(Boolean).join(', ')}.`, { size: 9.5 });
-      const fx = s.factors.slice(0, 6).map((f) => `${SLEEP_FACTOR_LABELS[f.factor].toLowerCase()}: ${f.nights}${f.badWith != null ? ` (${Math.round(f.badWith * 100)}% ruins; sem: ${Math.round(f.badWithout! * 100)}%)` : ''}`);
+      const fx = s.factors.slice(0, 6).map((f) => `${SLEEP_FACTOR_LABELS[f.factor].toLowerCase()}: ${f.nights}${f.badWith != null ? ` (${Math.round(f.badWith * 100)}% ruins; sem: ${Math.round(f.badWithout! * 100)}%; ${f.clear ? 'diferença clara' : 'sem diferença clara'})` : ''}`);
       if (fx.length) text(`O que pode ter atrapalhado (noites): ${fx.join('; ')}.`, { size: 9.5 });
       const tr = (['onset', 'awakenings', 'early', 'nightmares'] as const).filter((k) => s.troubles[k]).map((k) => `${SLEEP_TROUBLE_LABELS[k].toLowerCase()}: ${s.troubles[k]}`);
       if (tr.length) text(`Dificuldades: ${tr.join('; ')} noite(s).`, { size: 9.5 });
-      if (s.comparable) text(`Índice de humor após noites < 6 h: ${fmtIndex(s.short.index)} (${s.short.dates} datas); após 7 h ou mais: ${fmtIndex(s.enough.index)} (${s.enough.dates} datas).`, { size: 9 });
-      if (s.qualityComparable) text(`Índice de humor após noites ruins: ${fmtIndex(s.bad.index)} (${s.bad.dates} datas); após noites boas: ${fmtIndex(s.good.index)} (${s.good.dates} datas).`, { size: 9 });
+      if (s.comparable) text(`Índice de humor após noites < 6 h: ${fmtIndex(s.short.index)} (${s.short.dates} datas); após 7 h ou mais: ${fmtIndex(s.enough.index)} (${s.enough.dates} datas). ${s.shortClear ? 'Diferença clara (teste de permutação).' : 'Sem diferença clara: pode ser acaso.'}`, { size: 9 });
+      if (s.qualityComparable) text(`Índice de humor após noites ruins: ${fmtIndex(s.bad.index)} (${s.bad.dates} datas); após noites boas: ${fmtIndex(s.good.index)} (${s.good.dates} datas). ${s.qualityClear ? 'Diferença clara (teste de permutação).' : 'Sem diferença clara: pode ser acaso.'}`, { size: 9 });
       text('Associações descritivas, não causa.', { size: 8.5, color: soft, gap: 2 });
     }
   }
@@ -452,6 +452,7 @@ export function buildReport(
     }
     const best = weekdayHighlight(entries, (m) => m.valence >= 1, 'day');
     y += 2;
+    text(wi.highest && wi.lowest ? `Índice mais alto: ${WEEKDAYS_FULL[wi.highest.wd]}; mais baixo: ${WEEKDAYS_FULL[wi.lowest.wd]} (diferença improvável por acaso, teste de permutação).` : wi.reason ?? '', { size: 9, gap: 1 });
     text(best.ok ? `Nos registros disponíveis, ${best.h.label} apresentou a maior proporção de avaliações agradáveis (${Math.round(best.h.share * 100)}%). Isso descreve os dados, não estabelece um melhor dia.` : best.reason, { size: 9, gap: 3 });
     const parts = dayPartStats(entries);
     for (const p of parts.parts) if (p.records) text(`${p.label}: ${p.records} registro(s), ${Math.round((p.entries.filter((m) => m.valence >= 1).length / p.records) * 100)}% agradáveis`, { size: 9.5, gap: 0.5 });
