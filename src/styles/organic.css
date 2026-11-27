@@ -286,3 +286,17 @@
   position: relative;
   z-index: 2;
 }
+
+/* Opções selecionáveis: sem contorno em repouso; anel grosso quando selecionadas. */
+:root[data-style='organic'] .opt {
+  border-color: transparent;
+}
+:root[data-style='organic'] .opt[aria-checked='true'],
+:root[data-style='organic'] .opt[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+:root[data-style='organic'] .ico-tile {
+  border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%;
+  background: color-mix(in srgb, var(--accent-fill) 22%, var(--surface));
+}

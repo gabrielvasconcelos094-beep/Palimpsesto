@@ -43,7 +43,9 @@ export function MedicationsSection() {
       <div id="remedios" />
       {act.length === 0 && old.length === 0 ? (
         <button className="card dashed row" onClick={() => navigate('/guia/remedio/novo')}>
-          <Pill size={20} />
+          <span className="ico-tile" aria-hidden>
+            <Pill size={18} strokeWidth={1.8} />
+          </span>
           <div className="grow">
             <div className="h3">Registrar um medicamento</div>
             <div className="small muted">Nome, dose, frequência e desde quando. Se não toma nenhum, pode ignorar esta parte.</div>
@@ -86,7 +88,9 @@ function MedRow({ m, today }: { m: Medication; today: string }) {
   const on = isActive(m, today);
   return (
     <button className="list-row" onClick={() => navigate(`/guia/remedio/${m.id}`)}>
-      <Pill size={18} strokeWidth={1.6} className="faint" />
+      <span className="ico-tile" aria-hidden>
+        <Pill size={18} strokeWidth={1.8} />
+      </span>
       <div className="grow">
         <div className="title">
           {m.name} · {d.dose}

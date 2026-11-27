@@ -14,6 +14,15 @@ export function ValenceMark({ v, size = 22, title, set }: { v: number; size?: nu
   return <MoodSymbol v={v} size={size} title={title} set={set ?? prefs.symbolSet} />;
 }
 
+/** Símbolo do humor sobre um disco tingido pela cor do nível (listas de registros). */
+export function MoodDot({ v, size = 26, title }: { v: number; size?: number; title?: string }) {
+  return (
+    <span className="mood-dot" style={{ ['--m' as string]: `var(--mood-${v + 3})` }}>
+      <ValenceMark v={v} size={size} title={title} />
+    </span>
+  );
+}
+
 export function ValencePicker({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
   const labels = useData().preferences.valenceLabels;
   // Lista vertical: acomoda nomes personalizados longos; "para cima" = mais agradável.

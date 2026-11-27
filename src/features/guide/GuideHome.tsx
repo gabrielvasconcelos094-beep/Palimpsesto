@@ -42,7 +42,9 @@ export function GuideHome() {
       />
       {tab === 'repertorio' && (
         <button className="card row" style={{ marginTop: 16 }} onClick={() => navigate('/guia/emocoes')}>
-          <Heart size={20} />
+          <span className="ico-tile" aria-hidden>
+            <Heart size={18} strokeWidth={1.8} />
+          </span>
           <div className="grow">
             <div className="h3">Minhas emoções</div>
             <div className="small muted">Como cada uma aparece em você, o que vem junto e o que ajuda a lidar com ela.</div>

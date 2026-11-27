@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Database, Heart, Info, Lock, Palette, SlidersHorizontal, Tags, Type } from 'lucide-react';
+import { Database, Eye, EyeOff, Heart, Info, Lock, Palette, Pencil, SlidersHorizontal, Tags, Trash2, Type } from 'lucide-react';
 import { navigate } from '../../app/router';
 import { store, useData, useStoreState } from '../../app/store';
 import { removeWithUndo } from '../../app/undo';
@@ -8,7 +8,7 @@ import { DEFAULT_ENERGY_LABELS, DEFAULT_VALENCE_LABELS, INDICATORS } from '../..
 import { INDICATOR_KEYS } from '../../domain/schema';
 import { APP_VERSION } from '../../data/backup';
 import { findPreset } from '../../theme/presets';
-import { fmtDate, Page, Row, Section, Toggle, useConfirm } from '../../ui/components';
+import { fmtDate, OptCheck, Page, Row, Section, Toggle, useConfirm } from '../../ui/components';
 import { EnergyBars, ValenceMark } from '../../ui/pickers';
 import { MoodSymbol, SYMBOL_SETS } from '../../ui/symbols';
 import { valenceLabel as vLabel } from '../../domain/scales';
@@ -17,7 +17,11 @@ export function SettingsHome() {
   const st = useStoreState();
   const prefs = st.data.preferences;
   const theme = prefs.customThemes.find((t) => t.id === prefs.themeId)?.name ?? findPreset(prefs.themeId)?.name ?? '';
-  const icon = (I: typeof Palette) => <I size={20} strokeWidth={1.6} className="faint" />;
+  const icon = (I: typeof Palette) => (
+    <span className="ico-tile" aria-hidden>
+      <I size={18} strokeWidth={1.8} />
+    </span>
+  );
   return (
     <Page back="/" noNav title="Ajustes" ghost="ajustes">
       <Section kicker="Aparência">
@@ -90,8 +94,7 @@ export function ScalePage() {
               key={f.id}
               role="radio"
               aria-checked={prefs.symbolSet === f.id}
-              className="card tight"
-              style={prefs.symbolSet === f.id ? { borderColor: 'var(--ink)', background: 'var(--surface-2)' } : undefined}
+              className="card tight opt"
               onClick={() => {
                 store.setPreferences({ symbolSet: f.id });
                 toast(`Símbolos: ${f.name}.`);
@@ -99,7 +102,11 @@ export function ScalePage() {
             >
               <div className="row between">
                 <span style={{ fontWeight: 600 }}>{f.name}</span>
-                {prefs.symbolSet === f.id && <span className="xs" style={{ color: 'var(--primary-ink)' }}>em uso</span>}
+                {prefs.symbolSet === f.id && (
+                  <span className="row xs" style={{ gap: 6, color: 'var(--ink)', fontWeight: 600 }}>
+                    em uso <OptCheck on />
+                  </span>
+                )}
               </div>
               <div className="row" style={{ justifyContent: 'space-between', margin: '10px 4px 6px' }}>
                 {[-2, -1, 0, 1, 2].map((v) => (
@@ -202,7 +209,7 @@ export function EmotionsPage() {
       </div>
       <div className="list">
         {data.emotions.map((e) => (
-          <div key={e.id} className="list-row" style={{ flexWrap: 'wrap' }}>
+          <div key={e.id} className="list-row">
             {editing === e.id ? (
               <>
                 <input className="input grow" value={editText} onChange={(ev) => setEditText(ev.target.value)} maxLength={60} autoFocus />
@@ -219,43 +226,51 @@ export function EmotionsPage() {
               </>
             ) : (
               <>
-                <div className="grow" style={e.hidden ? { color: 'var(--ink-faint)' } : undefined}>
-                  <div className="title">{e.label}</div>
+                <div className="grow" style={{ minWidth: 0, ...(e.hidden ? { color: 'var(--ink-faint)' } : {}) }}>
+                  <div className="title row" style={{ gap: 8 }}>
+                    {e.label}
+                    {e.hidden && <span className="chip static">oculta</span>}
+                  </div>
                   <div className="meta">
                     {e.builtIn ? 'Sugestão inicial' : 'Criada por você'} · usada {usage(e.id)} vez(es)
                   </div>
                 </div>
-                <button
-                  className="btn ghost sm"
-                  onClick={() => {
-                    setEditing(e.id);
-                    setEditText(e.label);
-                  }}
-                >
-                  Renomear
-                </button>
-                <button className="btn ghost sm" onClick={() => store.patch('emotions', e.id, { hidden: !e.hidden })}>
-                  {e.hidden ? 'Mostrar' : 'Ocultar'}
-                </button>
-                {!e.builtIn && (
+                <div className="row" style={{ gap: 2, flex: 'none' }}>
                   <button
-                    className="btn danger-ghost sm"
-                    onClick={async () => {
-                      const n = usage(e.id);
-                      if (
-                        await ask({
-                          title: `Excluir “${e.label}”?`,
-                          body: n ? `Ela será removida de ${n} registro(s). Se quiser preservar o histórico, prefira ocultar.` : 'Ela não está em nenhum registro.',
-                          confirm: 'Excluir',
-                          danger: true,
-                        })
-                      )
-                        removeWithUndo('emotions', e.id, 'Emoção excluída.');
+                    className="icon-btn"
+                    aria-label="Renomear"
+                    onClick={() => {
+                      setEditing(e.id);
+                      setEditText(e.label);
                     }}
                   >
-                    Excluir
+                    <Pencil size={18} strokeWidth={1.7} />
                   </button>
-                )}
+                  <button className="icon-btn" aria-label={e.hidden ? 'Mostrar' : 'Ocultar'} onClick={() => store.patch('emotions', e.id, { hidden: !e.hidden })}>
+                    {e.hidden ? <Eye size={18} strokeWidth={1.7} /> : <EyeOff size={18} strokeWidth={1.7} />}
+                  </button>
+                  {!e.builtIn && (
+                    <button
+                      className="icon-btn"
+                      aria-label="Excluir"
+                      style={{ color: 'var(--danger)' }}
+                      onClick={async () => {
+                        const n = usage(e.id);
+                        if (
+                          await ask({
+                            title: `Excluir “${e.label}”?`,
+                            body: n ? `Ela será removida de ${n} registro(s). Se quiser preservar o histórico, prefira ocultar.` : 'Ela não está em nenhum registro.',
+                            confirm: 'Excluir',
+                            danger: true,
+                          })
+                        )
+                          removeWithUndo('emotions', e.id, 'Emoção excluída.');
+                      }}
+                    >
+                      <Trash2 size={18} strokeWidth={1.7} />
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>

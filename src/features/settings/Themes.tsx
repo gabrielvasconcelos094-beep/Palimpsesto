@@ -8,7 +8,7 @@ import type { CustomTheme, ThemeColors } from '../../domain/schema';
 import { isHex } from '../../theme/color';
 import { findPreset, PRESET_THEMES, type CardStyle, type DisplayFont } from '../../theme/presets';
 import { deriveTokens, tokensToCss, type Tokens } from '../../theme/tokens';
-import { Field, Page, Section, Segmented, Toggle, useConfirm } from '../../ui/components';
+import { Field, OptCheck, Page, Section, Segmented, Toggle, useConfirm } from '../../ui/components';
 import { CHART_PALETTES } from '../../theme/chartPalettes';
 
 function cssVars(t: Tokens, font?: DisplayFont): CSSProperties {
@@ -56,11 +56,7 @@ function ThemePreview({ tokens, name, active, onClick, font }: { tokens: Tokens;
           <span style={{ height: 16, width: 22, borderRadius: 'var(--radius-pill)', background: 'var(--accent-fill)' }} />
         </div>
       </div>
-      {active && (
-        <span style={{ position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 99, background: 'var(--primary-fill)', color: 'var(--on-primary)', display: 'grid', placeItems: 'center' }}>
-          <Check size={14} />
-        </span>
-      )}
+      <OptCheck on={active} corner />
     </button>
   );
 }
@@ -121,15 +117,9 @@ export function ThemesPage() {
                 store.setPreferences({ visualStyle: id });
                 toast(`${name} aplicado.`);
               }}
-              style={{
-                border: prefs.visualStyle === id ? '2px solid var(--ink)' : '1px solid var(--line)',
-                borderRadius: 'var(--radius)',
-                background: 'var(--surface)',
-                padding: 10,
-                textAlign: 'left',
-                color: 'var(--ink)',
-              }}
+              className="opt style-opt"
             >
+              <OptCheck on={prefs.visualStyle === id} corner />
               <StylePreview kind={id} />
               <div style={{ fontWeight: 600, marginTop: 8, fontSize: 14 }}>{name}</div>
               <div className="xs muted">{desc}</div>
@@ -159,7 +149,7 @@ export function ThemesPage() {
             const sw = p.colors ?? [1, 2, 3, 4, 5].map((i) => `var(--mood-${i})`);
             const on = (prefs.chartPalette ?? 'theme') === p.id;
             return (
-              <button key={p.id} role="radio" aria-checked={on} className={`card tight row palette-opt${on ? ' on' : ''}`} onClick={() => store.setPreferences({ chartPalette: p.id })}>
+              <button key={p.id} role="radio" aria-checked={on} className="card tight row palette-opt opt" onClick={() => store.setPreferences({ chartPalette: p.id })}>
                 <span className="palette-sw" aria-hidden>
                   {sw.map((c, i) => (
                     <span key={i} style={{ background: p.id === 'theme' && !on ? themeMood[i] : c }} />
@@ -169,6 +159,7 @@ export function ThemesPage() {
                   <span style={{ fontWeight: 600, display: 'block' }}>{p.name}</span>
                   <span className="xs muted">{p.description}</span>
                 </span>
+                <OptCheck on={on} />
               </button>
             );
           })}

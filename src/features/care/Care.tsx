@@ -93,7 +93,9 @@ export function CareTab() {
             const last = h[h.length - 1];
             return (
               <button key={id} className="list-row" onClick={() => navigate(`/guia/questionario/${id}`)}>
-                <ClipboardList size={20} strokeWidth={1.6} className="faint" />
+                <span className="ico-tile" aria-hidden>
+                  <ClipboardList size={18} strokeWidth={1.8} />
+                </span>
                 <div className="grow">
                   <div className="title">
                     {def.name} · {def.short}

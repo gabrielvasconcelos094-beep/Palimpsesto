@@ -122,7 +122,7 @@ export function RepertoireTab() {
           <div className="stack flow">
           {items.map(({ i, uses, counts }) => (
             <button key={i.id} className="card tight" onClick={() => navigate(`/guia/item/${i.id}`)}>
-              <div className="row between">
+              <div className="row between" style={{ flexWrap: 'wrap', rowGap: 6, alignItems: 'flex-start' }}>
                 <span className="h3">{i.name}</span>
                 {i.category && <span className="chip static">{i.category}</span>}
               </div>

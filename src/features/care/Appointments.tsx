@@ -78,7 +78,9 @@ export function AppointmentsSection() {
         </button>
       ) : (
         <button className="card dashed row" onClick={() => navigate('/guia/consulta/nova')}>
-          <CalendarPlus size={20} />
+          <span className="ico-tile" aria-hidden>
+            <CalendarPlus size={18} strokeWidth={1.8} />
+          </span>
           <div className="grow">
             <div className="h3">Agendar a próxima consulta</div>
             <div className="small muted">Data, horário, lembrete opcional e um espaço para se preparar.</div>

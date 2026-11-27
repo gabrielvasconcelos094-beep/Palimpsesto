@@ -84,7 +84,8 @@ export function DaysBody() {
       <Section title="Os cinco níveis em cada dia da semana">
         <div className="card stack lg">
           <VerdictText v={best} what="avaliações agradáveis" />
-          <VerdictText v={worst} what="avaliações desagradáveis" />
+          {/* Quando os dois destaques caem no mesmo motivo, o texto aparece uma vez só. */}
+          {(best.ok || worst.ok || best.reason !== worst.reason) && <VerdictText v={worst} what="avaliações desagradáveis" />}
           <StackRows
             colors={MOOD_COLORS}
             legend={vLabels}

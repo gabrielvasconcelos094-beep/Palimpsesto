@@ -190,7 +190,7 @@ testes unitários cobrem:
 
 Testes de interface (`e2e/*.mjs`, com o servidor de desenvolvimento em 5179): fluxos gerais,
 melhorias, gráfico em linha, widgets, estatísticas, acompanhamento, 1.9, consultas e lembretes,
-e Situações/Cartas/Descobertas/Repertório/cópias. `style-snapshot.mjs` compara medidas do
+e Situações/Cartas/Descobertas/Repertório/cópias, e seleção visível (`selection.mjs`). `style-snapshot.mjs` compara medidas do
 estilo minimalista com `e2e/style-minimal-baseline.json`.
 
 ---
@@ -768,4 +768,29 @@ sem esperas fixas na navegação; telas pesadas sob demanda; dependências opcio
 **Pendente.** O texto em português dos itens do PHQ-9 e do GAD-7 não pôde ser conferido
 contra a tradução oficial (sem acesso ao documento daqui). O app também não foi executado
 num Android real nesta etapa.
+
+## 18. Versão 1.12 — acabamento visual e seleção sempre visível
+
+**Problema relatado:** em algumas opções dos ajustes não dava para saber o que estava
+selecionado. Causa: o destaque era só a cor da borda, e o Editorial orgânico remove as bordas
+dos cartões (`border: 0`) — a família de símbolos e a paleta escolhidas ficavam sem marca.
+
+**Correção (uma regra para tudo):** opções em cartão usam a classe `.opt`, e o estado vem do
+ARIA (`aria-checked`/`aria-pressed`). Selecionada = contorno firme feito com `box-shadow` (que
+nenhum estilo remove; anel de 2 px no orgânico) + selo redondo com ✓ (`OptCheck`). Vale para
+símbolos, estilo visual, paletas e galeria de temas. O controle segmentado passou a destacar
+a opção escolhida com o preenchimento principal (o mesmo dos chips selecionados), e os
+interruptores mostram um ✓ na bolinha quando ligados — o estado não depende só de cor e
+posição. `e2e/selection.mjs` verifica isso nos dois estilos, claro e escuro (e falha se a
+regra do orgânico for removida).
+
+**Acabamento:** ícones em placas arredondadas tingidas pela cor de destaque do tema (ajustes,
+atalhos, guia, consultas, trajetória; contraste ≥ 3:1 testado em todos os temas); símbolo do
+humor sobre um disco tingido pela cor do nível nos registros; atalhos do Hoje alinhados;
+emoções com ações compactas (ícones) e etiqueta "oculta" visível; etiquetas que não quebram
+no meio da palavra (antes "Ati-vi-dad-e" no orgânico); fileira de atalhos de Consultas com
+borda esmaecida indicando que rola; enfeite do cabeçalho orgânico sem os pontinhos que
+pareciam aviso de notificação; texto repetido em "Dias e horários" quando os dois destaques
+caem no mesmo motivo aparece uma vez só. axe: 0 violações em 15 telas, dois estilos, claro e
+escuro.
 

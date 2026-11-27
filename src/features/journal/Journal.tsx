@@ -10,7 +10,7 @@ import { addDays, dayKey, startOfWeek } from '../../domain/util';
 import { dayResult } from '../../domain/valence';
 import { Empty, fmtDate, fmtMonth, Page, relativeDay, Segmented, Sheet } from '../../ui/components';
 import { FilterSheet, FilterSummary } from '../../ui/FilterSheet';
-import { TagList, ValenceMark } from '../../ui/pickers';
+import { MoodDot, TagList, ValenceMark } from '../../ui/pickers';
 import { periodOfHour } from '../../ui/WhenPicker';
 import { EventIcon, eventRange } from './EventEditor';
 import { MoodSheet } from './MoodSheet';
@@ -243,7 +243,7 @@ export function MoodRow({ m, onOpen }: { m: MoodEntry; onOpen: () => void }) {
   const ctx = useMemo(() => contextFor(data), [data]);
   return (
     <button className="list-row" onClick={onOpen}>
-      <ValenceMark v={m.valence} size={28} title={valenceLabel(m.valence, data.preferences.valenceLabels)} />
+      <MoodDot v={m.valence} title={valenceLabel(m.valence, data.preferences.valenceLabels)} />
       <div className="grow">
         <div className="title">{valenceLabel(m.valence, data.preferences.valenceLabels)}</div>
         <div className="meta">

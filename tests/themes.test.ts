@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PRESET_THEMES } from '../src/theme/presets';
 import { deriveTokens } from '../src/theme/tokens';
-import { contrast } from '../src/theme/color';
+import { contrast, mix } from '../src/theme/color';
 
 describe('temas predefinidos', () => {
   for (const theme of PRESET_THEMES) {
@@ -20,6 +20,8 @@ describe('temas predefinidos', () => {
           expect(contrast(t.inkSoft, soft)).toBeGreaterThanOrEqual(4.5);
           expect(contrast(t.inkFaint, soft)).toBeGreaterThanOrEqual(4.5);
         }
+        // Ícones nas placas tingidas (.ico-tile: destaque 16% sobre a superfície; 22% no orgânico).
+        for (const t2 of [0.84, 0.78]) expect(contrast(t.accentInk, mix(t.accentFill, t.surface, t2))).toBeGreaterThanOrEqual(3);
         // Blocos pastel do estilo orgânico continuam legíveis.
         for (const tint of t.tints) {
           expect(contrast(t.ink, tint)).toBeGreaterThanOrEqual(7);

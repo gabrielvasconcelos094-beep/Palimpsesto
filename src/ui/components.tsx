@@ -1,6 +1,6 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ChevronRight, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, X } from 'lucide-react';
 import { goBack } from '../app/router';
 import { pushOverlay } from '../app/overlays';
 
@@ -60,8 +60,6 @@ function Decor({ seed }: { seed: string }) {
   return (
     <svg className="decor" viewBox="0 0 130 110" aria-hidden>
       <path d={d} fill={c} transform={`rotate(${(h % 40) - 20} 64 52)`} />
-      <circle cx={(h % 24) + 6} cy={14} r={8} fill="none" stroke="var(--accent)" strokeWidth={1.4} opacity={0.7} />
-      <circle cx={118} cy={(h % 20) + 12} r={3.5} fill="var(--comp1)" opacity={0.55} />
     </svg>
   );
 }
@@ -202,6 +200,19 @@ export function Toggle(props: { label: ReactNode; help?: ReactNode; checked: boo
       </div>
       <input id={id} type="checkbox" role="switch" className="switch" checked={props.checked} onChange={(e) => props.onChange(e.target.checked)} />
     </label>
+  );
+}
+
+/**
+ * Selo de "selecionado" das opções em cartão (.opt). Fica visível em qualquer estilo
+ * e tema — o contorno sozinho não basta (o estilo orgânico não tem contornos).
+ */
+export function OptCheck({ on, corner }: { on: boolean; corner?: boolean }) {
+  if (!on) return null;
+  return (
+    <span className={`opt-check${corner ? ' corner' : ''}`} aria-hidden>
+      <Check size={14} strokeWidth={2.6} />
+    </span>
   );
 }
 

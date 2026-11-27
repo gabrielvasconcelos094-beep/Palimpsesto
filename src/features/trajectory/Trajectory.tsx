@@ -236,7 +236,9 @@ export function Trajectory() {
         <div className="list">
           {visibleCats.map((c) => (
             <button key={c.id} className="list-row" onClick={() => navigate(`/trajetoria/${c.id}`)}>
-              <c.icon size={20} strokeWidth={1.6} className="faint" />
+              <span className="ico-tile" aria-hidden>
+                <c.icon size={18} strokeWidth={1.8} />
+              </span>
               <div className="grow">
                 <div className="title">{c.title}</div>
                 <div className="meta">{c.question}</div>

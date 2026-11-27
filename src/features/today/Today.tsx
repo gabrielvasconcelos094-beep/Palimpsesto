@@ -9,7 +9,7 @@ import { energyLabel, valenceLabel, VALENCE_VALUES } from '../../domain/scales';
 import { isUpcoming } from '../../domain/situations';
 import { dayKey, fold, seededRandom } from '../../domain/util';
 import { fmtDate, Page, Section, WEEKDAYS, MONTHS } from '../../ui/components';
-import { ValenceMark } from '../../ui/pickers';
+import { MoodDot, ValenceMark } from '../../ui/pickers';
 import { MoodSheet } from '../journal/MoodSheet';
 import { SITUATION_TEMPLATES } from '../../domain/seed';
 import { daySeries } from '../../domain/series';
@@ -174,7 +174,7 @@ export function Today() {
           <div className="list">
             {todays.map((m) => (
               <button key={m.id} className="list-row" onClick={() => setSheet({ open: true, valence: null, id: m.id })}>
-                <ValenceMark v={m.valence} size={28} />
+                <MoodDot v={m.valence} />
                 <div className="grow">
                   <div className="title">{valenceLabel(m.valence, labels)}</div>
                   <div className="meta">
@@ -252,21 +252,29 @@ export function Today() {
 
       <Section kicker="Atalhos">
         <div className="grid-2">
-          <button className="card tight" onClick={() => navigate('/diario/experiencia/nova')}>
-            <Feather size={20} />
-            <div style={{ marginTop: 8, fontWeight: 600 }}>Registrar uma experiência</div>
+          <button className="card tight shortcut" onClick={() => navigate('/diario/experiencia/nova')}>
+            <span className="ico-tile" aria-hidden>
+              <Feather size={18} strokeWidth={1.8} />
+            </span>
+            <span className="shortcut-label">Registrar uma experiência</span>
           </button>
-          <button className="card tight" onClick={openHardDay}>
-            <LifeBuoy size={20} />
-            <div style={{ marginTop: 8, fontWeight: 600 }}>Para dias difíceis</div>
+          <button className="card tight shortcut" onClick={openHardDay}>
+            <span className="ico-tile" aria-hidden>
+              <LifeBuoy size={18} strokeWidth={1.8} />
+            </span>
+            <span className="shortcut-label">Para dias difíceis</span>
           </button>
-          <button className="card tight" onClick={() => navigate('/mapa/descoberta/nova')}>
-            <Sparkles size={20} />
-            <div style={{ marginTop: 8, fontWeight: 600 }}>Anotar uma descoberta</div>
+          <button className="card tight shortcut" onClick={() => navigate('/mapa/descoberta/nova')}>
+            <span className="ico-tile" aria-hidden>
+              <Sparkles size={18} strokeWidth={1.8} />
+            </span>
+            <span className="shortcut-label">Anotar uma descoberta</span>
           </button>
-          <button className="card tight" onClick={() => navigate('/guia/carta/nova')}>
-            <BookOpen size={20} />
-            <div style={{ marginTop: 8, fontWeight: 600 }}>Escrever para mim</div>
+          <button className="card tight shortcut" onClick={() => navigate('/guia/carta/nova')}>
+            <span className="ico-tile" aria-hidden>
+              <BookOpen size={18} strokeWidth={1.8} />
+            </span>
+            <span className="shortcut-label">Escrever para mim</span>
           </button>
         </div>
       </Section>
@@ -295,7 +303,9 @@ function NightRow({ day }: { day: string }) {
   return (
     <>
       <button className="list-row" style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }} onClick={() => setOpen(true)}>
-        <Moon size={18} strokeWidth={1.6} className="faint" />
+        <span className="ico-tile" aria-hidden>
+          <Moon size={18} strokeWidth={1.8} />
+        </span>
         <div className="grow">
           <div className="title">{log ? 'Noite registrada' : 'Como foi a noite?'}</div>
           <div className="meta">{summary || (log ? 'Toque para completar' : 'Horas, qualidade e dificuldades — uma vez por noite')}</div>
@@ -317,7 +327,9 @@ function NextAppointmentRow({ today }: { today: string }) {
   const when = days === 0 ? 'hoje' : days === 1 ? 'amanhã' : `em ${days} dias`;
   return (
     <button className="list-row" style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }} onClick={() => navigate(`/guia/consulta/${next.id}`)}>
-      <CalendarClock size={18} strokeWidth={1.6} className="faint" />
+      <span className="ico-tile" aria-hidden>
+        <CalendarClock size={18} strokeWidth={1.8} />
+      </span>
       <div className="grow">
         <div className="title">
           {next.forWhom === 'outro' ? next.professional || 'Consulta' : whoLabel(next.forWhom, next.professionalGender)} {when}

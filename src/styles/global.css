@@ -569,6 +569,24 @@ button.list-row:active {
 .switch:checked::after {
   transform: translateX(20px);
 }
+/* ✓ dentro da bolinha quando ligado: o estado não depende só de cor e posição. */
+.switch::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 3px;
+  left: 23px;
+  width: 22px;
+  height: 22px;
+  background: var(--primary-fill);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 12px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 12px no-repeat;
+  opacity: 0;
+  transition: opacity var(--dur);
+}
+.switch:checked::before {
+  opacity: 1;
+}
 
 /* Chips */
 .chips {
@@ -595,6 +613,9 @@ button.list-row:active {
   color: var(--on-primary);
 }
 .chip.static {
+  /* Etiqueta: nunca quebra no meio da palavra, mesmo em colunas estreitas. */
+  white-space: nowrap;
+  flex: none;
   min-height: 26px;
   padding: 0 10px;
   font-size: var(--fs-xs);
@@ -632,10 +653,11 @@ button.list-row:active {
   transition: background-color var(--dur), color var(--dur);
 }
 .segmented button[aria-pressed='true'] {
-  background: var(--surface);
-  color: var(--ink);
+  /* Mesmo destaque dos chips selecionados: inconfundível em qualquer estilo e tema. */
+  background: var(--primary-fill);
+  color: var(--on-primary);
   font-weight: 600;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 12%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
 /* Escala de valência (vertical) */
@@ -1382,7 +1404,11 @@ a.btn {
   flex-wrap: nowrap;
   overflow-x: auto;
   padding-bottom: 4px;
+  padding-right: 28px;
   scrollbar-width: none;
+  /* Esmaece a borda direita: mostra que a fileira continua (rola para o lado). */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
 }
 .chips.jump .chip {
   white-space: nowrap;
@@ -1394,12 +1420,50 @@ a.btn {
 /* Paletas dos gráficos */
 .palette-opt {
   gap: 14px;
-  cursor: pointer;
-  border: 1px solid var(--line);
 }
-.palette-opt.on {
+
+/* ------------------------------------------------------------------ */
+/* Opções selecionáveis em cartão (símbolos, estilo, paletas, temas)    */
+/* O estado vem do ARIA (aria-checked / aria-pressed): contorno firme +  */
+/* selo com ✓. O contorno usa box-shadow, que nenhum estilo remove.      */
+/* ------------------------------------------------------------------ */
+.opt {
+  position: relative;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius);
+  transition: box-shadow var(--dur), background-color var(--dur), transform 120ms var(--ease);
+}
+.opt:active {
+  transform: scale(0.99);
+}
+.opt[aria-checked='true'],
+.opt[aria-pressed='true'] {
   border-color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--ink);
+}
+.style-opt {
+  padding: 10px;
+}
+.opt-check {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--bg);
+}
+.opt-check.corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  box-shadow: 0 0 0 2px var(--surface);
 }
 .palette-sw {
   display: inline-flex;
@@ -1518,4 +1582,42 @@ button.arc-mark:active {
 .stackbar {
   border-radius: 99px;
   overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* Placas de ícone e símbolos tingidos (acabamento visual)             */
+/* ------------------------------------------------------------------ */
+.ico-tile {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: calc(var(--radius) + 4px);
+  display: inline-grid;
+  place-items: center;
+  /* Tom de destaque do tema, bem diluído: dá calor sem competir com o conteúdo. */
+  background: color-mix(in srgb, var(--accent-fill) 16%, var(--surface));
+  color: var(--accent-ink);
+}
+.mood-dot {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--m, var(--mood-3)) 15%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m, var(--mood-3)) 22%, transparent);
+}
+.shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 104px;
+  text-align: left;
+  color: var(--ink);
+}
+.shortcut-label {
+  font-weight: 600;
+  line-height: 1.25;
 }
