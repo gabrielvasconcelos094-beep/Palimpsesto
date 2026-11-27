@@ -113,7 +113,10 @@ Etapas, todas **antes** de qualquer alteração nos dados atuais:
 6. **Migração** de esquemas antigos para o atual (mesma cadeia usada no armazenamento local).
 7. Validação completa do esquema (tipos, limites, valores permitidos).
 8. Reparo de integridade: ids duplicados são unificados (fica o mais recente) e referências
-   para registros inexistentes são removidas — tudo informado no resumo.
+   para registros inexistentes são removidas (inclusive `agenda.appointmentId` de consulta
+   apagada) — tudo informado no resumo. Na mesclagem, se os dois lados tiverem plano de
+   segurança, eles viram um só (fica o alterado por último, com as linhas do outro que ele
+   não tinha; repetidas são ignoradas) — desde a 1.11.
 
 O usuário então vê um resumo (contagens, intervalo de datas, versão) e escolhe:
 

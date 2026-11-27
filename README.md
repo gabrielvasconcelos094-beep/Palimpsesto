@@ -56,8 +56,10 @@ Requisitos: Node 20+; para o APK, JDK 21 e Android SDK (plataforma 36, build-too
 ```bash
 npm install
 npm run dev          # app no navegador (http://localhost:5173), dados no IndexedDB
-npm test             # 106 testes (Vitest)
+npm test             # 188 testes (Vitest)
 npm run typecheck
+npm run lint         # oxlint
+npm run check        # tipos + lint + testes (o mesmo que o CI)
 npm run build        # gera dist/
 ```
 
@@ -107,17 +109,13 @@ anterior e na atual, e compare os arquivos.
 1. **Validar em aparelhos reais e remover a permissão INTERNET** do manifesto (o app já não faz conexões; a permissão só é usada pelo WebView para servir o conteúdo local).
 2. **Cifrar o arquivo local** com chave do Android Keystore (ou SQLCipher), depois de testes
    em aparelhos de vários fabricantes.
-3. **Lembretes gentis e opcionais** (notificações locais, desligadas por padrão, sem cobrança).
-4. **Busca global** em todas as áreas.
-5. **Linha do tempo de uma descoberta** com os registros de humor que a sustentam.
-6. **Análise por dia** (além de por registro) e padrões entre itens do repertório e o humor
-   dos dias seguintes.
-7. **Anexos** (fotos, áudio) em experiências e cartas.
-8. **Sincronização opcional e cifrada de ponta a ponta** entre aparelhos do próprio usuário
+3. **Conferir o texto dos questionários** (PHQ-9, GAD-7) com a tradução oficial em português.
+4. **Linha do tempo de uma descoberta** com os registros de humor que a sustentam.
+5. **Anexos** (fotos, áudio) em experiências e cartas.
+6. **Sincronização opcional e cifrada de ponta a ponta** entre aparelhos do próprio usuário
    (por arquivo em pasta escolhida, sem servidor próprio).
-9. **Widget** de registro rápido na tela inicial do Android.
-10. Versão iOS (o código já é compatível com Capacitor iOS).
-11. Tradução da interface.
+7. Versão iOS (o código já é compatível com Capacitor iOS).
+8. Tradução da interface.
 
 ## Licença das fontes e bibliotecas
 

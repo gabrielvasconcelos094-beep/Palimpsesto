@@ -126,23 +126,27 @@ Mudanças importantes em relação ao pedido:
 
 ## 4. Análise de padrões (como funciona)
 
-Arquivo: `src/domain/analytics.ts`.
+Arquivos: `src/domain/analytics.ts`, `valence.ts`, `insights.ts`, `sleep.ts` e `stats.ts`.
 
-- A valência é **ordinal**: o app não calcula médias. Mostra contagens, proporções,
-  distribuições e a categoria central (mediana categórica) com texto explicativo.
+- A valência é **ordinal**. Distribuições, contagens e proporções são a base. Desde a 1.5 há
+  também um **índice** (média com peso igual por data), sempre rotulado como aproximação
+  descritiva e acompanhado das contagens.
 - Para cada marcador com pelo menos 5 registros com e 5 sem, compara os dois grupos:
-  - valência, energia e indicadores: **delta de Cliff** (P(com > sem) − P(com < sem)), exigindo |δ| ≥ 0,3;
-  - emoções: diferença de proporções ≥ 25 pontos percentuais.
+  - valência, energia e indicadores: **delta de Cliff**, exigindo |δ| ≥ 0,3, e **Mann-Whitney**;
+  - emoções: diferença de proporções ≥ 25 pontos e **Fisher exato**.
+- Desde a 1.11, nada é destacado só por passar de um limite fixo: além do tamanho mínimo,
+  a diferença precisa ser **improvável por acaso** (p < 0,05; permutação entre datas para
+  índices, Fisher para proporções), com **Benjamini-Hochberg** quando muitas comparações são
+  feitas juntas. Quando não passa, o app diz "sem diferença clara" e por quê (ver §17).
 - Exige ao menos 20 registros no período; abaixo disso, explica que ainda não há dados suficientes.
 - Cada associação mostra os números (n com/sem, proporções) e a frase "associação, não causa".
-  A tela "Como funciona" explica o método, incluindo o risco de comparações múltiplas.
 
 ## 5. Estrutura do código
 
 ```
 src/
   domain/        regras puras, sem React: esquema (zod), escalas, conteúdo inicial,
-                 análises, reunião de situações, utilidades
+                 análises, testes estatísticos (stats.ts), reunião de situações, utilidades
   data/          persistência: Store, adaptadores, migrações, validação/integridade,
                  backup (exportação/inspeção), mesclagem, CSV, criptografia
   theme/         cores, contraste, temas predefinidos, derivação de tokens
@@ -150,12 +154,13 @@ src/
   app/           integração React: store, roteador (hash, com pilha para o "voltar"),
                  sobreposições, avisos, aplicação do tema
   ui/            componentes visuais e seletores (escalas, emoções, marcadores), autosave
-  features/      telas: today, journal, map, guide, trajectory, settings, onboarding
+  features/      telas: today, journal, map, guide, care, trajectory (um módulo por
+                 categoria em trajectory/categories/), settings, onboarding
   report/        relatório em PDF (carregado sob demanda)
   dev/           dados de exemplo (só em desenvolvimento)
 android/         projeto Android (Capacitor) + plugin nativo PalimpsestoSecurity
 tests/           testes unitários e de integração (Vitest)
-e2e/             roteiro de capturas de tela (Playwright)
+e2e/             testes de interface e capturas (Playwright)
 scripts/         geração de ícones
 ```
 
@@ -168,16 +173,25 @@ Regras da camada de dados:
 
 ## 6. Testes
 
-`npm test` executa os testes unitários (82 na versão 1.1), cobrindo:
+`npm run check` executa tipos, lint (oxlint) e os testes unitários (188 na versão 1.11). A
+mesma verificação roda no GitHub Actions a cada envio (`.github/workflows/ci.yml`). Os
+testes unitários cobrem:
 - persistência, reinício, falha de escrita e nova tentativa, recuperação de arquivo corrompido,
-  cascatas, cópias de segurança, apagar tudo;
+  cascatas, desfazer (inclusive com alterações no meio), cópias de segurança, apagar tudo;
 - exportação/importação completa (igualdade profunda), backups cifrados, senha errada,
   adulteração, JSON truncado, arquivos alheios, versões mais novas, erros de esquema, campos
-  desconhecidos, reparo de referências;
+  desconhecidos, reparo de referências, mesclagem com dois planos de segurança;
 - cadeia de migrações; mesclagem com as três estratégias e idempotência;
 - CSV (rótulos personalizados, escape, fórmulas);
-- estatística ordinal, períodos, padrões (inclusive ausência de conclusões com poucos dados);
-- contraste de todos os temas e de paletas personalizadas extremas.
+- estatística: testes de referência (Fisher, Mann-Whitney, Benjamini-Hochberg, permutação),
+  **simulações com dados aleatórios** (nenhum destaque deve aparecer além de ~5–10% das
+  vezes) e efeitos reais que continuam detectados;
+- contraste de todos os temas (texto principal, secundário e discreto sobre fundos e cartões).
+
+Testes de interface (`e2e/*.mjs`, com o servidor de desenvolvimento em 5179): fluxos gerais,
+melhorias, gráfico em linha, widgets, estatísticas, acompanhamento, 1.9, consultas e lembretes,
+e Situações/Cartas/Descobertas/Repertório/cópias. `style-snapshot.mjs` compara medidas do
+estilo minimalista com `e2e/style-minimal-baseline.json`.
 
 ---
 
@@ -706,3 +720,52 @@ usados na tela inicial, nas listas, no título da consulta, na pauta ("Psiquiatr
 Testes: `tests/v110.test.ts` (rótulos de quem atende, título e lembrete; paletas em todos os
 temas e modos); `e2e/appointments.mjs` ("Psicóloga em 2 dias" na tela inicial; excluir pela
 tela da consulta some do banco, da aba Consultas e da tela inicial).
+
+## 17. Versão 1.11 — correções da auditoria técnica
+
+**Estatística (o mais importante).** A auditoria mostrou que, com dados totalmente
+aleatórios, o app apontava "dia mais alto" em 100% dos casos, "subiu/desceu" em 45–76%,
+"padrões por contexto" em 70–94%. Agora cada destaque precisa passar por um teste:
+
+| Destaque | Teste | Aleatórios: antes → agora |
+|---|---|---|
+| Dia da semana mais alto/baixo (índice e proporção) | permutação da amplitude entre os dias (unidade: data) | 100% → ≤ 10% |
+| Comparar períodos (subiu/desceu) | permutação da diferença de médias das datas | 45–76% → ≤ 8% |
+| Padrões por contexto | Mann-Whitney / Fisher + Benjamini-Hochberg sobre TODAS as comparações | 70–94% → ≤ 10% |
+| Atividades, fatores do sono, mudanças de emoções | Fisher + Benjamini-Hochberg | 34% → ≤ 10% |
+| Sono curto × suficiente, ruim × bom | permutação entre datas | → ≤ 12% (dois testes) |
+| "O que seus registros mostram" | os testes acima; pares de emoções corrigidos sobre todos os pares possíveis | 33% → ≤ 12% |
+
+Decisões: os limites antigos (diferença mínima, datas mínimas) continuam — o teste é uma
+exigência a mais, não uma troca. A unidade é a data, coerente com o "peso igual por data". As
+permutações usam semente derivada dos dados, para o resultado não mudar entre uma visita e
+outra. Quando a diferença existe mas não passa no teste, o app mostra o número e diz
+"sem diferença clara: pode ser acaso com esta quantidade de dados"; nada é escondido. O
+resultado do dia (regra do usuário) e o RMSSD foram mantidos, com suas limitações
+documentadas na interface e no código.
+
+**Dados.** A verificação de integridade une planos de segurança repetidos (a mesclagem de
+dois aparelhos falhava) e limpa vínculos da pauta com consultas inexistentes; excluir uma
+consulta desvincula a pauta; desfazer uma exclusão devolve também as referências limpas pela
+cascata nos itens que não foram mexidos depois.
+
+**Lembretes e privacidade.** As notificações agendadas são reconciliadas com as consultas
+sempre que estas mudam (excluir, desfazer, importar, restaurar) e ao abrir; "Apagar tudo"
+cancela tudo antes de recarregar. A pasta temporária de exportações é limpa ao abrir o app, ao
+apagar tudo e ao sair das telas que geram PDF. A tela de privacidade explica que o PIN protege
+a abertura, não cifra os arquivos.
+
+**Acessibilidade.** Símbolos que acompanham um texto ficam ocultos para leitores de tela; o
+calendário deixou de declarar uma grade incompleta; cartões suaves e matizes pastel garantem
+4,5:1 também para o texto discreto. axe (WCAG 2 A/AA): 0 violações em 19 telas, claro e
+escuro, nos dois estilos.
+
+**Consolidação.** Categorias da Trajetória em módulos; oxlint (typescript-eslint não roda com
+o TypeScript 7 usado aqui); CI; menos conversões `as any`; e2e para as áreas sem cobertura e
+sem esperas fixas na navegação; telas pesadas sob demanda; dependências opcionais do jsPDF e
+`react-dom/server` fora do pacote do app (os SVGs dos widgets foram conferidos idênticos).
+
+**Pendente.** O texto em português dos itens do PHQ-9 e do GAD-7 não pôde ser conferido
+contra a tradução oficial (sem acesso ao documento daqui). O app também não foi executado
+num Android real nesta etapa.
+
