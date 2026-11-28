@@ -330,7 +330,11 @@ export function ThemeEditorPage() {
               <input
                 className="input"
                 value={draft.colors[k]}
-                onChange={(e) => setColor(k, e.target.value.trim())}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  // "1a2b3c" sem o # também vale.
+                  setColor(k, /^[0-9a-f]{6}$/i.test(v) ? `#${v}` : v);
+                }}
                 aria-label={`${label} (hexadecimal)`}
                 aria-invalid={!isHex(draft.colors[k])}
                 style={{ fontFamily: 'ui-monospace, monospace', textTransform: 'uppercase' }}

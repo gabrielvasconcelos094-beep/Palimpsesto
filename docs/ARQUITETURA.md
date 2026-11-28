@@ -844,3 +844,18 @@ ruído); notificações com sugestões (o app só notifica consultas, por escolh
 editar a ordem das perguntas do Mapa; aprendizado automático de quais sugestões são aceitas
 (exigiria registrar comportamento de uso — fora do espírito do app).
 
+
+### 1.13.1 — correções
+
+- **Ano no medicamento:** o campo "Só o ano" não mostrava nada ao digitar (o valor só era
+  repassado com 4 dígitos e o campo exibia o valor repassado). Agora o texto fica no campo; digitar
+  sobre um ano completo (o sugerido) começa um ano novo com a tecla digitada.
+- **Precisão da data:** trocar "Data exata" → "Mês e ano" → "Data exata" na edição não perde mais o
+  dia (o campo lembra a data mais completa).
+- **Horas de sono:** "7,5" digitado com vírgula virava 24 h (o campo numérico lia "75"); agora é um
+  campo decimal que aceita vírgula ou ponto e arredonda para a meia hora ao sair.
+- **Cor do tema:** "1a2b3c" sem "#" passa a valer.
+- **Início:** os atalhos ficam numa fileira compacta logo abaixo de "Como você está agora?";
+  as linhas de noite e consulta seguem o estilo orgânico.
+- Os testes de interface digitam tecla por tecla nesses campos (com `fill()` o defeito do ano
+  passava despercebido).

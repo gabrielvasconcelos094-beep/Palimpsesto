@@ -1608,16 +1608,44 @@ button.arc-mark:active {
   background: color-mix(in srgb, var(--m, var(--mood-3)) 15%, var(--surface));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--m, var(--mood-3)) 22%, transparent);
 }
-.shortcut {
+.quick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.quick-btn {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  min-height: 104px;
-  text-align: left;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card-bg, var(--surface));
   color: var(--ink);
+  min-height: 76px;
+  transition: transform 120ms var(--ease), background-color var(--dur);
 }
-.shortcut-label {
+.quick-btn:active {
+  transform: scale(0.97);
+  background: var(--surface-2);
+}
+.quick-btn .ico-tile {
+  width: 38px;
+  height: 38px;
+}
+.quick-label {
+  font-size: var(--fs-xs);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* Linhas destacadas do início (noite, próxima consulta). */
+.row-card {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg, var(--surface));
 }

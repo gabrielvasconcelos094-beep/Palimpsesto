@@ -300,3 +300,14 @@
   border-radius: 46% 54% 50% 50% / 52% 46% 54% 48%;
   background: color-mix(in srgb, var(--accent-fill) 22%, var(--surface));
 }
+
+:root[data-style='organic'] .quick-btn {
+  border-color: transparent;
+  background: var(--surface);
+  border-radius: 22px 16px 22px 16px;
+}
+:root[data-style='organic'] .row-card {
+  border-color: transparent;
+  background: var(--surface);
+  border-radius: 20px 14px 20px 14px;
+}

@@ -158,6 +158,27 @@ export function Today() {
         </div>
       </div>
 
+      {/* Atalhos logo abaixo do registro de humor: o que mais se faz depois de abrir o app. */}
+      <nav className="quick" aria-label="Atalhos">
+        {(
+          [
+            [Feather, 'Experiência', 'Registrar uma experiência', () => navigate('/diario/experiencia/nova')],
+            [LifeBuoy, 'Dia difícil', 'Para dias difíceis', openHardDay],
+            [Sparkles, 'Descoberta', 'Anotar uma descoberta', () => navigate('/mapa/descoberta/nova')],
+            [BookOpen, 'Carta', 'Escrever para mim', () => navigate('/guia/carta/nova')],
+          ] as const
+        ).map(([I, short, full, go]) => (
+          <button key={short} className="quick-btn" aria-label={full} onClick={go}>
+            <span className="ico-tile" aria-hidden>
+              <I size={19} strokeWidth={1.8} />
+            </span>
+            <span className="quick-label" aria-hidden>
+              {short}
+            </span>
+          </button>
+        ))}
+      </nav>
+
       {data.preferences.trackSleep && <NightRow day={todayKey} />}
       <NextAppointmentRow today={todayKey} />
 
@@ -246,34 +267,6 @@ export function Today() {
         </Section>
       )}
 
-      <Section kicker="Atalhos">
-        <div className="grid-2">
-          <button className="card tight shortcut" onClick={() => navigate('/diario/experiencia/nova')}>
-            <span className="ico-tile" aria-hidden>
-              <Feather size={18} strokeWidth={1.8} />
-            </span>
-            <span className="shortcut-label">Registrar uma experiência</span>
-          </button>
-          <button className="card tight shortcut" onClick={openHardDay}>
-            <span className="ico-tile" aria-hidden>
-              <LifeBuoy size={18} strokeWidth={1.8} />
-            </span>
-            <span className="shortcut-label">Para dias difíceis</span>
-          </button>
-          <button className="card tight shortcut" onClick={() => navigate('/mapa/descoberta/nova')}>
-            <span className="ico-tile" aria-hidden>
-              <Sparkles size={18} strokeWidth={1.8} />
-            </span>
-            <span className="shortcut-label">Anotar uma descoberta</span>
-          </button>
-          <button className="card tight shortcut" onClick={() => navigate('/guia/carta/nova')}>
-            <span className="ico-tile" aria-hidden>
-              <BookOpen size={18} strokeWidth={1.8} />
-            </span>
-            <span className="shortcut-label">Escrever para mim</span>
-          </button>
-        </div>
-      </Section>
 
       <MoodSheet
         open={sheet.open}
@@ -298,7 +291,7 @@ function NightRow({ day }: { day: string }) {
     : null;
   return (
     <>
-      <button className="list-row" style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }} onClick={() => setOpen(true)}>
+      <button className="list-row row-card" onClick={() => setOpen(true)}>
         <span className="ico-tile" aria-hidden>
           <Moon size={18} strokeWidth={1.8} />
         </span>
@@ -322,7 +315,7 @@ function NextAppointmentRow({ today }: { today: string }) {
   if (days > 7) return null;
   const when = days === 0 ? 'hoje' : days === 1 ? 'amanhã' : `em ${days} dias`;
   return (
-    <button className="list-row" style={{ marginTop: 12, border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }} onClick={() => navigate(`/guia/consulta/${next.id}`)}>
+    <button className="list-row row-card" onClick={() => navigate(`/guia/consulta/${next.id}`)}>
       <span className="ico-tile" aria-hidden>
         <CalendarClock size={18} strokeWidth={1.8} />
       </span>

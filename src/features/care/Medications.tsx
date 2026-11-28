@@ -8,7 +8,7 @@
  * orienta as próximas escolhas. Não há banco de remédios, cálculo de dose nem
  * lembrete de tomar: é um registro seu, para levar e conferir com quem prescreve.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronRight, Pill, Plus } from 'lucide-react';
 import { goBack, navigate, useRoute } from '../../app/router';
 import { store, useData } from '../../app/store';
@@ -149,13 +149,21 @@ function FuzzyDateInput({ label, value, onChange, allowUnknown = true, unknownLa
     ['year', 'Só o ano'],
     ...(allowUnknown ? ([['unknown', unknownLabel]] as Array<[DatePrecision, string]>) : []),
   ];
+  // A data mais completa já vista: explorar "Mês e ano" e voltar para "Data exata" não perde o dia.
+  const fullest = useRef(value ?? '');
+  if (value && value.length > fullest.current.length && (!fullest.current || value.startsWith(fullest.current.slice(0, 4)))) fullest.current = value;
+  if (value && !fullest.current.startsWith(value)) fullest.current = value;
   const pick = (p: DatePrecision) => {
     setPrec(p);
     if (p === 'unknown') return onChange(null);
     const len = p === 'year' ? 4 : p === 'month' ? 7 : 10;
-    onChange(value && value.length >= len ? value.slice(0, len) : '');
+    const src = fullest.current;
+    const next = src.length >= len ? src.slice(0, len) : '';
+    if (p === 'year') setYear(next || year);
+    onChange(next || (p === 'year' && /^\d{4}$/.test(year) ? year : ''));
   };
-  const year = value?.slice(0, 4) ?? '';
+  // O ano é digitado aos poucos: o texto fica aqui; o valor só sai completo (4 dígitos).
+  const [year, setYear] = useState(value?.slice(0, 4) ?? '');
   return (
     <div className="stack" style={{ gap: 8 }}>
       <div className="chips" role="group" aria-label={`${label}: precisão`}>
@@ -171,12 +179,20 @@ function FuzzyDateInput({ label, value, onChange, allowUnknown = true, unknownLa
         <input
           className="input"
           inputMode="numeric"
-          maxLength={4}
           placeholder="Ex.: 2019"
           aria-label={label}
           value={year}
+          // Ao tocar, seleciona o ano sugerido: digitar substitui em vez de se somar a ele.
+          onFocus={(e) => e.target.select()}
           onChange={(e) => {
-            const y = e.target.value.replace(/\D/g, '').slice(0, 4);
+            const raw = e.target.value;
+            const digits = raw.replace(/\D/g, '');
+            // Digitar sobre um ano completo (ex.: o sugerido) começa um ano novo com a tecla
+            // digitada — esteja o cursor no início, no meio ou no fim.
+            const at = e.target.selectionStart ?? raw.length;
+            const typed = raw.slice(Math.max(0, at - 1), at).replace(/\D/g, '');
+            const y = digits.length > 4 ? typed : digits;
+            setYear(y);
             onChange(y.length === 4 ? y : '');
           }}
         />

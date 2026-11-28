@@ -29,7 +29,9 @@ await page.getByPlaceholder('Ex.: Sertralina').fill('Fluoxetina');
 await page.getByRole('button', { name: 'Não me lembro da dose' }).click();
 const startGroup = page.getByRole('group', { name: 'Data de início: precisão' });
 await startGroup.getByRole('button', { name: 'Só o ano' }).click();
-await page.getByRole('textbox', { name: 'Data de início' }).fill('2019');
+// Digitando tecla por tecla, como no aparelho (com fill() o defeito do ano não aparecia).
+await page.getByRole('textbox', { name: 'Data de início' }).pressSequentially('2019');
+assert.equal(await page.getByRole('textbox', { name: 'Data de início' }).inputValue(), '2019');
 await page.getByText('Já parei de tomar').click();
 await page.getByRole('group', { name: 'Data em que parou: precisão' }).getByRole('button', { name: 'Não me lembro' }).click();
 await page.getByRole('button', { name: 'Efeitos colaterais' }).click();
@@ -124,6 +126,32 @@ assert.equal(titles[1].trim(), 'História de vida');
 assert.ok(titles.includes('Pensamentos e crenças') && titles.includes('Sofrimento e cuidado') && titles.at(-1).trim() === 'Existência e sentido');
 await go('/mapa/pergunta/q.existencia.05');
 await page.getByText(/plano de segurança ou ligue 188/).waitFor();
+
+step('1.13.1: atalhos logo abaixo da caixa de humor; horas com vírgula; cor sem #');
+await page.evaluate(() => window.__pal.store.setPreferences({ trackSleep: true }));
+await go('/');
+const boxes = await page.evaluate(() => {
+  const mood = [...document.querySelectorAll('main .card')].find((c) => c.textContent.includes('Como você está agora?')).getBoundingClientRect();
+  const quick = document.querySelector('nav.quick').getBoundingClientRect();
+  return { gap: quick.top - mood.bottom, n: document.querySelectorAll('nav.quick button').length };
+});
+assert.ok(boxes.gap >= 0 && boxes.gap < 30, `atalhos logo abaixo (distância ${boxes.gap})`);
+assert.equal(boxes.n, 4);
+await page.getByRole('button', { name: 'Escrever para mim' }).click();
+await until(() => location.hash.startsWith('#/guia/carta/nova'));
+await go('/');
+await page.getByText(/Como foi a noite\?|Noite registrada/).first().click();
+const hours = page.getByRole('spinbutton', { name: 'Horas de sono' });
+await hours.fill('');
+await hours.pressSequentially('7,5');
+assert.equal(await hours.inputValue(), '7,5');
+await page.locator('.sheet .sheet-actions .btn.primary').click();
+await until(() => window.__pal.store.getState().data.sleepLogs.some((s) => s.hours === 7.5));
+await go('/ajustes/tema/novo?base=papel');
+const hex = page.getByRole('textbox', { name: 'Cor principal (hexadecimal)' });
+await hex.fill('');
+await hex.pressSequentially('1a2b3c');
+assert.equal(await hex.inputValue(), '#1a2b3c');
 
 assert.deepEqual(errors, [], 'sem erros de página');
 console.log('\nTodos os fluxos da 1.13 passaram.');

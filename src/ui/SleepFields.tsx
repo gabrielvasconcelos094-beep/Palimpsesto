@@ -3,7 +3,7 @@
  * dificuldades. Usado no registro de humor e no "Como foi a noite?" da tela Hoje;
  * os dois leem e gravam a mesma noite da data (`store.setSleep`), sem duplicar.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sheet, fmtDate } from './components';
 import { store, useData } from '../app/store';
 import { toast } from '../app/toast';
@@ -33,22 +33,7 @@ export function SleepFields({ value, onChange }: { value: SleepValue; onChange: 
           <button className="icon-btn" aria-label="Menos meia hora" onClick={() => set({ hours: Math.max(0, (h ?? 7.5) - 0.5) })}>
             −
           </button>
-          <input
-            className="input"
-            style={{ width: 90, textAlign: 'center' }}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={24}
-            step={0.5}
-            aria-label="Horas de sono"
-            placeholder="—"
-            value={h ?? ''}
-            onChange={(e) => {
-              const v = e.target.value === '' ? null : Math.max(0, Math.min(24, Math.round(Number(e.target.value.replace(',', '.')) * 2) / 2));
-              set({ hours: v === null || Number.isNaN(v) ? null : v });
-            }}
-          />
+          <HoursInput value={h} onChange={(hours) => set({ hours })} />
           <button className="icon-btn" aria-label="Mais meia hora" onClick={() => set({ hours: Math.min(24, (h ?? 6.5) + 0.5) })}>
             +
           </button>
@@ -146,3 +131,47 @@ export function SleepSheet({ open, date, onClose }: { open: boolean; date: strin
     </Sheet>
   );
 }
+
+/** Horas como texto: aceita vírgula ou ponto enquanto se digita (antes, "7,5" virava 24). */
+export function parseHours(t: string): number | null {
+  const n = Number(t.trim().replace(',', '.'));
+  if (!t.trim() || Number.isNaN(n)) return null;
+  return Math.max(0, Math.min(24, n));
+}
+const fmtH = (h: number | null) => (h == null ? '' : String(h).replace('.', ','));
+
+function HoursInput({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  const [text, setText] = useState(fmtH(value));
+  // Mudou por fora (botões − e +): mostra o novo valor.
+  useEffect(() => {
+    if (parseHours(text) !== value) setText(fmtH(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+  return (
+    <input
+      className="input"
+      style={{ width: 90, textAlign: 'center' }}
+      inputMode="decimal"
+      role="spinbutton"
+      aria-valuemin={0}
+      aria-valuemax={24}
+      aria-valuenow={value ?? undefined}
+      aria-label="Horas de sono"
+      placeholder="—"
+      value={text}
+      onChange={(e) => {
+        const t = e.target.value.replace(/[^\d.,]/g, '').slice(0, 5);
+        setText(t);
+        onChange(parseHours(t));
+      }}
+      onBlur={() => {
+        // Ao sair, arredonda para a meia hora mais próxima (a escala do registro).
+        const v = parseHours(text);
+        const r = v == null ? null : Math.round(v * 2) / 2;
+        setText(fmtH(r));
+        if (r !== value) onChange(r);
+      }}
+    />
+  );
+}
+

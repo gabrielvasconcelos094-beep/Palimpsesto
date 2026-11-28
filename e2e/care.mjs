@@ -140,7 +140,7 @@ step('três registros de humor no mesmo dia: a mesma noite aparece e é editada,
 for (let k = 0; k < 3; k++) {
   await page.getByRole('button', { name: 'Agradável', exact: true }).first().click();
   await page.getByRole('button', { name: /^Sono · noite de/ }).click();
-  assert.equal(await page.getByRole('spinbutton', { name: 'Horas de sono' }).inputValue(), k === 0 ? '7' : '6.5');
+  assert.equal(await page.getByRole('spinbutton', { name: 'Horas de sono' }).inputValue(), k === 0 ? '7' : '6,5');
   if (k === 0) await page.getByRole('button', { name: 'Menos meia hora' }).click(); // 6,5
   await page.locator('.sheet .sheet-actions .btn.primary').click();
   await page.waitForTimeout(250);
