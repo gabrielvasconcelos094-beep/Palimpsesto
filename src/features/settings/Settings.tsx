@@ -288,7 +288,7 @@ export function IndicatorsPage() {
   return (
     <Page back="/ajustes" noNav title="Indicadores" ghost="medidas">
       <p className="small muted">
-        Escolha o que acompanhar além da valência. Os campos aparecem como opcionais em “Contexto, anotação e mais”, para o registro continuar rápido.
+        Escolha o que acompanhar além da valência. Os campos aparecem como opcionais em “Indicadores”, no fim do registro, para ele continuar rápido.
       </p>
       <Section kicker="No registro de humor">
         <div className="list">
@@ -312,6 +312,12 @@ export function IndicatorsPage() {
             help="Um texto seu de mais de 30 dias, para reler — nunca uma cobrança."
             checked={prefs.resurfacing}
             onChange={(resurfacing) => store.setPreferences({ resurfacing })}
+          />
+          <Toggle
+            label="Lembrar do que já ajudou, em momentos difíceis"
+            help="Depois de um registro difícil, o início mostra o que você mesmo(a) registrou no Guia para aquele contexto ou emoção."
+            checked={prefs.supportSuggestions}
+            onChange={(supportSuggestions) => store.setPreferences({ supportSuggestions })}
           />
         </div>
       </Section>

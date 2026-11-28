@@ -41,11 +41,11 @@ describe('questionários', () => {
     expect(h.map((x) => x.date)).toEqual(['2026-10-01', '2026-11-10']);
   });
   it('o documento aceita as novas coleções e recusa respostas fora de 0–3', () => {
-    const base = AppDataSchema.parse({ schemaVersion: 3 });
+    const base = AppDataSchema.parse({ schemaVersion: 4 });
     expect(base.assessments).toEqual([]);
     expect(base.agenda).toEqual([]);
     expect(base.safetyPlans).toEqual([]);
-    expect(() => AppDataSchema.parse({ schemaVersion: 3, assessments: [{ ...A('gad7', [0, 0, 0, 0, 0, 0, 4]) }] })).toThrow();
+    expect(() => AppDataSchema.parse({ schemaVersion: 4, assessments: [{ ...A('gad7', [0, 0, 0, 0, 0, 0, 4]) }] })).toThrow();
   });
   it('backup antigo (sem as novas coleções) continua válido', () => {
     const r = parseAppData({ schemaVersion: 2, moodEntries: [{ id: 'm1', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', at: '2026-11-01T10:00:00', valence: 1 }] });
@@ -138,7 +138,7 @@ describe('migração 2 → 3 e integridade do sono', () => {
     expect(r.data.preferences.trackSleep).toBe(true);
   });
   it('duas noites na mesma data (ex.: importação) viram uma só', () => {
-    const r = parseAppData({ schemaVersion: 3, sleepLogs: [{ ...N('2026-11-01', 5), id: 'a', updatedAt: '2026-11-01T08:00:00Z' }, { ...N('2026-11-01', 7), id: 'b', updatedAt: '2026-11-02T08:00:00Z' }] });
+    const r = parseAppData({ schemaVersion: 4, sleepLogs: [{ ...N('2026-11-01', 5), id: 'a', updatedAt: '2026-11-01T08:00:00Z' }, { ...N('2026-11-01', 7), id: 'b', updatedAt: '2026-11-02T08:00:00Z' }] });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.data.sleepLogs).toHaveLength(1);

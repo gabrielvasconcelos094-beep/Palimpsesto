@@ -100,6 +100,69 @@ anotar o combinado) e "Resumo para a consulta" em PDF: pauta, questionários com
 gráfico de humor e energia, índice, estabilidade e RMSSD, sono, emoções e acontecimentos
 (inclusive medicação), do período desde a última consulta ou dos últimos 30/90 dias.
 
+## 9. Perguntas do Mapa (1.13): revisão e ampliação
+
+**O que já existia.** 10 fichas, 79 perguntas, várias com uma dica que cita a inspiração
+(identidade narrativa, autodeterminação, fluxo, granularidade emocional, autocompaixão,
+enfrentamento). A estrutura em fichas temáticas e a pergunta do dia foram mantidas.
+
+**Critérios.** Uma pergunta fica se for aberta, concreta o bastante para ser respondida num
+dia comum e diferente das demais. Distinguimos três origens, e a dica diz qual é:
+- *inspiradas em conceitos científicos* (psicologia, psiquiatria) — com autor e ano; são
+  convites à reflexão, **não instrumentos**: não medem nada, não têm normas nem pontos de
+  corte, e a resposta não indica diagnóstico;
+- *filosóficas* (existencialismo, estoicismo, Aristóteles, Buber, Parfit) — sem pretensão
+  empírica;
+- *cotidianas* — sem dica, quando a pergunta se explica sozinha.
+
+**Revisão das existentes.**
+- Mantidas: 74. Dicas acrescentadas ou precisadas (com autor) em 7.
+- Reformuladas (só para quem ainda não respondeu nem editou): "Quais são suas principais
+  características?" (repetia "Como você se define?") → olhar dos outros; "O que te proporciona
+  prazer?" (repetia "O que você gosta de fazer?") → pequenos prazeres esquecidos, como na
+  ativação comportamental; "O que te incomoda?" (vaga e repetida em Limites) → incômodos
+  pequenos e frequentes.
+- Retiradas (ocultas, nunca apagadas): "Como gostaria que as outras pessoas percebessem você?"
+  (sobrepunha-se a "O que gostaria que as pessoas compreendessem sobre você?" e punha o foco na
+  imagem) e "O que te deixa à vontade?" (repetia duas outras).
+
+**Lacunas preenchidas.** Quatro fichas novas e perguntas novas no fim das existentes (60 ao todo; 137 ativas em 14 fichas):
+- *História de vida* — cenas-chave da entrevista de história de vida (McAdams): lembrança mais
+  antiga, ponto alto, ponto baixo, pessoas e capítulos; redenção × contaminação.
+- *Pensamentos e crenças* — crenças centrais (Beck), "deverias" (Horney), ruminação que remói ×
+  reflexão (Treynor et al., 2003), duplo padrão, desfusão (ACT).
+- *Sofrimento e cuidado* — a própria experiência nas próprias palavras, sinais de alerta precoces
+  (Birchwood et al., 2000), recuperação pessoal (CHIME, Leamy et al., 2011), autoestigma
+  (Corrigan). Sem nomes de diagnóstico; as perguntas sobre sofrimento intenso e sobre morte
+  lembram o plano de segurança e o CVV (188).
+- *Existência e sentido* — sentido (Frankl), liberdade e escolha (Sartre), tempo (Sêneca),
+  finitude e solidão existencial (Yalom), felicidade hedônica × eudaimônica (Aristóteles; Ryan &
+  Deci, 2001), absurdo (Camus), generatividade (Erikson), impermanência.
+- Nas fichas existentes: Winnicott (self verdadeiro/falso), Parfit (identidade no tempo), apego
+  (Bowlby; Hazan & Shaver), Buber (Eu–Tu), pertencimento (Baumeister & Leary), meta-emoção
+  (Gottman), emoções primárias/secundárias (Greenberg), esquiva experiencial (Hayes), valores
+  (ACT; Schwartz), aspirações intrínsecas (Kasser & Ryan), eus possíveis (Markus & Nurius),
+  análise funcional, dicotomia do controle (Epicteto).
+
+**Pergunta do dia.** Antes, sorteio uniforme entre todas as perguntas abertas: fichas maiores
+apareciam mais e o tema podia se repetir. Agora as fichas se revezam em ciclos (cada uma uma vez
+por ciclo, sem repetir em dias seguidos) e a pergunta é sorteada dentro da ficha do dia —
+determinístico por data. Favoritas continuam tendo prioridade.
+
+## 10. Contexto do humor e apoio pessoal no momento certo (1.13)
+
+- **Contexto relatado, não causa.** Diários de humor que registram o que acompanhava cada
+  momento ajudam a perceber regularidades (é a base da análise funcional e do automonitoramento
+  na terapia cognitivo-comportamental). Mas a associação é da própria pessoa e pode ter outras
+  explicações; por isso o app só *descreve* (frequência, avaliações, emoções junto) e só aponta
+  diferenças que passam nos testes estatísticos (§ estatística, 1.11).
+- **"Para este momento".** A ideia de um repertório pessoal de "o que me ajuda", consultado
+  quando um sinal aparece, está em planos de autocuidado construídos pela própria pessoa, como o
+  plano de segurança (§3) e o *Wellness Recovery Action Plan* (Copeland). Intervenções que chegam
+  "no momento" em que são relevantes são estudadas como *just-in-time adaptive interventions*
+  (Nahum-Shani et al., 2018). Aqui o conteúdo é **só o que a pessoa registrou** — sem conselhos
+  prontos — e o histórico pesa: o que ela avaliou como "não ajudou" naquele contexto não volta.
+
 ## O que foi avaliado e não entrou
 
 - **WHO-5 (bem-estar):** útil e curto, mas a licença atual (OMS, CC BY-NC-SA 3.0 IGO, desde
@@ -137,3 +200,33 @@ gráfico de humor e energia, índice, estabilidade e RMSSD, sono, emoções e ac
 - Warning signs and relapse signatures (revisão). https://pmc.ncbi.nlm.nih.gov/articles/PMC8024465 ; JMIR Mental Health 2016;3(3):e42 https://mental.jmir.org/2016/3/e42/
 - AIMS Center (UW), orientação sobre o item 9 do PHQ-9. https://aims.uw.edu/keyword/phq-9/
 - Topp CW et al. The WHO-5 Well-Being Index: a systematic review. *Psychother Psychosom* 2015. https://pubmed.ncbi.nlm.nih.gov/25831962/
+
+Perguntas do Mapa e apoio pessoal (1.13):
+- McAdams DP. The Life Story Interview. Northwestern University (versões 1995–2008). https://www.sesp.northwestern.edu/foley/instruments/interview/
+- McAdams DP et al. When bad things turn good and good things turn bad: sequences of redemption and contamination in life narrative. *Pers Soc Psychol Bull* 2001;27(4):474–485. https://journals.sagepub.com/doi/abs/10.1177/0146167201274008
+- Beck AT et al. *Cognitive Therapy of Depression*. Guilford, 1979.
+- Horney K. *Neurosis and Human Growth*. Norton, 1950 ("the tyranny of the should").
+- Treynor W, Gonzalez R, Nolen-Hoeksema S. Rumination reconsidered: a psychometric analysis. *Cognit Ther Res* 2003;27:247–259. https://doi.org/10.1023/A:1023910315561
+- Hayes SC, Strosahl KD, Wilson KG. *Acceptance and Commitment Therapy*. Guilford, 1999/2012.
+- Birchwood M, Spencer E, McGovern D. Schizophrenia: early warning signs. *Adv Psychiatr Treat* 2000;6:93–101. https://doi.org/10.1192/apt.6.2.93
+- Leamy M et al. Conceptual framework for personal recovery in mental health: systematic review and narrative synthesis. *Br J Psychiatry* 2011;199:445–452.
+- Corrigan PW, Watson AC. The paradox of self-stigma and mental illness. *Clin Psychol Sci Pract* 2002;9:35–53.
+- Frankl VE. *Em busca de sentido* (1946).
+- Yalom ID. *Existential Psychotherapy*. Basic Books, 1980.
+- Ryan RM, Deci EL. On happiness and human potentials: hedonic and eudaimonic well-being. *Annu Rev Psychol* 2001;52:141–166.
+- Sêneca. *Sobre a brevidade da vida*. Epicteto. *Manual* (Enchirídion), 1. Camus A. *O mito de Sísifo* (1942). Aristóteles. *Ética a Nicômaco*. Sartre J-P. *O existencialismo é um humanismo* (1946). Buber M. *Eu e Tu* (1923). Parfit D. *Reasons and Persons* (1984).
+- Winnicott DW. Ego distortion in terms of true and false self (1960).
+- Erikson EH. *Childhood and Society* (1950).
+- Bowlby J. *Attachment and Loss* (1969–1980). Hazan C, Shaver P. Romantic love conceptualized as an attachment process. *J Pers Soc Psychol* 1987;52:511–524.
+- Baumeister RF, Leary MR. The need to belong. *Psychol Bull* 1995;117:497–529.
+- Gottman JM, Katz LF, Hooven C. Parental meta-emotion philosophy. *J Fam Psychol* 1996;10:243–268.
+- Greenberg LS. *Emotion-Focused Therapy*. APA, 2011.
+- Schwartz SH. Universals in the content and structure of values. *Adv Exp Soc Psychol* 1992;25:1–65.
+- Kasser T, Ryan RM. Further examining the American dream: differential correlates of intrinsic and extrinsic goals. *Pers Soc Psychol Bull* 1996;22:280–287.
+- Markus H, Nurius P. Possible selves. *Am Psychol* 1986;41:954–969.
+- Peterson C, Seligman MEP. *Character Strengths and Virtues*. OUP/APA, 2004.
+- Csikszentmihalyi M. *Flow* (1990). Barrett LF. *How Emotions Are Made* (2017). Neff KD. Self-compassion. *Self Identity* 2003;2:85–101. Lazarus RS, Folkman S. *Stress, Appraisal, and Coping* (1984). Mischel W. *Personality and Assessment* (1968). Rogers CR. *On Becoming a Person* (1961).
+- Martell CR, Addis ME, Jacobson NS. *Depression in Context: Strategies for Guided Action* (ativação comportamental). Norton, 2001.
+- Copeland ME. *Wellness Recovery Action Plan* (1997).
+- Nahum-Shani I et al. Just-in-time adaptive interventions (JITAIs) in mobile health. *Ann Behav Med* 2018;52:446–462.
+

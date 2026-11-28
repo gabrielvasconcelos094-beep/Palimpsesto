@@ -7,7 +7,7 @@ import { toast } from '../../app/toast';
 import { outcomeCounts, outcomesByContext } from '../../domain/analytics';
 import { FREQUENCY_LABELS, KIND_LABELS, OUTCOME_LABELS, OUTCOME_ORDER } from '../../domain/scales';
 import type { Outcome, RepertoireItem, RepertoireKind, StrategyUse } from '../../domain/schema';
-import { ACTIVITY_CATEGORIES, DRAIN_CATEGORIES, RESOURCE_CATEGORIES, STRATEGY_CATEGORIES } from '../../domain/seed';
+import { ACTIVITY_CATEGORIES, CONTEXT_AREAS, CONTEXT_SUGGESTIONS, DRAIN_CATEGORIES, RESOURCE_CATEGORIES, STRATEGY_CATEGORIES } from '../../domain/seed';
 import { fold } from '../../domain/util';
 import { AutoText, Empty, Field, fmtDate, Page, Section, Segmented, Sheet, Toggle, useConfirm } from '../../ui/components';
 import { nowWhen, WhenPicker, type When } from '../../ui/WhenPicker';
@@ -301,8 +301,16 @@ function ItemEditor() {
         <Field label="Observações pessoais" optional>
           <AutoText value={draft.notes} onChange={(notes) => set({ notes })} minRows={2} />
         </Field>
-        <Field label="Marcadores" optional help="Contextos em que isso costuma importar — usados pelas Situações.">
-          <TagInput value={draft.tags} onChange={(tags) => set({ tags })} />
+        <Field
+          label="Contextos"
+          optional
+          help={
+            isDrain
+              ? 'Contextos em que isso costuma pesar — usados pelas Situações.'
+              : 'Contextos em que isso costuma ajudar (ex.: trabalho, sono). Quando você registrar um momento difícil com o mesmo contexto, o início lembra deste item. Também usados pelas Situações.'
+          }
+        >
+          <TagInput value={draft.tags} onChange={(tags) => set({ tags })} suggestions={[...CONTEXT_AREAS, ...CONTEXT_SUGGESTIONS]} />
         </Field>
 
         {itemId && <ItemInMoods itemId={itemId} />}

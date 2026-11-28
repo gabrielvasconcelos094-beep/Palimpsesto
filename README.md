@@ -56,7 +56,7 @@ Requisitos: Node 20+; para o APK, JDK 21 e Android SDK (plataforma 36, build-too
 ```bash
 npm install
 npm run dev          # app no navegador (http://localhost:5173), dados no IndexedDB
-npm test             # 188 testes (Vitest)
+npm test             # 208 testes (Vitest)
 npm run typecheck
 npm run lint         # oxlint
 npm run check        # tipos + lint + testes (o mesmo que o CI)

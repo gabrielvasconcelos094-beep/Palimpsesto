@@ -49,6 +49,7 @@ export const STOP_REASON_LABELS: Record<NonNullable<Medication['stopReason']>, s
   troca: 'Troca por outro',
   custo: 'Custo ou acesso',
   outro: 'Outro motivo',
+  nao_lembra: 'Não me lembro',
 };
 export const REMINDER_OPTIONS: Array<{ minutes: number; label: string }> = [
   { minutes: 30, label: '30 min antes' },
@@ -106,13 +107,53 @@ export function agendaFor(agenda: AgendaItem[], a: Pick<Appointment, 'forWhom'>)
 }
 
 export const currentDose = (m: Medication) => m.doses[m.doses.length - 1];
-export const isActive = (m: Medication, today: string) => m.startDate <= today && (!m.endDate || m.endDate > today);
+
+/** Parou de tomar (com data conhecida ou não). */
+export const hasStopped = (m: Pick<Medication, 'endDate' | 'endUnknown'>) => !!m.endDate || m.endUnknown;
+
+/**
+ * Em uso: começou (ou não se sabe quando — então é passado) e não parou.
+ * Datas aproximadas comparam como texto: "2026-11" < "2026-11-28", então um fim
+ * informado só pelo mês atual já conta como parado.
+ */
+export const isActive = (m: Medication, today: string) =>
+  (m.startDate == null || m.startDate <= today) && !m.endUnknown && (!m.endDate || m.endDate > today);
 
 export function activeMeds(list: Medication[], today: string) {
   return list.filter((m) => isActive(m, today)).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 }
+/** Anteriores, do mais recente ao mais antigo; sem nenhuma data conhecida, por último. */
 export function pastMeds(list: Medication[], today: string) {
-  return list.filter((m) => !isActive(m, today)).sort((a, b) => (b.endDate ?? b.startDate).localeCompare(a.endDate ?? a.startDate));
+  const key = (m: Medication) => m.endDate ?? m.startDate ?? '';
+  return list.filter((m) => !isActive(m, today)).sort((a, b) => key(b).localeCompare(key(a)) || a.name.localeCompare(b.name, 'pt-BR'));
+}
+
+const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const MONTHS_SHORT = ['jan.', 'fev.', 'mar.', 'abr.', 'maio', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+
+/** Precisão de uma data aproximada. */
+export type DatePrecision = 'day' | 'month' | 'year' | 'unknown';
+export const precisionOf = (d: string | null): DatePrecision => (d == null ? 'unknown' : d.length === 4 ? 'year' : d.length === 7 ? 'month' : 'day');
+
+/** "12 de março de 2019", "março de 2019", "2019" ou o texto para data desconhecida. */
+export function fmtFuzzy(d: string | null, o: { short?: boolean; unknown?: string } = {}): string {
+  if (d == null) return o.unknown ?? 'data desconhecida';
+  const [y, m, day] = d.split('-');
+  const names = o.short ? MONTHS_SHORT : MONTHS;
+  if (!m) return y;
+  if (!day) return `${names[Number(m) - 1]} de ${y}`;
+  return `${Number(day)} de ${names[Number(m) - 1]} de ${y}`;
+}
+
+/** Dose como texto, sem inventar nada quando ela não é lembrada. */
+export const doseLabel = (d: Pick<Medication['doses'][number], 'dose' | 'doseUnknown'>) => (d.doseUnknown || !d.dose.trim() ? 'dose desconhecida' : d.dose);
+
+/** Período de uso em texto ("mar. de 2019 a 2021", "desde 2020", "início desconhecido…"). */
+export function periodLabel(m: Medication, today: string): string {
+  const start = fmtFuzzy(m.startDate, { short: true, unknown: 'início desconhecido' });
+  if (isActive(m, today)) return m.startDate ? `desde ${start}` : start;
+  const end = m.endDate ? fmtFuzzy(m.endDate, { short: true }) : 'fim desconhecido';
+  return `${start} a ${end}`;
 }
 
 /** Mudanças de medicação num intervalo (início, mudança de dose, suspensão), em ordem. */
@@ -120,10 +161,11 @@ export function medChanges(list: Medication[], from: string, to: string) {
   const out: Array<{ date: string; med: Medication; kind: 'start' | 'dose' | 'stop'; text: string }> = [];
   for (const m of list) {
     m.doses.forEach((d, i) => {
-      if (d.date < from || d.date > to) return;
-      out.push({ date: d.date, med: m, kind: i === 0 ? 'start' : 'dose', text: `${d.dose}${d.schedule ? ` — ${d.schedule}` : ''}${d.note ? ` (${d.note})` : ''}` });
+      // Mudanças sem data não podem ser situadas num período: ficam só no histórico do remédio.
+      if (d.date == null || d.date < from || d.date > to) return;
+      out.push({ date: d.date, med: m, kind: i === 0 ? 'start' : 'dose', text: `${doseLabel(d)}${d.schedule ? ` — ${d.schedule}` : ''}${d.note ? ` (${d.note})` : ''}` });
     });
-    if (m.endDate && m.endDate >= from && m.endDate <= to) out.push({ date: m.endDate, med: m, kind: 'stop', text: m.stopReason ? STOP_REASON_LABELS[m.stopReason] : '' });
+    if (m.endDate && m.endDate >= from && m.endDate <= to) out.push({ date: m.endDate, med: m, kind: 'stop', text: stopText(m) });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -155,3 +197,21 @@ export function sinceSummary(data: AppData, from: string, to: string) {
 function localDay(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/** Motivo da interrupção + observações (o que existir), num texto só. */
+export function stopText(m: Pick<Medication, 'stopReason' | 'stopNote'>): string {
+  return [m.stopReason ? STOP_REASON_LABELS[m.stopReason] : '', (m.stopNote ?? '').trim()].filter(Boolean).join(' — ');
+}
+
+/**
+ * Acrescenta uma mudança de dose ao histórico. A primeira dose (a inicial) fica sempre em
+ * primeiro. Com data, entra antes da primeira mudança DATADA posterior a ela (ou no fim);
+ * sem data, entra no fim — é a dose informada agora. Mudanças sem data nunca são movidas:
+ * a posição delas no tempo é desconhecida, então fica a ordem em que foram registradas.
+ */
+export function insertDose(doses: Medication['doses'], added: Medication['doses'][number]): Medication['doses'] {
+  if (added.date == null) return [...doses, added];
+  const i = doses.findIndex((d, k) => k > 0 && d.date != null && d.date > added.date!);
+  return i < 0 ? [...doses, added] : [...doses.slice(0, i), added, ...doses.slice(i)];
+}
+

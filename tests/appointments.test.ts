@@ -65,12 +65,12 @@ describe('medicamentos', () => {
     expect(ch[1].text).toBe('Efeitos colaterais');
   });
   it('esquema: exige nome e pelo menos uma dose', () => {
-    expect(() => AppDataSchema.parse({ schemaVersion: 3, medications: [{ ...sert, doses: [] }] })).toThrow();
-    expect(() => AppDataSchema.parse({ schemaVersion: 3, medications: [{ ...sert, name: '' }] })).toThrow();
-    expect(AppDataSchema.parse({ schemaVersion: 3, medications: [sert], appointments: [A({ date: '2026-12-01' })] }).medications).toHaveLength(1);
+    expect(() => AppDataSchema.parse({ schemaVersion: 4, medications: [{ ...sert, doses: [] }] })).toThrow();
+    expect(() => AppDataSchema.parse({ schemaVersion: 4, medications: [{ ...sert, name: '' }] })).toThrow();
+    expect(AppDataSchema.parse({ schemaVersion: 4, medications: [sert], appointments: [A({ date: '2026-12-01' })] }).medications).toHaveLength(1);
   });
   it('resumo desde a última consulta conta mudanças de medicação', () => {
-    const d = AppDataSchema.parse({ schemaVersion: 3, medications: [sert] });
+    const d = AppDataSchema.parse({ schemaVersion: 4, medications: [sert] });
     expect(sinceSummary(d, '2026-10-01', '2026-11-20').medChanges).toBe(1);
   });
 });

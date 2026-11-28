@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { store, useData } from '../app/store';
 import { DEFAULT_ENERGY_LABELS, energyLabel, valenceLabel, VALENCE_VALUES } from '../domain/scales';
-import { ACTIVITY_SUGGESTIONS, CONTEXT_SUGGESTIONS } from '../domain/seed';
+import { ACTIVITY_SUGGESTIONS, CONTEXT_AREAS, CONTEXT_SUGGESTIONS } from '../domain/seed';
 import { cleanTag, fold, uniqTags } from '../domain/util';
 import { MoodSymbol, type SymbolSet } from './symbols';
 
@@ -248,6 +248,70 @@ export function TagInput({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Contexto do registro (áreas da vida e marcadores próprios)          */
+/* ------------------------------------------------------------------ */
+/**
+ * Contexto em um toque: áreas da vida + os marcadores que você mais usa, como chips
+ * de liga/desliga. "Outro" abre o campo para criar um marcador seu. Grava nos mesmos
+ * `tags` de sempre — o vocabulário que o Guia e a Trajetória já entendem.
+ */
+export function ContextPicker({ value, onChange }: { value: string[]; onChange: (t: string[]) => void }) {
+  const used = useAllTags();
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  const sel = new Set(value.map(fold));
+  const areas = new Set(CONTEXT_AREAS.map(fold));
+  const mine = used.filter((t) => !areas.has(fold(t))).slice(0, 6);
+  const chips = uniqTags([...CONTEXT_AREAS, ...mine, ...value]);
+  const toggle = (t: string) => onChange(sel.has(fold(t)) ? value.filter((x) => fold(x) !== fold(t)) : uniqTags([...value, t]));
+  const add = () => {
+    const c = cleanTag(draft);
+    if (c) onChange(uniqTags([...value, c]));
+    setDraft('');
+    setAdding(false);
+  };
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <div className="chips" role="group" aria-label="Contexto">
+        {chips.map((t) => (
+          <button key={fold(t)} className="chip" aria-pressed={sel.has(fold(t))} onClick={() => toggle(t)}>
+            {t}
+          </button>
+        ))}
+        {!adding && (
+          <button className="chip add" onClick={() => setAdding(true)}>
+            <Plus size={14} /> outro
+          </button>
+        )}
+      </div>
+      {adding && (
+        <div className="row" style={{ gap: 8 }}>
+          <input
+            className="input grow"
+            value={draft}
+            autoFocus
+            maxLength={60}
+            placeholder="Ex.: mudança de casa"
+            aria-label="Novo contexto"
+            enterKeyHint="done"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <button className="btn sm" disabled={!cleanTag(draft)} onClick={add}>
+            Adicionar
+          </button>
+        </div>
+      )}
     </div>
   );
 }

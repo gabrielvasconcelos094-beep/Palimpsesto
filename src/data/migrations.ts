@@ -79,6 +79,23 @@ export const MIGRATIONS: Record<number, Migration> = {
       preferences: prefs,
     };
   },
+  /**
+   * 3 → 4
+   * Medicamentos aceitam o que não se lembra (data aproximada ou desconhecida, dose
+   * desconhecida, fim sem data) e observações sobre a interrupção; o Mapa ganha uma
+   * marca de revisão do conteúdo nativo. Nada dos dados antigos muda: os campos novos
+   * entram vazios (os valores antigos já são válidos no formato novo).
+   */
+  3: (d) => ({
+    ...d,
+    schemaVersion: 4,
+    medications: (d.medications ?? []).map((m: any) => ({
+      ...m,
+      endUnknown: m.endUnknown ?? false,
+      stopNote: m.stopNote ?? '',
+      doses: (m.doses ?? []).map((x: any) => ({ ...x, doseUnknown: x.doseUnknown ?? false })),
+    })),
+  }),
 };
 
 export class NewerSchemaError extends Error {

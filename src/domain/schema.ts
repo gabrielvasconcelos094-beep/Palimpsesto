@@ -23,7 +23,7 @@
  */
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
  * Remove a assinatura de índice que `looseObject` acrescenta ao tipo, mantendo
@@ -436,25 +436,49 @@ export const AppointmentSchema = z.looseObject({
 });
 export type Appointment = Known<z.infer<typeof AppointmentSchema>>;
 
-export const STOP_REASONS = ['efeitos', 'sem_efeito', 'melhora', 'troca', 'custo', 'outro'] as const;
+/** 'nao_lembra' = a pessoa não se lembra do motivo (diferente de não ter informado: null). */
+export const STOP_REASONS = ['efeitos', 'sem_efeito', 'melhora', 'troca', 'custo', 'outro', 'nao_lembra'] as const;
 
-/** Um medicamento: doses ao longo do tempo e observações datadas. */
+/**
+ * Data que pode ser aproximada (esquema 4): dia exato (AAAA-MM-DD), só mês (AAAA-MM)
+ * ou só ano (AAAA). Nada é completado automaticamente: o que a pessoa não lembra
+ * não é inventado. A ordem alfabética continua cronológica entre os três formatos.
+ */
+export const FuzzyDate = z.string().regex(/^\d{4}(-\d{2}(-\d{2})?)?$/);
+
+/**
+ * Um medicamento: doses ao longo do tempo e observações datadas.
+ *
+ * Três estados distintos para o que falta (esquema 4):
+ * - não se aplica: `endDate: null` e `endUnknown: false` = ainda em uso;
+ * - não me lembro: `startDate: null`, `endUnknown: true`, `doses[i].doseUnknown`,
+ *   `doses[i].date: null`, `stopReason: 'nao_lembra'` — escolhas explícitas;
+ * - não informado: campos opcionais vazios (`stopReason: null`, `purpose: ''`…).
+ */
 export const MedicationSchema = z.looseObject({
   ...base,
   name: z.string().min(1).max(120),
   /** Para que foi indicado (nas suas palavras). */
   purpose: z.string().max(300).default(''),
   prescriber: z.string().max(120).default(''),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  /** null = em uso. */
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  /** null = a pessoa não se lembra de quando começou. */
+  startDate: FuzzyDate.nullable(),
+  /** null = em uso, ou parou sem lembrar quando (ver endUnknown). */
+  endDate: FuzzyDate.nullable().default(null),
+  /** Parou de tomar, mas não se lembra de quando. */
+  endUnknown: z.boolean().default(false),
   stopReason: z.enum(STOP_REASONS).nullable().default(null),
+  /** Observações sobre a interrupção, em texto livre (complementam o motivo). */
+  stopNote: z.string().max(2000).default(''),
   /** Histórico de dose: a primeira é a inicial; a última, a atual. */
   doses: z
     .array(
       z.looseObject({
-        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        /** null = data da mudança desconhecida. */
+        date: FuzzyDate.nullable(),
+        /** Vazia quando a dose não é lembrada (doseUnknown). */
         dose: z.string().max(80),
+        doseUnknown: z.boolean().default(false),
         schedule: z.string().max(160).default(''),
         note: z.string().max(1000).default(''),
       }),
@@ -519,6 +543,8 @@ export const PreferencesSchema = z.looseObject({
   weekStartsOn: z.union([z.literal(0), z.literal(1)]).default(1),
   /** Mostrar "camadas antigas" na tela inicial. */
   resurfacing: z.boolean().default(true),
+  /** "Para este momento" no Hoje: lembrar o que você já registrou que ajuda (1.13). */
+  supportSuggestions: z.boolean().default(true),
   /** Estilo visual, independente da paleta: minimalista (padrão) ou orgânico. */
   visualStyle: z.enum(['minimal', 'organic']).default('minimal'),
   /** Família de símbolos da escala de valência. */
@@ -535,6 +561,8 @@ export const PreferencesSchema = z.looseObject({
   showInsights: z.boolean().default(true),
   /** Observações sugeridas que o usuário ocultou (por id). */
   dismissedInsights: z.array(z.string().max(200)).max(500).default([]),
+  /** Revisão do conteúdo nativo do Mapa já aplicada a estes dados (ver seed.ts). */
+  seedRevision: z.number().int().min(0).default(0),
 });
 export type Preferences = Known<z.infer<typeof PreferencesSchema>>;
 
@@ -635,5 +663,7 @@ export const DeviceSettingsSchema = z.looseObject({
   lastBackupAt: iso.nullable().default(null),
   failedUnlocks: z.number().int().default(0),
   lockedUntil: z.number().default(0),
+  /** Registros cujas sugestões "Para este momento" foram dispensadas (só neste aparelho). */
+  dismissedSupport: z.array(z.string().max(120)).max(60).default([]),
 });
 export type DeviceSettings = Known<z.infer<typeof DeviceSettingsSchema>>;

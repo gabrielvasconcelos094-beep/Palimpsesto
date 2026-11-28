@@ -101,13 +101,15 @@ export function Journal() {
     const ate = route.query.get('ate');
     const valencia = route.query.get('valencia');
     const vq = valencia !== null && /^-?[0-2]$/.test(valencia) ? [Number(valencia)] : [];
-    if (de && ate) setF({ ...NO_FILTERS, period: 'custom', from: de, to: ate, valences: vq, type: vq.length ? 'mood' : 'all' });
+    const marcador = route.query.get('marcador');
+    const tq = marcador ? [marcador] : [];
+    if (de && ate) setF({ ...NO_FILTERS, period: 'custom', from: de, to: ate, valences: vq, tags: tq, type: vq.length || tq.length ? 'mood' : 'all' });
     const emocao = route.query.get('emocao');
     if (emocao) setF({ ...NO_FILTERS, emotions: [emocao] });
     const registro = route.query.get('registro');
     if (registro) setSheet({ open: true, id: registro, day: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route.query.get('registro'), route.query.get('emocao'), route.query.get('de'), route.query.get('ate'), route.query.get('valencia')]);
+  }, [route.query.get('registro'), route.query.get('emocao'), route.query.get('de'), route.query.get('ate'), route.query.get('valencia'), route.query.get('marcador')]);
 
   const active = activeCount(f);
   const items = useMemo(() => {

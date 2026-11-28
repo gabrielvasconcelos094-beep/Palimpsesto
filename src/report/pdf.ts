@@ -24,7 +24,7 @@ import { band, history, INSTRUMENT_DEFS, item9Positive, score } from '../domain/
 import { fmtHours, sleepSummary } from '../domain/sleep';
 import { DISTORTION_LABELS, SLEEP_FACTOR_LABELS, SLEEP_QUALITY, SLEEP_TROUBLE_LABELS } from '../domain/scales';
 import { INSTRUMENTS, type Appointment } from '../domain/schema';
-import { activeMeds, agendaFor, apptTitle, currentDose, lastGender, medChanges, REQUEST_LABELS, whoLabel } from '../domain/care';
+import { activeMeds, agendaFor, apptTitle, currentDose, doseLabel, lastGender, medChanges, pastMeds, REQUEST_LABELS, stopText, periodLabel, whoLabel } from '../domain/care';
 import { activityStats, dayPartStats, shareBy, weekdayHighlight, weekdayStats, WEEKDAYS_FULL } from '../domain/insights';
 import { dayKey as dayStr } from '../domain/util';
 import { changes, recordSeries, segments, timeTicks } from '../domain/series';
@@ -186,20 +186,31 @@ export function buildReport(
     const toD = dayStr(period.to);
     const act = activeMeds(data.medications, toD);
     const ch = medChanges(data.medications, fromD, toD);
-    if (act.length || ch.length) {
+    const past = pastMeds(data.medications, toD);
+    if (act.length || ch.length || past.length) {
       heading('Medicamentos');
       text('Registro pessoal, para conferência com quem prescreve.', { size: 8.5, color: soft });
       if (act.length) {
         sub(`Em uso em ${fmt(toD)}`);
         for (const m of act) {
           const d = currentDose(m);
-          text(`- ${m.name}: ${d.dose}${d.schedule ? ` (${d.schedule})` : ''} - desde ${fmt(m.startDate)}${m.purpose ? ` - para: ${m.purpose}` : ''}`, { size: 10, gap: 0.8 });
+          text(`- ${m.name}: ${doseLabel(d)}${d.schedule ? ` (${d.schedule})` : ''} - ${m.startDate && m.startDate.length === 10 ? `desde ${fmt(m.startDate)}` : periodLabel(m, toD)}${m.purpose ? ` - para: ${m.purpose}` : ''}`, { size: 10, gap: 0.8 });
         }
         y += 1.5;
       }
       if (ch.length) {
         sub('Mudanças no período');
         for (const c of ch) text(`${fmt(c.date)} - ${c.med.name}: ${c.kind === 'start' ? 'início' : c.kind === 'dose' ? 'nova dose' : 'suspenso'}${c.text ? ` - ${c.text}` : ''}`, { size: 9.5, gap: 0.6 });
+        y += 1.5;
+      }
+      if (past.length) {
+        // "O que já tomou e por que parou": o que não é lembrado aparece como desconhecido.
+        sub('Já tomou');
+        for (const m of past.slice(0, 20)) {
+          const doses = [...new Set(m.doses.map(doseLabel))].join(' -> ');
+          const why = stopText(m);
+          text(`- ${m.name}: ${doses} - ${periodLabel(m, toD)}${why ? ` - ${why}` : ''}`, { size: 9.5, gap: 0.6 });
+        }
         y += 1.5;
       }
       const notes = data.medications.flatMap((m) => m.notes.filter((n) => n.date >= fromD && n.date <= toD).map((n) => ({ ...n, med: m.name }))).sort((a, b) => a.date.localeCompare(b.date));

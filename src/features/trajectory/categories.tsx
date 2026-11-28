@@ -31,7 +31,7 @@ export const CATEGORIES = [
   { id: 'pensamentos', title: 'Pensamentos', question: 'O que passa pela cabeça nas experiências — e como você tem examinado isso?', icon: Brain },
   { id: 'evolucao', title: 'Evolução e comparação', question: 'Como as coisas mudaram ao longo do tempo?', icon: GitCompareArrows },
   { id: 'linha', title: 'Linha do tempo', question: 'O que estava acontecendo em cada período?', icon: Flag },
-  { id: 'contextos', title: 'Padrões por contexto', question: 'Que marcadores aparecem associados a quê?', icon: Layers3 },
+  { id: 'contextos', title: 'Contextos', question: 'Em que contextos você registra — e o que aparece junto?', icon: Layers3 },
   { id: 'calendario', title: 'Calendário emocional', question: 'Mês a mês, o ano dia a dia, semanas, estações e anos.', icon: CalendarDays },
   { id: 'regularidade', title: 'Regularidade dos registros', question: 'Quando você costuma registrar (só descritivo).', icon: Repeat2 },
 ] as const;

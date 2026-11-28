@@ -61,8 +61,8 @@ describe('migração 1 → 2', () => {
     expect(s.getState().recoveryNotice).toBeNull();
     expect(storage.map.get('pre-migration-v1.json')).toBe(original);
     const copies = await s.listSafetyCopies();
-    expect(copies[0].reason).toMatch(/v1 → v3/);
-    expect(JSON.parse(storage.map.get(KEY_DATA)!).schemaVersion).toBe(3);
+    expect(copies[0].reason).toMatch(/v1 → v4/);
+    expect(JSON.parse(storage.map.get(KEY_DATA)!).schemaVersion).toBe(4);
     expect(s.list('moodEntries')[0].note).toBe('antigo');
     // A cópia de segurança pode ser restaurada (passa de novo pela migração).
     s.remove('moodEntries', 'm1');

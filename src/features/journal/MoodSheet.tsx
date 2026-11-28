@@ -8,7 +8,7 @@ import type { IndicatorKey, MoodEntry } from '../../domain/schema';
 import { INDICATORS, SLEEP_QUALITY } from '../../domain/scales';
 import { composeAt, dayKey } from '../../domain/util';
 import { Field, AutoText, Sheet, fmtDate, useConfirm } from '../../ui/components';
-import { ActivityPicker, EmotionPicker, EnergyPicker, LevelPicker, TagInput, ValencePicker } from '../../ui/pickers';
+import { ActivityPicker, ContextPicker, EmotionPicker, EnergyPicker, LevelPicker, ValencePicker } from '../../ui/pickers';
 import { nowWhen, WhenPicker } from '../../ui/WhenPicker';
 import { nightLabel, sleepOf, SleepFields, type SleepValue } from '../../ui/SleepFields';
 
@@ -68,7 +68,7 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
     const ex = props.entryId ? store.get('moodEntries', props.entryId) : undefined;
     setDraft(ex ? { ...ex } : blank(props.initialValence ?? null, props.initialDay));
     setPicked(!!ex || props.initialValence != null);
-    setMore(!!ex && (!!ex.note || ex.tags.length > 0 || Object.keys(ex.indicators).length > 0));
+    setMore(!!ex && Object.keys(ex.indicators).length > 0);
     setSleepOpen(false);
     setPickerKey((k) => k + 1);
   }, [props.open, props.entryId, props.initialValence, props.initialDay]);
@@ -115,6 +115,13 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
               </Field>
             )}
 
+            <Field label="Contexto" optional help="O que você relaciona a este momento — uma ou mais áreas, ou um marcador seu. Não precisa ser a causa.">
+              <ContextPicker value={draft.tags} onChange={(tags) => set({ tags })} />
+            </Field>
+            <Field label="O que aconteceu?" optional>
+              <AutoText value={draft.note} onChange={(note) => set({ note })} placeholder="Ex.: fiquei frustrado com uma dificuldade no trabalho." minRows={2} />
+            </Field>
+
             <Field label="O que você fez ou estava fazendo?" optional help="Atividades ficam no seu repertório e alimentam a Trajetória.">
               <ActivityPicker value={draft.itemIds} onChange={(itemIds) => set({ itemIds })} />
             </Field>
@@ -146,12 +153,14 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
               </div>
             )}
 
-            <button className="btn ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(!more)} aria-expanded={more}>
-              <ChevronDown size={16} style={{ transform: more ? 'rotate(180deg)' : undefined, transition: 'transform .2s' }} />
-              {more ? 'Menos detalhes' : 'Contexto, anotação e mais'}
-            </button>
+            {prefs.enabledIndicators.length > 0 && (
+              <button className="btn ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setMore(!more)} aria-expanded={more}>
+                <ChevronDown size={16} style={{ transform: more ? 'rotate(180deg)' : undefined, transition: 'transform .2s' }} />
+                {more ? 'Ocultar indicadores' : 'Indicadores'}
+              </button>
+            )}
 
-            {more && (
+            {more && prefs.enabledIndicators.length > 0 && (
               <div className="stack lg">
                 {prefs.enabledIndicators.map((k: IndicatorKey) => (
                   <Field key={k} label={INDICATORS[k].label} optional>
@@ -168,12 +177,6 @@ export function MoodSheet(props: { open: boolean; onClose: () => void; initialVa
                     />
                   </Field>
                 ))}
-                <Field label="Contexto: o que estava acontecendo?" optional help="Marcadores ajudam a Trajetória a encontrar padrões.">
-                  <TagInput value={draft.tags} onChange={(tags) => set({ tags })} />
-                </Field>
-                <Field label="Anotação" optional>
-                  <AutoText value={draft.note} onChange={(note) => set({ note })} placeholder="Algo que queira lembrar…" minRows={2} />
-                </Field>
               </div>
             )}
           </>

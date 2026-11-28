@@ -144,6 +144,50 @@ export function tagFrequency(entries: Array<{ tags: string[] }>): Array<{ tag: s
   return [...map.values()].sort((a, b) => b.count - a.count);
 }
 
+export const CONTEXT_MIN_RECORDS = 3;
+
+export interface ContextRow {
+  tag: string;
+  records: number;
+  dates: number;
+  /** Avaliações −2…+2 (índices 0…4) nos registros com este contexto. */
+  valence: Counts5;
+  /** Emoções mais frequentes junto deste contexto (id, vezes, fração dos registros). */
+  emotions: Array<{ id: string; count: number; share: number }>;
+}
+
+/**
+ * Resumo DESCRITIVO dos contextos relatados: quantas vezes cada um aparece, com que
+ * avaliações e com quais emoções. Por registro (é o que a pessoa marcou), sem testes:
+ * serve para olhar, não para concluir. As diferenças entre contextos que resistem ao
+ * acaso ficam em findPatterns. A linha "sem contexto" permite comparar com o restante.
+ */
+export function contextSummary(entries: MoodEntry[], minRecords = CONTEXT_MIN_RECORDS): { rows: ContextRow[]; none: ContextRow; withContext: number } {
+  const build = (tag: string, list: MoodEntry[]): ContextRow => {
+    const valence = zero5();
+    const emo = new Map<string, number>();
+    for (const e of list) {
+      valence[e.valence + 2]++;
+      for (const id of new Set(e.emotionIds)) emo.set(id, (emo.get(id) ?? 0) + 1);
+    }
+    return {
+      tag,
+      records: list.length,
+      dates: new Set(list.map((e) => e.at.slice(0, 10))).size,
+      valence,
+      emotions: [...emo.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([id, count]) => ({ id, count, share: count / list.length })),
+    };
+  };
+  const rows = tagFrequency(entries)
+    .filter((t) => t.count >= minRecords)
+    .map(({ tag }) => build(tag, entries.filter((e) => e.tags.some((x) => fold(x) === fold(tag)))));
+  const none = entries.filter((e) => e.tags.length === 0);
+  return { rows, none: build('sem contexto marcado', none), withContext: entries.length - none.length };
+}
+
 /** Delta de Cliff: P(a > b) − P(a < b), entre −1 e 1. */
 export function cliffsDelta(a: number[], b: number[]): number {
   if (!a.length || !b.length) return 0;

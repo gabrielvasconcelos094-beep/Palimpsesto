@@ -6,7 +6,7 @@ import { PRESET_THEMES } from '../src/theme/presets';
 import { resolveTokens } from '../src/theme/resolve';
 import { AppDataSchema } from '../src/domain/schema';
 
-const prefs = (o: any = {}) => ({ ...AppDataSchema.parse({ schemaVersion: 3 }).preferences, ...o });
+const prefs = (o: any = {}) => ({ ...AppDataSchema.parse({ schemaVersion: 4 }).preferences, ...o });
 
 describe('nomenclatura: quem atende, não a área', () => {
   it('psiquiatra, psicóloga, psicólogo', () => {

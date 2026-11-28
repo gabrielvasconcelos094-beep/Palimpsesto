@@ -70,7 +70,7 @@ describe('o que atrapalhou o sono', () => {
 describe('esquema 1.9', () => {
   it('campos novos opcionais com padrão (dados antigos continuam válidos)', () => {
     const d = AppDataSchema.parse({
-      schemaVersion: 3,
+      schemaVersion: 4,
       experiences: [{ id: 'x', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', at: '2026-11-01T10:00:00' }],
       agenda: [{ id: 'a', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', text: 'x' }],
       sleepLogs: [{ id: 's', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', date: '2026-11-01' }],
@@ -82,7 +82,7 @@ describe('esquema 1.9', () => {
   });
   it('recusa crença fora de 0–100 e armadilha desconhecida', () => {
     const base = { id: 'x', createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-01T00:00:00Z', at: '2026-11-01T10:00:00' };
-    expect(() => AppDataSchema.parse({ schemaVersion: 3, experiences: [{ ...base, beliefBefore: 120 }] })).toThrow();
-    expect(() => AppDataSchema.parse({ schemaVersion: 3, experiences: [{ ...base, distortions: ['inventada'] }] })).toThrow();
+    expect(() => AppDataSchema.parse({ schemaVersion: 4, experiences: [{ ...base, beliefBefore: 120 }] })).toThrow();
+    expect(() => AppDataSchema.parse({ schemaVersion: 4, experiences: [{ ...base, distortions: ['inventada'] }] })).toThrow();
   });
 });

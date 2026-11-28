@@ -1,13 +1,61 @@
 import { useMemo } from 'react';
-import { findPatterns, PATTERN_MIN_ENTRIES } from '../../../domain/analytics';
-import { INDICATORS } from '../../../domain/scales';
+import { contextSummary, CONTEXT_MIN_RECORDS, findPatterns, PATTERN_MIN_ENTRIES } from '../../../domain/analytics';
+import { INDICATORS, valenceLabel } from '../../../domain/scales';
+import { navigate } from '../../../app/router';
+import { Section } from '../../../ui/components';
+import { StackRows } from '../charts';
+import { MOOD_COLORS } from '../Trajectory';
 import { useTrajectory } from '../useTrajectory';
-import { pct, Insufficient } from './shared';
+import { pct, Insufficient, Note } from './shared';
 
 /* ------------------------------------------------------------------------ */
-/* Padrões por contexto (associações já existentes)                          */
+/* Contextos: o que foi relatado (descritivo) e associações testadas          */
 /* ------------------------------------------------------------------------ */
 export function ContextsBody() {
+  const t = useTrajectory();
+  const prefs = t.data.preferences;
+  const emo = new Map(t.data.emotions.map((e) => [e.id, e.label]));
+  const sum = useMemo(() => contextSummary(t.entries), [t.entries]);
+  const vLabels = [-2, -1, 0, 1, 2].map((v) => valenceLabel(v, prefs.valenceLabels));
+  const row = (r: (typeof sum.rows)[number], dim = false) => ({
+    label: r.tag,
+    counts: [...r.valence],
+    note: `${r.records} reg. · ${r.dates} data(s)${r.emotions.length ? ` · ${r.emotions.map((e) => `${(emo.get(e.id) ?? '?').toLowerCase()} ${pct(e.share)}`).join(', ')}` : ''}`,
+    dim,
+  });
+  return (
+    <>
+      <Section title="O que você relatou" kicker="Contextos marcados nos registros de humor">
+        {sum.rows.length === 0 ? (
+          <div className="card dashed small muted">
+            Nenhum contexto marcado ao menos {CONTEXT_MIN_RECORDS} vezes neste recorte. Ao registrar o humor, você pode marcar o contexto (trabalho, família, sono…) — é opcional.
+          </div>
+        ) : (
+          <div className="card stack">
+            <StackRows colors={MOOD_COLORS} legend={vLabels} rows={[...sum.rows.slice(0, 12).map((r) => row(r)), ...(sum.none.records ? [row(sum.none, true)] : [])]} />
+            <div className="chips">
+              {sum.rows.slice(0, 12).map((r) => (
+                <button key={r.tag} className="chip tag" onClick={() => navigate(`/diario?de=${t.range.from}&ate=${t.range.to}&marcador=${encodeURIComponent(r.tag)}`)}>
+                  {r.tag}
+                </button>
+              ))}
+            </div>
+            <Note>
+              Por registro: cada barra mostra como foram avaliados os registros em que você marcou aquele contexto, e ao lado as emoções que mais apareceram junto (em % desses
+              registros). Um registro pode ter vários contextos. É o que você relatou — não mostra que o contexto causou o humor. Toque num contexto para ver os registros. {sum.withContext} de{' '}
+              {t.entries.length} registros têm contexto marcado.
+            </Note>
+          </div>
+        )}
+      </Section>
+      <Section title="Associações que resistem ao acaso" kicker="Comparação com e sem cada contexto">
+        <PatternsPart />
+      </Section>
+    </>
+  );
+}
+
+function PatternsPart() {
   const t = useTrajectory();
   const prefs = t.data.preferences;
   const res = useMemo(() => findPatterns(t.entries, { indicators: prefs.enabledIndicators }), [t.entries, prefs.enabledIndicators]);

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Feather, LifeBuoy, Mail, Search, Settings, Sparkles } from 'lucide-react';
+import { BookOpen, Compass, Feather, Heart, Leaf, LifeBuoy, Mail, Search, Settings, Sparkles } from 'lucide-react';
 import { timeLabel } from '../journal/Journal';
 import { navigate, useRoute } from '../../app/router';
 import { parseValence } from '../../app/widgetActions';
-import { store, useData } from '../../app/store';
+import { store, useData, useStoreState } from '../../app/store';
 import { pickResurface } from '../../domain/analytics';
 import { energyLabel, valenceLabel, VALENCE_VALUES } from '../../domain/scales';
 import { isUpcoming } from '../../domain/situations';
+import { dailyQuestion } from '../../domain/daily';
+import { supportFor, supportTarget, type SupportKind } from '../../domain/support';
 import { dayKey, fold, seededRandom } from '../../domain/util';
 import { fmtDate, Page, Section, WEEKDAYS, MONTHS } from '../../ui/components';
 import { MoodDot, ValenceMark } from '../../ui/pickers';
@@ -102,15 +104,7 @@ export function Today() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data.answers, data.experiences, data.discoveries, data.notes, todayKey, data.preferences.resurfacing],
   );
-  const question = useMemo(() => {
-    const answered = new Set(data.answers.filter((a) => a.text.trim()).map((a) => a.questionId));
-    const hiddenSections = new Set(data.sections.filter((s) => s.hidden).map((s) => s.id));
-    const open = data.questions.filter((q) => !q.hidden && !answered.has(q.id) && !hiddenSections.has(q.sectionId));
-    const favs = open.filter((q) => q.favorite);
-    const pool = favs.length ? favs : open;
-    if (!pool.length) return null;
-    return pool[Math.floor(seededRandom('q' + todayKey)() * pool.length)];
-  }, [data.questions, data.answers, data.sections, todayKey]);
+  const question = useMemo(() => dailyQuestion(data, todayKey), [data.questions, data.answers, data.sections, todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openLayer = () => {
     if (!layer) return;
@@ -189,6 +183,8 @@ export function Today() {
           </div>
         </Section>
       )}
+
+      {data.preferences.supportSuggestions && <SupportCard onOpenEntry={(id) => setSheet({ open: true, valence: null, id })} />}
 
       {lettersReady.length > 0 && (
         <Section kicker="Cartas para hoje">
@@ -343,3 +339,57 @@ function NextAppointmentRow({ today }: { today: string }) {
     </button>
   );
 }
+
+/**
+ * "Para este momento": depois de um registro difícil (≤ intermediário, nas últimas
+ * horas), o que você mesmo(a) já registrou no Guia para aquele contexto ou emoção.
+ * Possibilidades, não prescrições; cada uma leva ao registro de origem.
+ */
+function SupportCard({ onOpenEntry }: { onOpenEntry: (id: string) => void }) {
+  const data = useData();
+  const device = useStoreState().device;
+  const entry = supportTarget(data);
+  const list = useMemo(() => (entry ? supportFor(data, entry) : []), [data, entry]);
+  if (!entry || !list.length || device.dismissedSupport.includes(entry.id)) return null;
+  const emo = new Map(data.emotions.map((e) => [e.id, e.label.toLowerCase()]));
+  const about = [...entry.tags.map((t) => `“${t}”`), ...entry.emotionIds.map((id) => emo.get(id)).filter(Boolean)].slice(0, 3).join(', ');
+  return (
+    <Section kicker="Para este momento">
+      <div className="stack" style={{ gap: 10 }}>
+        <p className="small muted" style={{ margin: 0 }}>
+          Do que você mesmo(a) já registrou{about ? `, ligado a ${about}` : ''}. Pode valer tentar de novo — ou não, se hoje for diferente.
+        </p>
+        <div className="list">
+          {list.map((s) => (
+            <button key={s.key} className="list-row" style={{ alignItems: 'flex-start' }} onClick={() => navigate(s.href)}>
+              <span className="ico-tile" aria-hidden>
+                <SupportIcon kind={s.kind} />
+              </span>
+              <div className="grow">
+                <div className="title">{s.title}</div>
+                <div className="meta">{s.text}</div>
+                <div className="xs faint" style={{ marginTop: 2 }}>
+                  {s.why}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div className="row between">
+          <button className="btn ghost sm" style={{ paddingLeft: 0 }} onClick={() => onOpenEntry(entry.id)}>
+            Ver o registro das {entry.at.slice(11, 16)}
+          </button>
+          <button className="btn ghost sm" onClick={() => store.setDevice({ dismissedSupport: [...device.dismissedSupport, entry.id].slice(-50) })}>
+            Dispensar
+          </button>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function SupportIcon({ kind }: { kind: SupportKind }) {
+  const I = { item: Leaf, pattern: Leaf, emotion: Heart, situation: Compass, discovery: Sparkles, letter: Mail }[kind];
+  return <I size={18} strokeWidth={1.8} />;
+}
+

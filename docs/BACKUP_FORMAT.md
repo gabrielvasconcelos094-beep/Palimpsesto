@@ -56,7 +56,7 @@ essa verificação, mas continua validando o esquema.
 - `payload` decifrado é **exatamente** o arquivo simples da seção 1 (texto UTF-8).
 - Senha errada e arquivo adulterado produzem o mesmo erro (GCM não distingue os casos).
 
-## 3. Conteúdo de `data` (esquema 3)
+## 3. Conteúdo de `data` (esquema 4)
 
 Todas as entidades têm `id` (UUID), `createdAt` e `updatedAt` (ISO 8601, instantes em UTC:
 quando o registro foi escrito e alterado). Relações são feitas **por id**, nunca por texto.
@@ -92,7 +92,7 @@ Datas "de calendário" usam `YYYY-MM-DD`.
 | `events` | Acontecimentos da linha do tempo: `title`, `description`, `date`, `endDate` (opcional), `category` (`viagem`, `trabalho`, `relacoes`, `conflito`, `conquista`, `projeto`, `rotina`, `inicio`, `encerramento`, `saude`, `medicacao` (desde a 1.6), `outro`), `tags` | — |
 | `sleepLogs` | Sono (esquema 3): **no máximo uma noite por data**. `date` = manhã em que a noite terminou; `hours` (0–24 ou `null`), `quality` (1–5 ou `null`), `troubles` (`onset`, `awakenings`, `early`, `nightmares`), `factors` (o que pode ter atrapalhado, 1.9), `note` | — |
 | `appointments` | Consultas (1.8): `date`, `time`, `forWhom` (`psiquiatria`, `psicologia`, `outro`), `professionalGender` (`f`, `m` ou `null`; 1.10), `professional`, `place`, `status` (`scheduled`, `done`, `canceled`), `reminderMinutes` (ou `null`), `reminderShowsType`, antes: `sinceLast`, `questions`, `requests` (`receita`, `atestado`, `exames`, `relatorio`, `outro`); depois: `observations`, `agreements` | — |
-| `medications` | Medicamentos (1.8): `name`, `purpose`, `prescriber`, `startDate`, `endDate` (`null` = em uso), `stopReason` (`efeitos`, `sem_efeito`, `melhora`, `troca`, `custo`, `outro`), `doses` (histórico: `date`, `dose`, `schedule`, `note`; a última é a atual), `notes` (observações datadas) | — |
+| `medications` | Medicamentos (1.8; esquema 4): `name`, `purpose`, `prescriber`, `startDate` (data aproximada — `AAAA-MM-DD`, `AAAA-MM` ou `AAAA` — ou `null` = não se lembra), `endDate` (data aproximada; `null` = em uso, ou parou sem lembrar quando), `endUnknown` (`true` = parou, data desconhecida), `stopReason` (`efeitos`, `sem_efeito`, `melhora`, `troca`, `custo`, `outro`, `nao_lembra`; `null` = não informado), `stopNote` (observações sobre a interrupção), `doses` (histórico: `date` aproximada ou `null`, `dose`, `doseUnknown`, `schedule`, `note`; a primeira é a inicial, a última a atual), `notes` (observações datadas) | — |
 | `assessments` | Questionários respondidos (1.6): `instrument` (`phq9`, `gad7`), `date` (AAAA-MM-DD), `answers` (0–3 por item; 9 no PHQ-9, 7 no GAD-7), `difficulty` (0–3 ou `null`), `note` | — |
 | `agenda` | Assuntos para a consulta (1.6): `text`, `forWhom` (`psiquiatria`, `psicologia`, `ambos`, `outro`), `doneAt` (data em que foi conversado ou `null`), `outcome`, `appointmentId` (consulta em que foi conversado), `dates` (dias relacionados) | — |
 | `safetyPlans` | Plano de segurança (1.6; no máximo um): listas de texto `warningSigns`, `copingAlone`, `distractions`, `helpers`, `professionals`, `safeEnvironment`, `reasons` | — |
@@ -112,7 +112,10 @@ Etapas, todas **antes** de qualquer alteração nos dados atuais:
 5. Verificação do checksum.
 6. **Migração** de esquemas antigos para o atual (mesma cadeia usada no armazenamento local).
 7. Validação completa do esquema (tipos, limites, valores permitidos).
-8. Reparo de integridade: ids duplicados são unificados (fica o mais recente) e referências
+8. Revisão do conteúdo nativo do Mapa, se ainda não aplicada (`preferences.seedRevision`): novas
+   perguntas e fichas entram; reformulações e retiradas só afetam perguntas nativas sem resposta e
+   não editadas (as retiradas ficam ocultas, nunca apagadas).
+9. Reparo de integridade: ids duplicados são unificados (fica o mais recente) e referências
    para registros inexistentes são removidas (inclusive `agenda.appointmentId` de consulta
    apagada) — tudo informado no resumo. Na mesclagem, se os dois lados tiverem plano de
    segurança, eles viram um só (fica o alterado por último, com as linhas do outro que ele
@@ -152,6 +155,18 @@ atômica: se falhar, os dados anteriores permanecem.
   `"sleep"` sai de `enabledIndicators`.
 - Como em toda migração, o arquivo original e uma cópia de segurança são guardados antes.
 - Na importação e na mesclagem, duas noites na mesma data viram uma (fica a alterada por último).
+
+### Migração 3 → 4 (app 1.13.0) — medicamentos com o que não se lembra
+
+- Medicamentos ganham `endUnknown: false`, `stopNote: ""` e, em cada dose, `doseUnknown: false`.
+  Datas e doses antigas não mudam: o formato novo aceita os valores antigos como estão.
+- Três estados distintos, nunca preenchidos automaticamente: **não se aplica** (`endDate: null`
+  e `endUnknown: false` = em uso), **não me lembro** (`startDate: null`, `endUnknown: true`,
+  `doseUnknown: true`, `date: null` numa dose, `stopReason: "nao_lembra"`) e **não informado**
+  (`stopReason: null`, textos vazios).
+- `preferences.seedRevision` (0 nos dados antigos) marca a revisão do conteúdo nativo do Mapa já
+  aplicada; `preferences.supportSuggestions` (padrão `true`) liga "Para este momento" no início.
+- Uma versão anterior do app recusa o backup ("criado por uma versão mais nova"), sem alterar nada.
 
 ### Acréscimos da 1.6 (esquema 2)
 

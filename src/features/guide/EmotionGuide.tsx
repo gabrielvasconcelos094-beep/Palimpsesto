@@ -230,7 +230,7 @@ function Profile({ e }: { e: Emotion }) {
             <Field label="O que ela costuma me sinalizar?" optional help="Qual necessidade ou limite ela aponta, para você.">
               <AutoText value={e.signals} onChange={(signals) => patch({ signals })} placeholder="Ex.: que estou sem descanso há dias" minRows={2} />
             </Field>
-            <Field label="O que me ajuda quando ela aparece?" optional>
+            <Field label="O que me ajuda quando ela aparece?" optional help="Quando você registrar um momento difícil com esta emoção, o início pode lembrar o que você escreveu aqui.">
               <AutoText value={e.helps} onChange={(helps) => patch({ helps })} placeholder="Ex.: nomear o que sinto; caminhar; falar com a Lia" minRows={2} />
             </Field>
             <Field label="O que costuma piorar?" optional>

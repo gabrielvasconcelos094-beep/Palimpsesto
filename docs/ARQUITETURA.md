@@ -173,7 +173,7 @@ Regras da camada de dados:
 
 ## 6. Testes
 
-`npm run check` executa tipos, lint (oxlint) e os testes unitários (188 na versão 1.11). A
+`npm run check` executa tipos, lint (oxlint) e os testes unitários (208 na versão 1.13). A
 mesma verificação roda no GitHub Actions a cada envio (`.github/workflows/ci.yml`). Os
 testes unitários cobrem:
 - persistência, reinício, falha de escrita e nova tentativa, recuperação de arquivo corrompido,
@@ -190,7 +190,7 @@ testes unitários cobrem:
 
 Testes de interface (`e2e/*.mjs`, com o servidor de desenvolvimento em 5179): fluxos gerais,
 melhorias, gráfico em linha, widgets, estatísticas, acompanhamento, 1.9, consultas e lembretes,
-e Situações/Cartas/Descobertas/Repertório/cópias, e seleção visível (`selection.mjs`). `style-snapshot.mjs` compara medidas do
+e Situações/Cartas/Descobertas/Repertório/cópias, seleção visível (`selection.mjs`) e 1.13 (`v113.mjs`). `style-snapshot.mjs` compara medidas do
 estilo minimalista com `e2e/style-minimal-baseline.json`.
 
 ---
@@ -793,4 +793,54 @@ borda esmaecida indicando que rola; enfeite do cabeçalho orgânico sem os ponti
 pareciam aviso de notificação; texto repetido em "Dias e horários" quando os dois destaques
 caem no mesmo motivo aparece uma vez só. axe: 0 violações em 15 telas, dois estilos, claro e
 escuro.
+
+## 19. Versão 1.13 — medicamentos lembrados como são, contexto, Mapa ampliado e o Guia no início
+
+As cinco propostas foram tratadas juntas: o **contexto** do registro de humor (3) é o mesmo
+vocabulário de marcadores do Guia, e é por ele que o Guia volta no início (5).
+
+**1–2. Medicamentos (esquema 4).** `stopNote` (texto livre) complementa o motivo da interrupção,
+editável depois em "Editar dados, interrupção e datas" e incluído no histórico, nas mudanças do
+período e no PDF. Datas aceitam *dia exato*, *mês e ano*, *só o ano* ou *não me lembro*
+(`FuzzyDate`: `AAAA-MM-DD | AAAA-MM | AAAA`, ou `null`); a dose aceita *não me lembro*
+(`doseUnknown`); o fim distingue *ainda tomo* (não se aplica) de *parei, não sei quando*
+(`endUnknown`); o motivo ganhou *Não me lembro*, diferente de não informado. Nada é completado:
+trocar para uma precisão menor só corta o que foi digitado. Datas aproximadas comparam como
+texto (a ordem alfabética é cronológica); mudanças sem data ficam fora dos resumos por período.
+"Voltei a tomar" transforma o motivo e as observações da interrupção numa observação datada, em
+vez de apagá-los. O PDF da consulta ganhou "Já tomou" (o que, quando, por que parou).
+
+**3. Contexto do humor.** Avaliado o campo existente: os marcadores (`tags`) já eram "o que
+estava acontecendo", já alimentavam a análise de padrões e são o vocabulário do Guia, das
+situações, cartas e descobertas. Criar um campo paralelo duplicaria tudo isso; então o campo foi
+**reaproveitado** e ficou visível: áreas da vida em um toque (`CONTEXT_AREAS`) + os marcadores
+mais usados + "outro". A anotação existente virou "O que aconteceu?" (uma segunda caixa de texto
+seria redundante). Registros antigos não mudam. Na Trajetória, "Contextos" mostra primeiro o
+**resumo descritivo** (`contextSummary`: frequência, avaliações e emoções junto, por registro;
+linha "sem contexto" para comparar; toque abre o Diário filtrado) e depois as associações que
+passam nos testes. Nunca se afirma causa.
+
+**4. Mapa.** Ver PESQUISA.md §9. Os ids das perguntas nativas são posicionais, então o conteúdo
+novo só entra no fim de cada ficha; reformulações (`was`) e retiradas (`retired`) são aplicadas
+uma vez (`reviseBuiltIns`, marcada em `preferences.seedRevision`) e só a perguntas sem resposta e
+não editadas; retiradas ficam ocultas, não somem. Fichas novas usam `order` fracionário para
+ficar no lugar certo. A pergunta do dia (`domain/daily.ts`) passou a revezar as fichas.
+
+**5. "Para este momento" (`domain/support.ts`).** Disparo: o registro mais recente de hoje, nas
+últimas 12 h, avaliado como intermediário ou pior. Fontes, todas do próprio usuário, cada uma
+com o motivo e o link de origem: (a) itens do repertório — faz bem, estratégias, atividades —
+ligados pelo marcador, pelo histórico de uso naquele contexto ou por palavras do contexto nas
+circunstâncias descritas; (b) "O que me ajuda" de Minhas emoções, para as emoções do registro;
+(c) situações preparadas, (d) descobertas e (e) cartas legíveis com o mesmo marcador; (f) o que a
+pessoa fazia em registros agradáveis com o mesmo contexto (≥ 2 vezes, apresentado como
+coincidência). Sem nada específico e com registro desagradável, (g) estratégias avaliadas como
+eficazes em geral, dito assim. Não entram: itens que "desgastam", o que foi avaliado como "não
+ajudou/piorou" naquele contexto, e o que "costuma piorar" cada emoção. No máximo 3 sugestões e 2
+do mesmo tipo; "Dispensar" vale para aquele registro (neste aparelho); pode ser desligado em
+Ajustes → Indicadores. O texto é sempre de possibilidade ("pode valer tentar — ou não").
+
+**Não implementado (e por quê).** Sugestões a partir de palavras da anotação livre (muito
+ruído); notificações com sugestões (o app só notifica consultas, por escolha de privacidade);
+editar a ordem das perguntas do Mapa; aprendizado automático de quais sugestões são aceitas
+(exigiria registrar comportamento de uso — fora do espírito do app).
 
